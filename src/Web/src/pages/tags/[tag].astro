@@ -1,0 +1,58 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ArticleGrid from '../../components/ArticleGrid.astro';
+import NotFound from '../../components/NotFound.astro';
+import Pagination from '../../components/Pagination.astro';
+import { api, type ArticleSummary } from '../../lib/api/client';
+import { tagHref } from '../../lib/format';
+
+const PAGE_SIZE = 12;
+// Astro decodes params with decodeURI, which leaves reserved characters encoded ("C%23", "CI%2FCD"), so decode the
+// raw segment that tagHref built with encodeURIComponent.
+const tag = decodeURIComponent(Astro.url.pathname.split('/')[2] ?? '');
+const requestedPage = Number.parseInt(Astro.url.searchParams.get('page') ?? '1', 10);
+const pageNumber = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+const { data: result, response } = await api().GET('/api/articles', {
+  params: { query: { tag, page: pageNumber, pageSize: PAGE_SIZE } },
+});
+
+if (!result && response.status !== 400) {
+  throw new Error(`Articles API returned ${response.status} for tag ${tag}`);
+}
+
+// An invalid tag (400), an unknown tag or a page past the end are all "not found".
+const articles: ArticleSummary[] = result?.items ?? [];
+if (!articles.length) Astro.response.status = 404;
+
+const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
+const pageHref = (n: number) => (n === 1 ? tagHref(tag) : `${tagHref(tag)}?page=${n}`);
+---
+
+{
+  result && articles.length ? (
+    <Layout title={`Articles tagged “${tag}”`} description={`${result.total} articles about ${tag}.`}>
+      <header class="max-w-3xl">
+        <a href="/articles" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+          <span aria-hidden="true">←</span> All articles
+        </a>
+        <p class="mt-6 text-sm font-semibold tracking-wide text-indigo-600 uppercase">Topic</p>
+        <h1 class="mt-1 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{tag}</h1>
+        <p class="mt-4 text-lg text-slate-600">
+          {result.total} article{result.total === 1 ? '' : 's'}
+          {totalPages > 1 && <span class="text-slate-500"> · page {result.page} of {totalPages}</span>}
+        </p>
+      </header>
+
+      <div class="mt-10">
+        <ArticleGrid articles={articles} headingLevel="h2" />
+      </div>
+
+      <Pagination page={result.page} totalPages={totalPages} href={pageHref} />
+    </Layout>
+  ) : (
+    <Layout title="Page not found">
+      <NotFound />
+    </Layout>
+  )
+}

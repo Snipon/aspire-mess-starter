@@ -42,3 +42,18 @@ output "sql_server_fqdn" {
   description = "Azure SQL server hosting the umbraco database."
   value       = azurerm_mssql_server.this.fully_qualified_domain_name
 }
+
+output "aspire_dashboard_url" {
+  description = "Aspire dashboard of the Container Apps environment (needs Contributor on the environment, see aspire_dashboard_user_object_ids)."
+  value       = "https://${azapi_resource.aspire_dashboard.name}.ext.${azurerm_container_app_environment.this.default_domain}"
+}
+
+output "seq_url" {
+  description = "Seq UI (user admin; first-run password is the 'seq-admin-password' Key Vault secret)."
+  value       = local.seq_url
+}
+
+output "seq_retention" {
+  description = "Seq retention for infra/seq/alerts.sh (SEQ_RETENTION)."
+  value       = var.seq_retention
+}

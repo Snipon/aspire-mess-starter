@@ -14,6 +14,11 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.13"
     }
+    # Resources azurerm does not model yet (Container Apps Aspire dashboard component).
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.13"
+    }
   }
 
   # Configure a remote backend for shared use, e.g.:
@@ -33,5 +38,9 @@ provider "azurerm" {
     }
   }
 
+  subscription_id = var.subscription_id
+}
+
+provider "azapi" {
   subscription_id = var.subscription_id
 }

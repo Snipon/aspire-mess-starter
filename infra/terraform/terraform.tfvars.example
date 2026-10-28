@@ -6,6 +6,12 @@ image_tag           = "latest"
 umbraco_admin_email = "admin@example.com"
 sql_database_sku    = "S0"
 
+# Observability (see docs/deployment.md "Observability")
+alert_email_addresses            = ["ops@example.com"]
+aspire_dashboard_user_object_ids = [] # Entra user object IDs: az ad user show --id you@example.com --query id -o tsv
+# alert_webhook_url              = "https://..." # optional, receives the Azure Monitor common alert schema
+seq_retention = "30d"
+
 tags = {
   project = "aspire-test"
 }

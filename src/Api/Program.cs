@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Api.Content;
@@ -22,6 +23,18 @@ builder.Services.AddOpenApi("v1", options =>
     {
         document.Info.Title = "Content API";
         document.Info.Description = "Typed content and search API for the web front end. CMS and search engine are swappable adapters.";
+
+        // [JsonPolymorphic] types (Block) are emitted as anyOf + discriminator; exactly one subtype applies, so declare
+        // oneOf. Done on the finished document: in a schema transformer it breaks the generated subtype schema names.
+        foreach (var schema in document.Components?.Schemas?.Values.OfType<OpenApiSchema>() ?? [])
+        {
+            if (schema.Discriminator is not null && schema.AnyOf is { Count: > 0 })
+            {
+                schema.OneOf = schema.AnyOf;
+                schema.AnyOf = null;
+            }
+        }
+
         return Task.CompletedTask;
     });
 
@@ -33,6 +46,15 @@ builder.Services.AddOpenApi("v1", options =>
         {
             schema.AdditionalPropertiesAllowed = true;
             schema.AdditionalProperties = new OpenApiSchema();
+        }
+
+        // [JsonPolymorphic] subtypes (HeroBlock, ...) are emitted without "type": "object" and without the discriminator
+        // as required, although the serializer always writes it. Required, it lets clients switch on `type`.
+        if (context.JsonTypeInfo.Type.BaseType?.GetCustomAttribute<JsonPolymorphicAttribute>() is { TypeDiscriminatorPropertyName: { } discriminator })
+        {
+            schema.Type ??= JsonSchemaType.Object;
+            schema.Required ??= new HashSet<string>();
+            schema.Required.Add(discriminator);
         }
 
         return Task.CompletedTask;

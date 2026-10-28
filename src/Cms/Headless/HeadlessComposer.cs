@@ -27,7 +27,7 @@ public sealed class HeadlessComposer : IComposer
         builder
             .AddNotificationHandler<TemplateSavingNotification, BlockTemplatesHandler>()
             .AddNotificationHandler<ContentTypeSavingNotification, StripTemplatesHandler>()
-            .AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, SchemaBootstrap>()
+            .AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, ContentSeeder>()
             .AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, ContentWebhookRegistrar>();
     }
 }

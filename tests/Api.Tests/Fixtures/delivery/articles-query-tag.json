@@ -1,0 +1,130 @@
+{
+  "total": 11,
+  "items": [
+    {
+      "contentType": "article",
+      "name": "Deploying to Azure Container Apps with Terraform",
+      "createDate": "2026-10-28T22:07:20.663Z",
+      "updateDate": "2026-10-28T22:07:20.73Z",
+      "route": {
+        "path": "/articles/deploying-to-azure-container-apps-with-terraform/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "c64fcdee-9e9c-4b43-ad64-7a90c7c86334",
+      "properties": {
+        "title": "Deploying to Azure Container Apps with Terraform",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "4615dcc8-1feb-4fc2-bee3-1d95bb5e0533",
+            "name": "Placeholder 07",
+            "mediaType": "Image",
+            "url": "/media/i2lfh2ec/placeholder-07.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 36969,
+            "properties": {}
+          }
+        ],
+        "body": "Teams adopt Azure Container Apps for different reasons, but the goal is almost always the same: ship faster without losing control. Write down the trade-offs you accepted so they can be revisited later. Users rarely notice good engineering, but they always notice its absence. Feedback loops measured in seconds change how people work.\n\nThis article looks at Azure Container Apps from a practical angle. Documentation matters here, because the next person will not have your context. The trick is to start small and let real usage tell you where to invest next. Small, frequent changes are easier to review, test and roll back.\n\n## Making it repeatable\n\nEvery abstraction should earn its place by removing more complexity than it adds. The cost of a mistake is lowest when it is caught on a developer machine. The trick is to start small and let real usage tell you where to invest next. A good default removes a whole category of decisions from code review. Observability is not an afterthought; it is how you learn what the system really does.\n\n- Document the decision, not just the outcome\n- Start with the smallest useful version\n- Prefer explicit configuration over conventions nobody remembers\n- Automate the checks you would otherwise forget\n\nNaming things consistently pays off every time someone searches the codebase. Most of the complexity comes from edge cases, not from the happy path.\n\n## Why it matters\n\nObservability is not an afterthought; it is how you learn what the system really does. Every abstraction should earn its place by removing more complexity than it adds. A good default removes a whole category of decisions from code review. Security and usability are not opposites when the defaults are sensible. The cost of a mistake is lowest when it is caught on a developer machine.\n\n```csharp\nvar expected = Convert.FromBase64String(secret);\nvar actual = HMACSHA256.HashData(expected, payload);\nreturn CryptographicOperations.FixedTimeEquals(actual, signature);\n```\n\nSmall, frequent changes are easier to review, test and roll back. A good default removes a whole category of decisions from code review. When in doubt, prefer the boring solution that the whole team understands.\n\n## What to try next\n\nAutomation turns a fragile checklist into a repeatable step in the pipeline. Naming things consistently pays off every time someone searches the codebase. Users rarely notice good engineering, but they always notice its absence. Security and usability are not opposites when the defaults are sensible.\n\nObservability is not an afterthought; it is how you learn what the system really does. Automation turns a fragile checklist into a repeatable step in the pipeline.\n\n## Measuring the impact\n\nMeasure before and after every change, otherwise you are optimising by intuition. Observability is not an afterthought; it is how you learn what the system really does. Small, frequent changes are easier to review, test and roll back. Treat configuration as part of the product, with the same care as the code.\n\nThe cost of a mistake is lowest when it is caught on a developer machine. Documentation matters here, because the next person will not have your context.\n\n## Further reading\n\n- [Azure Container Apps overview](https://learn.microsoft.com/azure/container-apps/overview)\n- [GitHub Actions documentation](https://docs.github.com/actions)\n- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org)\n- [MDN CSS reference](https://developer.mozilla.org/docs/Web/CSS)\n",
+        "tags": [
+          "azure",
+          "devops",
+          "security",
+          "css"
+        ],
+        "publishDate": "2026-09-10T00:00:00"
+      },
+      "cultures": {}
+    },
+    {
+      "contentType": "article",
+      "name": "Designing Accessible Navigation Menus",
+      "createDate": "2026-10-28T22:07:21.76Z",
+      "updateDate": "2026-10-28T22:07:21.82Z",
+      "route": {
+        "path": "/articles/designing-accessible-navigation-menus/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "d58b64e5-5b6a-4dff-a939-7a8639096d5a",
+      "properties": {
+        "title": "Designing Accessible Navigation Menus",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "085ae3ef-246b-4386-b188-487844e48cd7",
+            "name": "Placeholder 02",
+            "mediaType": "Image",
+            "url": "/media/maubzpqc/placeholder-02.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 34035,
+            "properties": {}
+          }
+        ],
+        "body": "accessible navigation has moved from a niche practice to something most modern teams rely on every day. The trick is to start small and let real usage tell you where to invest next. Small, frequent changes are easier to review, test and roll back. Measure before and after every change, otherwise you are optimising by intuition.\n\nThis article looks at accessible navigation from a practical angle. Observability is not an afterthought; it is how you learn what the system really does. Write down the trade-offs you accepted so they can be revisited later. A good default removes a whole category of decisions from code review.\n\n## Why it matters\n\nObservability is not an afterthought; it is how you learn what the system really does. Naming things consistently pays off every time someone searches the codebase. When in doubt, prefer the boring solution that the whole team understands.\n\n- Share what you learn in a short write-up\n- Add telemetry before you need it\n- Review defaults with the whole team\n- Start with the smallest useful version\n- Document the decision, not just the outcome\n\nMake the right thing the easy thing, and most people will do it. Measure before and after every change, otherwise you are optimising by intuition.\n\n## Measuring the impact\n\nKeep the boundaries explicit so each part can evolve on its own schedule. Treat configuration as part of the product, with the same care as the code. Automation turns a fragile checklist into a repeatable step in the pipeline. Observability is not an afterthought; it is how you learn what the system really does. Feedback loops measured in seconds change how people work.\n\n```css\n.card {\n  container-type: inline-size;\n  padding: clamp(1rem, 3cqi, 2rem);\n  border-radius: var(--radius-lg);\n}\n```\n\nWhen in doubt, prefer the boring solution that the whole team understands. Small, frequent changes are easier to review, test and roll back. The cost of a mistake is lowest when it is caught on a developer machine. Treat configuration as part of the product, with the same care as the code.\n\n## A minimal setup\n\nThe cost of a mistake is lowest when it is caught on a developer machine. Measure before and after every change, otherwise you are optimising by intuition. Users rarely notice good engineering, but they always notice its absence. Naming things consistently pays off every time someone searches the codebase.\n\nTreat configuration as part of the product, with the same care as the code. The trick is to start small and let real usage tell you where to invest next. Naming things consistently pays off every time someone searches the codebase. Most of the complexity comes from edge cases, not from the happy path.\n\n## Further reading\n\n- [WCAG 2.2 quick reference](https://www.w3.org/WAI/WCAG22/quickref/)\n- [Astro documentation](https://docs.astro.build)\n- [MDN CSS reference](https://developer.mozilla.org/docs/Web/CSS)\n",
+        "tags": [
+          "accessibility",
+          "frontend",
+          "css"
+        ],
+        "publishDate": "2026-07-27T00:00:00"
+      },
+      "cultures": {}
+    },
+    {
+      "contentType": "article",
+      "name": "Building a Token-Based Design System",
+      "createDate": "2026-10-28T22:07:22.067Z",
+      "updateDate": "2026-10-28T22:07:22.123Z",
+      "route": {
+        "path": "/articles/building-a-token-based-design-system/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "89c56974-c1c8-4c65-8672-61bf9a3f8245",
+      "properties": {
+        "title": "Building a Token-Based Design System",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "1baea918-cccd-4274-bc45-24d623ab4606",
+            "name": "Placeholder 04",
+            "mediaType": "Image",
+            "url": "/media/s3rprlne/placeholder-04.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 34601,
+            "properties": {}
+          }
+        ],
+        "body": "Teams adopt design tokens for different reasons, but the goal is almost always the same: ship faster without losing control. A clear contract between systems is worth more than any clever implementation. Users rarely notice good engineering, but they always notice its absence. Keep the boundaries explicit so each part can evolve on its own schedule.\n\nThis article looks at design tokens from a practical angle. When in doubt, prefer the boring solution that the whole team understands. Feedback loops measured in seconds change how people work. A clear contract between systems is worth more than any clever implementation.\n\n## Measuring the impact\n\nAutomation turns a fragile checklist into a repeatable step in the pipeline. The cost of a mistake is lowest when it is caught on a developer machine. A clear contract between systems is worth more than any clever implementation.\n\n- Add telemetry before you need it\n- Test the failure paths, not only the success paths\n- Share what you learn in a short write-up\n- Budget time for clean-up after the first release\n\nMost of the complexity comes from edge cases, not from the happy path. Feedback loops measured in seconds change how people work.\n\n## The core idea\n\nMeasure before and after every change, otherwise you are optimising by intuition. Make the right thing the easy thing, and most people will do it. A good default removes a whole category of decisions from code review. Write down the trade-offs you accepted so they can be revisited later. Users rarely notice good engineering, but they always notice its absence.\n\n```yaml\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: dotnet test --configuration Release\n```\n\nWhen in doubt, prefer the boring solution that the whole team understands. A good default removes a whole category of decisions from code review.\n\n## Common pitfalls\n\nMeasure before and after every change, otherwise you are optimising by intuition. Naming things consistently pays off every time someone searches the codebase. A clear contract between systems is worth more than any clever implementation.\n\nA clear contract between systems is worth more than any clever implementation. Naming things consistently pays off every time someone searches the codebase. Make the right thing the easy thing, and most people will do it. Observability is not an afterthought; it is how you learn what the system really does.\n\n## Further reading\n\n- [Design Tokens Community Group](https://www.designtokens.org)\n- [MDN CSS reference](https://developer.mozilla.org/docs/Web/CSS)\n- [GitHub Actions documentation](https://docs.github.com/actions)\n- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org)\n",
+        "tags": [
+          "design-systems",
+          "css",
+          "devops",
+          "security"
+        ],
+        "publishDate": "2026-07-13T00:00:00"
+      },
+      "cultures": {}
+    }
+  ]
+}

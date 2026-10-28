@@ -7,7 +7,7 @@ public interface ISearchIndex
 {
     Task EnsureIndexAsync(CancellationToken ct);
 
-    Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, CancellationToken ct);
+    Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, string? tag, CancellationToken ct);
 
     Task UpsertAsync(IEnumerable<SearchDocument> documents, CancellationToken ct);
 

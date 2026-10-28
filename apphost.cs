@@ -2,6 +2,7 @@
 #:property AspireUseCliBundle=true
 #:package Aspire.Hosting.SqlServer@13.6.4
 #:package Aspire.Hosting.JavaScript@13.6.4
+#:package Aspire.Hosting.Seq@13.6.4
 #:package CommunityToolkit.Aspire.Hosting.Meilisearch@13.6.1
 #:project ./src/Cms/Cms.csproj
 #:project ./src/Api/Api.csproj
@@ -21,6 +22,8 @@ var deliveryApiKey = builder.AddParameter("delivery-api-key",
 var hmacSecret = builder.AddParameter("hmac-secret", new Base64SecretDefault(64), secret: true, persist: true);
 var webhookSecret = builder.AddParameter("webhook-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var reindexSecret = builder.AddParameter("reindex-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 
 // Infrastructure containers (persistent so data and startup time survive AppHost restarts).
 var sql = builder.AddSqlServer("sql")
@@ -32,10 +35,17 @@ var meilisearch = builder.AddMeilisearch("meilisearch")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume();
 
+// Log search (http://localhost:5341, no authentication locally). Apps get ConnectionStrings__seq and ship their
+// OpenTelemetry logs and traces to it in addition to the Aspire dashboard (ServiceDefaults AddSeqEndpoint).
+var seq = builder.AddSeq("seq", port: 5341)
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume();
+
 // Headless Umbraco CMS.
 var cms = builder.AddProject<Projects.Cms>("cms")
     .WithReference(db, "umbracoDbDSN")
     .WaitFor(db)
+    .WithReference(seq)
     .WithEnvironment("ConnectionStrings__umbracoDbDSN_ProviderName", "Microsoft.Data.SqlClient")
     .WithEnvironment("Umbraco__CMS__Unattended__InstallUnattended", "true")
     .WithEnvironment("Umbraco__CMS__Unattended__UnattendedUserName", "Admin")
@@ -52,6 +62,7 @@ var cms = builder.AddProject<Projects.Cms>("cms")
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(cms)
     .WithReference(meilisearch)
+    .WithReference(seq)
     .WaitFor(meilisearch) // not WaitFor(cms): the API retries its initial reindex until the CMS is ready
     .WithEnvironment("Providers__Content", "Umbraco")
     .WithEnvironment("Providers__Search", "Meilisearch")
@@ -60,6 +71,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithEnvironment("Umbraco__DeliveryApiKey", deliveryApiKey)
     .WithEnvironment("Umbraco__HmacSecretKey", hmacSecret)
     .WithEnvironment("Webhooks__Secret", webhookSecret)
+    .WithEnvironment("Search__ReindexSecret", reindexSecret)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
 
@@ -73,6 +85,7 @@ builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithHttpEndpoint(env: "PORT")
     .WithExternalHttpEndpoints()
     .WithEnvironment("API_URL", api.GetEndpoint("http"))
+    .WithReference(seq)
     .WaitFor(api);
 
 builder.Build().Run();

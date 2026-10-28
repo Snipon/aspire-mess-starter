@@ -1,0 +1,41 @@
+---
+import ResponsiveImage from './ResponsiveImage.astro';
+import TagList from './TagList.astro';
+import type { ArticleSummary } from '../lib/api/client';
+import { formatDate } from '../lib/format';
+
+interface Props {
+  article: ArticleSummary;
+  headingLevel?: 'h2' | 'h3';
+}
+
+const { article, headingLevel: Heading = 'h3' } = Astro.props;
+---
+
+<article
+  class="group relative flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-600 focus-within:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+>
+  <div class="aspect-[16/10] overflow-hidden bg-slate-100">
+    {
+      article.image && (
+        <ResponsiveImage
+          image={{ ...article.image, alt: null }}
+          sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
+          class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03] motion-reduce:transition-none"
+        />
+      )
+    }
+  </div>
+  <div class="flex flex-1 flex-col p-5">
+    <p class="text-sm text-slate-500">
+      <time datetime={article.publishDate}>{formatDate(article.publishDate)}</time>
+    </p>
+    <Heading class="mt-1.5 text-lg leading-snug font-semibold text-slate-900 text-balance">
+      <a href={article.path} class="after:absolute after:inset-0 focus-visible:outline-none group-hover:text-indigo-700">
+        {article.title}
+      </a>
+    </Heading>
+    {article.summary && <p class="mt-2 line-clamp-3 text-slate-600">{article.summary}</p>}
+    <TagList tags={article.tags} class="mt-auto pt-4" />
+  </div>
+</article>

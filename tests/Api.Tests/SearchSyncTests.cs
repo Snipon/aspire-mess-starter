@@ -1,9 +1,16 @@
+using System.Net;
 using System.Runtime.CompilerServices;
 using Api.Content;
 using Api.Contracts;
 using Api.Endpoints;
 using Api.Search;
 using Api.Search.Meilisearch;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Api.Tests;
@@ -41,6 +48,108 @@ public sealed class SearchSyncTests
     [InlineData("/about/team/jane", new[] { "/", "/about", "/about/team" })]
     public void Ancestors_of_path(string path, string[] expected) =>
         Assert.Equal(expected, MeilisearchSearchIndex.AncestorsOf(path));
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("css", true)]
+    [InlineData("design-systems", true)]
+    [InlineData("Design Systems", true)]
+    [InlineData("C#", true)]
+    [InlineData(".NET", true)]
+    [InlineData("CI/CD", true)]
+    [InlineData("a!", true)]
+    [InlineData("css,security", false)]
+    [InlineData("tab\tbed", false)]
+    [InlineData("!css", false)]
+    [InlineData("", false)]
+    [InlineData(" css", false)]
+    public void Tag_validation(string? tag, bool valid) =>
+        Assert.Equal(valid, RequestValidation.IsValidTag(tag));
+
+    [Fact]
+    public void Search_document_of_an_article_carries_tags_date_and_thumbnail()
+    {
+        var image = new Image("https://cms/media/a.jpg", null, 1600, 900, null,
+            [new ImageRendition(480, "https://cms/media/a.jpg?width=480&hmac=x"), new ImageRendition(960, "https://cms/media/a.jpg?width=960&hmac=y")]);
+        var page = new Page("1", "article", "/articles/a", "A", "A", "Excerpt", image, [],
+            new Article(new DateOnly(2026, 10, 28), ["css", "security"], "<h2>Intro</h2><p>Body &amp; more</p>", 3),
+            null, DateTimeOffset.UnixEpoch, []);
+
+        var doc = SearchDocument.FromPage(page);
+
+        Assert.Equal("Intro Body & more", doc.Body);
+        Assert.Equal(["css", "security"], doc.Tags);
+        Assert.Equal(new DateOnly(2026, 10, 28), doc.PublishDate);
+        Assert.Equal("https://cms/media/a.jpg?width=480&hmac=x", doc.ImageUrl);
+    }
+
+    [Fact]
+    public void Search_document_of_a_landing_page_indexes_block_text()
+    {
+        var hero = new Image("https://cms/media/h.jpg", null, null, null, null, []);
+        var page = new Page("1", "site", "/", "Home", "Home", null, null,
+            [
+                new HeroBlock("Welcome", "To the site", hero, null),
+                new LatestArticlesBlock("Latest", null, []),
+                new CtaBlock("Built with Aspire", "Read more", null, CtaStyle.Primary),
+            ],
+            null, null, DateTimeOffset.UnixEpoch, []);
+
+        var doc = SearchDocument.FromPage(page);
+
+        Assert.Equal("Welcome To the site Latest Built with Aspire Read more", doc.Body);
+        Assert.Empty(doc.Tags);
+        Assert.Null(doc.PublishDate);
+        Assert.Equal("https://cms/media/h.jpg", doc.ImageUrl);
+    }
+
+    [Theory]
+    [InlineData("X-Reindex-Secret", "reindex-secret", HttpStatusCode.OK)]
+    [InlineData("X-Reindex-Secret", "webhook-secret", HttpStatusCode.Unauthorized)]
+    [InlineData("X-Webhook-Secret", "webhook-secret", HttpStatusCode.Unauthorized)]
+    [InlineData("X-Reindex-Secret", "", HttpStatusCode.Unauthorized)]
+    public async Task Reindex_requires_its_own_secret(string header, string value, HttpStatusCode expected)
+    {
+        await using var app = await StartSearchApiAsync(reindexSecret: "reindex-secret");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/search/reindex");
+        request.Headers.Add(header, value);
+
+        using var response = await app.GetTestClient().SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reindex_is_refused_when_no_secret_is_configured()
+    {
+        await using var app = await StartSearchApiAsync(reindexSecret: null);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/search/reindex");
+        request.Headers.Add(SharedSecret.ReindexHeader, "");
+
+        using var response = await app.GetTestClient().SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private static async Task<WebApplication> StartSearchApiAsync(string? reindexSecret)
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
+        builder.WebHost.UseTestServer();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Webhooks:Secret"] = "webhook-secret",
+            ["Search:ReindexSecret"] = reindexSecret,
+        });
+        var content = new FakeContent();
+        content.Add("1", "/");
+        builder.Services.AddSingleton<IContentSource>(content);
+        builder.Services.AddSingleton<ISearchIndex, FakeIndex>();
+        builder.Services.AddTransient<SearchIndexer>();
+        var app = builder.Build();
+        app.MapSearchEndpoints();
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        return app;
+    }
 
     [Fact]
     public async Task Reindex_never_resets_and_replaces_atomically()
@@ -115,7 +224,7 @@ public sealed class SearchSyncTests
     }
 
     private static SearchDocument Doc(string id, string path) =>
-        new(id, path, id, null, string.Empty, "page", null, DateTimeOffset.UnixEpoch);
+        new(id, path, id, null, string.Empty, "page", null, DateTimeOffset.UnixEpoch, [], null, null);
 
     private sealed class FakeContent : IContentSource
     {
@@ -124,7 +233,7 @@ public sealed class SearchSyncTests
         public List<string> Fetched { get; } = [];
 
         public void Add(string id, string path) =>
-            _pages[id] = new Page(id, "page", path, id, id, null, null, null, null, DateTimeOffset.UnixEpoch, []);
+            _pages[id] = new Page(id, "page", path, id, id, null, null, [], null, null, DateTimeOffset.UnixEpoch, []);
 
         public Task<Page?> GetByIdAsync(string id, string? culture, CancellationToken ct)
         {
@@ -135,6 +244,11 @@ public sealed class SearchSyncTests
         public Task<Page?> GetByPathAsync(string path, string? culture, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<NavItem[]> GetNavigationAsync(string? culture, CancellationToken ct) => throw new NotSupportedException();
+
+        public Task<Paged<ArticleSummary>> GetArticlesAsync(string? tag, int page, int pageSize, string? culture, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<TagCount[]> GetTagsAsync(string? culture, CancellationToken ct) => throw new NotSupportedException();
 
         public async IAsyncEnumerable<SearchDocument> GetAllForIndexingAsync([EnumeratorCancellation] CancellationToken ct)
         {
@@ -158,7 +272,7 @@ public sealed class SearchSyncTests
 
         public Task EnsureIndexAsync(CancellationToken ct) => Task.CompletedTask;
 
-        public Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, CancellationToken ct) =>
+        public Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, string? tag, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task UpsertAsync(IEnumerable<SearchDocument> documents, CancellationToken ct)

@@ -9,8 +9,6 @@ namespace Api.Endpoints;
 
 public static partial class SearchEndpoints
 {
-    private const int MaxPageSize = 50;
-
     public static IEndpointRouteBuilder MapSearchEndpoints(this IEndpointRouteBuilder app)
     {
         var search = app.MapGroup("/api/search").WithTags("Search");
@@ -18,13 +16,14 @@ public static partial class SearchEndpoints
         search.MapGet("/", Search)
             .WithName("Search")
             .WithSummary("Full-text search")
-            .WithDescription("An empty `q` returns no hits. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.");
+            .WithDescription("Searches pages and articles. An empty `q` returns no hits. `tag` and `contentType` narrow the results. " +
+                "`highlight` is HTML-escaped text with matches wrapped in `<mark>`.");
 
         search.MapPost("/reindex", Reindex)
             .WithName("Reindex")
             .WithSummary("Rebuild the search index from the content source")
             .WithDescription($"Builds a fresh index and swaps it in atomically; search keeps serving the previous contents " +
-                $"until the rebuild has succeeded. Requires the `{WebhookSecret.HeaderName}` header.")
+                $"until the rebuild has succeeded. Requires the `{SharedSecret.ReindexHeader}` header (`Search:ReindexSecret`).")
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         app.MapPost("/api/webhooks/content", ContentWebhook)
@@ -36,7 +35,7 @@ public static partial class SearchEndpoints
                 $"for move and moved-to-recycle-bin). Each item is re-read from the content source and upserted if published, " +
                 $"otherwise removed; when its path changed or it disappeared, the documents indexed below its old path are " +
                 $"re-read as well. " +
-                $"Requires the `{WebhookSecret.HeaderName}` header.")
+                $"Requires the `{SharedSecret.WebhookHeader}` header.")
             .Accepts<ContentWebhookPayload>("application/json")
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
@@ -44,11 +43,16 @@ public static partial class SearchEndpoints
     }
 
     private static async Task<Results<Ok<SearchResult>, BadRequest<ProblemDetails>>> Search(
-        ISearchIndex index, string? q, string? contentType, CancellationToken ct, int page = 1, int pageSize = 10)
+        ISearchIndex index, string? q, string? contentType, string? tag, CancellationToken ct, int page = 1, int pageSize = 10)
     {
-        if (page < 1 || pageSize is < 1 or > MaxPageSize)
+        if (!RequestValidation.IsValidPaging(page, pageSize))
         {
-            return TypedResults.BadRequest(Problems.BadRequest($"'page' must be >= 1 and 'pageSize' between 1 and {MaxPageSize}."));
+            return TypedResults.BadRequest(Problems.BadRequest(RequestValidation.PagingError));
+        }
+
+        if (!RequestValidation.IsValidTag(tag))
+        {
+            return TypedResults.BadRequest(Problems.BadRequest(RequestValidation.TagError));
         }
 
         if (contentType is not null && !ContentTypeAlias().IsMatch(contentType))
@@ -61,13 +65,13 @@ public static partial class SearchEndpoints
             return TypedResults.Ok(new SearchResult(q ?? string.Empty, page, pageSize, 0, []));
         }
 
-        return TypedResults.Ok(await index.SearchAsync(q.Trim(), page, pageSize, contentType, ct));
+        return TypedResults.Ok(await index.SearchAsync(q.Trim(), page, pageSize, contentType, tag, ct));
     }
 
     private static async Task<Results<Ok<ReindexResult>, UnauthorizedHttpResult>> Reindex(
-        [FromHeader(Name = WebhookSecret.HeaderName)] string? secret, IConfiguration configuration, SearchIndexer indexer, CancellationToken ct)
+        [FromHeader(Name = SharedSecret.ReindexHeader)] string? secret, IConfiguration configuration, SearchIndexer indexer, CancellationToken ct)
     {
-        if (!WebhookSecret.IsValid(secret, configuration))
+        if (!SharedSecret.IsValid(secret, configuration["Search:ReindexSecret"]))
         {
             return TypedResults.Unauthorized();
         }
@@ -76,10 +80,10 @@ public static partial class SearchEndpoints
     }
 
     private static async Task<Results<Ok<ContentSyncResult[]>, UnauthorizedHttpResult, BadRequest<ProblemDetails>>> ContentWebhook(
-        [FromHeader(Name = WebhookSecret.HeaderName)] string? secret, IConfiguration configuration, SearchIndexer indexer, HttpRequest request,
+        [FromHeader(Name = SharedSecret.WebhookHeader)] string? secret, IConfiguration configuration, SearchIndexer indexer, HttpRequest request,
         CancellationToken ct)
     {
-        if (!WebhookSecret.IsValid(secret, configuration))
+        if (!SharedSecret.IsValid(secret, configuration["Webhooks:Secret"]))
         {
             return TypedResults.Unauthorized();
         }

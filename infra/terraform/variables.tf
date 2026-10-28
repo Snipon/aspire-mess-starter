@@ -62,3 +62,59 @@ variable "log_retention_days" {
   type        = number
   default     = 30
 }
+
+# --- observability -------------------------------------------------------------------------------
+
+variable "aspire_dashboard_user_object_ids" {
+  description = "Entra ID object IDs of users who get Contributor on the Container Apps environment to open the Aspire dashboard. Must be users: the dashboard does not honour group-based role assignments."
+  type        = list(string)
+  default     = []
+}
+
+variable "alert_email_addresses" {
+  description = "E-mail addresses notified by the Azure Monitor action group (availability, Container Apps and SQL alerts)."
+  type        = list(string)
+  default     = []
+}
+
+variable "alert_webhook_url" {
+  description = "Optional webhook (e.g. a Teams/Slack workflow or Logic App) that receives Azure Monitor alerts in the common alert schema."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "availability_test_locations" {
+  description = "Application Insights availability test locations (at least 5 recommended). The alert fires when all but two fail."
+  type        = list(string)
+  default     = ["emea-nl-ams-azr", "emea-gb-db3-azr", "emea-fr-pra-edge", "emea-ru-msa-edge", "us-va-ash-azr"]
+
+  validation {
+    condition     = length(var.availability_test_locations) >= 3
+    error_message = "Use at least 3 availability test locations."
+  }
+}
+
+variable "http_5xx_alert_threshold" {
+  description = "Number of 5xx responses per app within 5 minutes that raises an alert."
+  type        = number
+  default     = 10
+}
+
+variable "seq_image" {
+  description = "Seq container image. Keep in step with the version used by the Aspire AppHost (Aspire.Hosting.Seq)."
+  type        = string
+  default     = "docker.io/datalust/seq:2025.2"
+}
+
+variable "seq_storage_quota_gb" {
+  description = "Size of the Premium Azure Files share holding Seq's data (Premium shares start at 100 GiB)."
+  type        = number
+  default     = 100
+}
+
+variable "seq_retention" {
+  description = "How long Seq keeps events (e.g. 30d). Applied by infra/seq/alerts.sh (SEQ_RETENTION), which reads this output."
+  type        = string
+  default     = "30d"
+}

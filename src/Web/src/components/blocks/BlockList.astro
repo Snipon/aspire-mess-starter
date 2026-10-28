@@ -1,0 +1,27 @@
+---
+import Cta from './Cta.astro';
+import Hero from './Hero.astro';
+import LatestArticles from './LatestArticles.astro';
+import type { Block } from '../../lib/api/client';
+
+interface Props {
+  blocks: Block[];
+}
+
+const { blocks } = Astro.props;
+---
+
+<div class="space-y-14 sm:space-y-20">
+  {
+    blocks.map((block, index) => {
+      switch (block.type) {
+        case 'hero':
+          return <Hero block={block} first={index === 0} />;
+        case 'cta':
+          return <Cta block={block} />;
+        case 'latestArticles':
+          return <LatestArticles block={block} />;
+      }
+    })
+  }
+</div>

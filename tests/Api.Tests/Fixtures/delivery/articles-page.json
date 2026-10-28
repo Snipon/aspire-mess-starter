@@ -1,0 +1,65 @@
+{
+  "contentType": "page",
+  "createDate": "2026-10-28T22:07:19.397Z",
+  "updateDate": "2026-10-28T22:07:19.463Z",
+  "route": {
+    "path": "/articles/",
+    "queryString": null,
+    "startItem": {
+      "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+      "path": "home"
+    }
+  },
+  "id": "934f76aa-f86b-448d-8627-247a7289ddf3",
+  "name": "Articles",
+  "properties": {
+    "title": "Articles",
+    "blocks": {
+      "items": [
+        {
+          "content": {
+            "contentType": "heroBlock",
+            "id": "3ca16c15-a5f8-4e85-b1ef-d155a83b49f3",
+            "name": "n/a",
+            "properties": {
+              "heading": "Articles",
+              "subheading": "Everything we have written, newest first.",
+              "image": [
+                {
+                  "focalPoint": null,
+                  "crops": [],
+                  "id": "085ae3ef-246b-4386-b188-487844e48cd7",
+                  "name": "Placeholder 02",
+                  "mediaType": "Image",
+                  "url": "/media/maubzpqc/placeholder-02.jpg",
+                  "extension": "jpg",
+                  "width": 1600,
+                  "height": 900,
+                  "bytes": 34035,
+                  "properties": {}
+                }
+              ],
+              "ctaLabel": null,
+              "ctaLink": null
+            }
+          },
+          "settings": null
+        },
+        {
+          "content": {
+            "contentType": "latestArticlesBlock",
+            "id": "6d8f9c64-4a8d-4e2a-9db6-6c1241ea62cd",
+            "name": "n/a",
+            "properties": {
+              "heading": "Recently published",
+              "count": 12,
+              "tag": null
+            }
+          },
+          "settings": null
+        }
+      ]
+    }
+  },
+  "cultures": {}
+}

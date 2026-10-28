@@ -34,7 +34,7 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
     public async Task<NavItem[]> GetNavigationAsync(string? culture, CancellationToken ct)
     {
         var nodes = new List<NavNode>();
-        await foreach (var item in QueryAllAsync(culture, ct))
+        await foreach (var item in QueryAllAsync($"filter=contentType:!{DeliveryApiMapper.ArticleType}", culture, ct))
         {
             nodes.Add(new NavNode(item.GetProperty("id").GetString()!, item.GetProperty("name").GetString() ?? string.Empty,
                 DeliveryApiMapper.GetPath(item)));
@@ -65,11 +65,47 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
 
     public async IAsyncEnumerable<SearchDocument> GetAllForIndexingAsync([EnumeratorCancellation] CancellationToken ct)
     {
-        await foreach (var item in QueryAllAsync(culture: null, ct))
+        // latestArticles blocks are left unresolved: their articles are indexed in their own right.
+        await foreach (var item in QueryAllAsync(filter: null, culture: null, ct))
         {
-            yield return SearchDocument.FromPage(mapper.ToPage(item, culture: null));
+            yield return SearchDocument.FromPage(await mapper.ToPageAsync(item, culture: null, latestArticles: null, ct));
         }
     }
+
+    public async Task<Paged<ArticleSummary>> GetArticlesAsync(string? tag, int page, int pageSize, string? culture, CancellationToken ct)
+    {
+        using var request = CreateRequest(
+            $"{ContentApi}?{ArticlesFilter(tag)}&sort=publishDate:desc&skip={(page - 1) * pageSize}&take={pageSize}", culture);
+        using var response = await http.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+
+        var items = json.RootElement.GetProperty("items").EnumerateArray().Select(mapper.ToArticleSummary).ToArray();
+        return new Paged<ArticleSummary>(page, pageSize, json.RootElement.GetProperty("total").GetInt32(), items);
+    }
+
+    public async Task<TagCount[]> GetTagsAsync(string? culture, CancellationToken ct)
+    {
+        // The Delivery API has no tag listing, so count over all articles (fetching only their tags property).
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        await foreach (var item in QueryAllAsync($"{ArticlesFilter(tag: null)}&fields=properties[tags]", culture, ct))
+        {
+            foreach (var tag in DeliveryApiMapper.GetTags(item).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                counts[tag] = counts.GetValueOrDefault(tag) + 1;
+            }
+        }
+
+        return counts
+            .OrderByDescending(c => c.Value)
+            .ThenBy(c => c.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(c => new TagCount(c.Key, c.Value))
+            .ToArray();
+    }
+
+    // tag: is a CMS query extension (src/Cms/Headless/ArticleQueryHandlers.cs); ',' would mean "any of".
+    private static string ArticlesFilter(string? tag) =>
+        $"filter=contentType:{DeliveryApiMapper.ArticleType}" + (tag is null ? null : $"&filter=tag:{Uri.EscapeDataString(tag)}");
 
     private async Task<Page?> GetItemAsync(string uri, string? culture, CancellationToken ct)
     {
@@ -82,15 +118,22 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
 
         response.EnsureSuccessStatusCode();
         using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        return mapper.ToPage(json.RootElement, culture);
+        return await mapper.ToPageAsync(json.RootElement, culture, LatestArticlesAsync, ct);
+
+        async Task<ArticleSummary[]> LatestArticlesAsync(string? tag, int count, CancellationToken token) =>
+            (await GetArticlesAsync(tag, page: 1, pageSize: count, culture, token)).Items;
     }
 
-    /// <summary>Pages through all published content (no <c>fetch</c> selector returns everything), in sort order.</summary>
-    private async IAsyncEnumerable<JsonElement> QueryAllAsync(string? culture, [EnumeratorCancellation] CancellationToken ct)
+    /// <summary>
+    /// Pages through all published content matching <paramref name="filter"/> (no <c>fetch</c> selector returns
+    /// everything), in sort order.
+    /// </summary>
+    private async IAsyncEnumerable<JsonElement> QueryAllAsync(string? filter, string? culture, [EnumeratorCancellation] CancellationToken ct)
     {
+        var prefix = filter is null ? null : filter + "&";
         for (var skip = 0; ; skip += PageSize)
         {
-            using var request = CreateRequest($"{ContentApi}?sort=sortOrder:asc&skip={skip}&take={PageSize}", culture);
+            using var request = CreateRequest($"{ContentApi}?{prefix}sort=sortOrder:asc&skip={skip}&take={PageSize}", culture);
             using var response = await http.SendAsync(request, ct);
             response.EnsureSuccessStatusCode();
             using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);

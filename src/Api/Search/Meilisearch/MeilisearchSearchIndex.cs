@@ -31,14 +31,25 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
 
         var settings = await client.Index(uid).UpdateSettingsAsync(new Settings
         {
-            SearchableAttributes = ["title", "summary", "body"],
-            FilterableAttributes = ["contentType", "culture", "ancestorPaths"],
+            SearchableAttributes = ["title", "summary", "tags", "body"],
+            FilterableAttributes = ["contentType", "culture", "tags", "ancestorPaths"],
         }, ct);
         await WaitAsync(settings.TaskUid, ct);
     }
 
-    public async Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, CancellationToken ct)
+    public async Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, string? tag, CancellationToken ct)
     {
+        var filters = new List<string>();
+        if (contentType is not null)
+        {
+            filters.Add($"contentType = {Quote(contentType)}");
+        }
+
+        if (tag is not null)
+        {
+            filters.Add($"tags = {Quote(tag)}");
+        }
+
         ISearchable<Hit> result;
         try
         {
@@ -46,7 +57,7 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
             {
                 Page = page,
                 HitsPerPage = pageSize,
-                Filter = contentType is null ? null : $"contentType = \"{contentType}\"",
+                Filter = filters.Count == 0 ? null : string.Join(" AND ", filters),
                 AttributesToHighlight = ["title", "summary", "body"],
                 AttributesToCrop = ["body"],
                 CropLength = 24,
@@ -62,7 +73,7 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
 
         var paginated = (PaginatedSearchResult<Hit>)result;
         var hits = paginated.Hits.Select(h => new SearchHit(
-            h.Id, h.Path, h.Title, h.Summary, h.ContentType, Highlight(h.Formatted))).ToArray();
+            h.Id, h.Path, h.Title, h.Summary, h.ContentType, Highlight(h.Formatted), h.Tags ?? [], h.PublishDate, h.ImageUrl)).ToArray();
         return new SearchResult(query, page, pageSize, paginated.TotalHits, hits);
     }
 
@@ -159,7 +170,6 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
     public async Task<IReadOnlyList<string>> GetIdsBelowPathAsync(string path, CancellationToken ct)
     {
         const int pageSize = 1000;
-        var escaped = path.Replace("\\", "\\\\").Replace("\"", "\\\"");
         var ids = new List<string>();
         try
         {
@@ -167,7 +177,7 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
             {
                 var page = await Index.GetDocumentsAsync<PathOnly>(new DocumentsQuery
                 {
-                    Filter = $"ancestorPaths = \"{escaped}\"",
+                    Filter = $"ancestorPaths = {Quote(path)}",
                     Fields = ["id", "path"],
                     Limit = pageSize,
                     Offset = offset,
@@ -194,6 +204,9 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
         return added;
     }
 
+    /// <summary>A filter string literal.</summary>
+    private static string Quote(string value) => $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
+
     private async Task WaitAsync(int taskUid, CancellationToken ct)
     {
         var task = await client.WaitForTaskAsync(taskUid, cancellationToken: ct);
@@ -219,11 +232,11 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
     /// descendants of a renamed, moved or unpublished page can be found with one filter.</param>
     private sealed record IndexedDocument(
         string Id, string Path, string Title, string? Summary, string Body, string ContentType, string? Culture, long UpdatedAt,
-        string[] AncestorPaths)
+        string[] Tags, DateOnly? PublishDate, string? ImageUrl, string[] AncestorPaths)
     {
         public static IndexedDocument From(SearchDocument d) => new(
             d.Id, d.Path, d.Title, d.Summary, d.Body, d.ContentType, d.Culture, d.UpdatedAt.ToUnixTimeSeconds(),
-            AncestorsOf(d.Path));
+            d.Tags, d.PublishDate, d.ImageUrl, AncestorsOf(d.Path));
     }
 
     private sealed record PathOnly(string Id, string Path);
@@ -240,7 +253,9 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
         return ancestors;
     }
 
-    private sealed record Hit(string Id, string Path, string Title, string? Summary, string ContentType)
+    // Tags is nullable: documents indexed before tags existed lack the field until the next reindex.
+    private sealed record Hit(
+        string Id, string Path, string Title, string? Summary, string ContentType, string[]? Tags, DateOnly? PublishDate, string? ImageUrl)
     {
         [JsonPropertyName("_formatted")]
         public Formatted? Formatted { get; init; }

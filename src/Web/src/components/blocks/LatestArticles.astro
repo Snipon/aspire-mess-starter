@@ -1,0 +1,36 @@
+---
+import ArticleGrid from '../ArticleGrid.astro';
+import type { Block } from '../../lib/api/client';
+import { tagHref } from '../../lib/format';
+
+interface Props {
+  block: Extract<Block, { type: 'latestArticles' }>;
+}
+
+const { block } = Astro.props;
+const heading = block.heading ?? 'Latest articles';
+---
+
+<section>
+  <div class="flex items-baseline justify-between gap-4">
+    <h2 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{heading}</h2>
+    {
+      block.tag && (
+        <a href={tagHref(block.tag)} class="shrink-0 text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+          All “{block.tag}” articles <span aria-hidden="true">→</span>
+        </a>
+      )
+    }
+  </div>
+  <div class="mt-6">
+    {
+      block.articles.length > 0 ? (
+        <ArticleGrid articles={block.articles} />
+      ) : (
+        <p class="rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center text-slate-500">
+          No articles published yet.
+        </p>
+      )
+    }
+  </div>
+</section>

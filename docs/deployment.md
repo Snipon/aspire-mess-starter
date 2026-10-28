@@ -38,6 +38,9 @@ and wires the same configuration keys the AppHost injects locally.
 | Container App `api` | `containerapps.tf` | External ingress (`/api/*`, OpenAPI, Scalar). 1-3 replicas. |
 | Container App `web` | `containerapps.tf` | External ingress, Astro Node standalone on port 8080. 1-3 replicas. |
 | Container App `meilisearch` | `containerapps.tf` | **Internal** ingress only, ephemeral `EmptyDir` data (the index is rebuilt from the CMS). 1 replica. |
+| Aspire dashboard (`dotNetComponents/aspire-dashboard`) | `observability.tf` | Built-in Container Apps component (azapi). Contributor role for `aspire_dashboard_user_object_ids`. |
+| Container App `seq` + Premium Files share | `seq.tf` | Log search UI (external ingress, login required). 1 replica, data on a Premium Azure Files share. |
+| Application Insights, availability tests, action group, metric alerts | `observability.tf` | Synthetic tests of web `/`, api `/health`, cms `/health`; alerts on availability, Container Apps and SQL metrics. |
 
 App URLs are `https://<app>.<environment default domain>` (internal apps:
 `https://<app>.internal.<default domain>`). Terraform computes them from the environment's
@@ -64,13 +67,16 @@ The keys are the same ones the AppHost sets locally; only the values differ.
 | api | `Umbraco__BaseUrl` | `https+http://cms`, resolved by service discovery via `services__cms__https__0=<cms url>` |
 | api | `Umbraco__PublicBaseUrl` | cms public URL (used for media URLs the browser loads) |
 | api | `Umbraco__DeliveryApiKey` / `Umbraco__HmacSecretKey` / `Webhooks__Secret` | Key Vault `delivery-api-key` / `hmac-secret` / `webhook-secret` |
+| api | `Search__ReindexSecret` | Key Vault `reindex-secret` |
+| cms, api | `ConnectionStrings__seq` / `Aspire__Seq__ApiKey` | Seq URL (`https://seq.<default domain>`) / Key Vault `seq-ingestion-api-key` |
 | web | `API_URL` | api public URL |
 | web | `HOST` / `PORT` | `0.0.0.0` / `8080` |
 | all .NET | `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_HTTP_PORTS`, `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | `Production`, `8080`, `true` (TLS is terminated at the ingress) |
 
 Production-only additions compared to the AppHost: `services__cms__https__0` (Aspire injects
 this itself locally via `WithReference(cms)`), the `Umbraco__Storage__AzureBlob__Media__*` keys,
-`UmbracoApplicationUrl`, and the ASP.NET Core hosting variables.
+`UmbracoApplicationUrl`, `Aspire__Seq__ApiKey` (local Seq has no authentication) and the ASP.NET Core
+hosting variables. `OTEL_*` variables are not set by Terraform; see [Aspire dashboard](#aspire-dashboard).
 
 ## Prerequisites
 
@@ -79,7 +85,8 @@ this itself locally via `WithReference(cms)`), the `Umbraco__Storage__AzureBlob_
   (Owner, or Contributor + User Access Administrator). Terraform grants its own identity
   `Key Vault Secrets Officer` so it can write the generated secrets.
 - Resource providers registered: `Microsoft.App`, `Microsoft.OperationalInsights`,
-  `Microsoft.ContainerRegistry`, `Microsoft.KeyVault`, `Microsoft.Sql`, `Microsoft.Storage`.
+  `Microsoft.ContainerRegistry`, `Microsoft.KeyVault`, `Microsoft.Sql`, `Microsoft.Storage`,
+  `Microsoft.Insights` (Application Insights, availability tests, alerts).
 
 ```sh
 cd infra/terraform
@@ -148,9 +155,10 @@ from Key Vault or an image pull error, wait a minute and run `terraform apply` a
 ## First run
 
 1. **cms** starts, finds an empty `umbraco` database and runs the unattended install
-   (schema + `Admin` user with `umbraco_admin_email`). The seeding composer then creates the
-   `home`/`page` document types and sample content, and registers the content webhook that
-   points at `<api url>/api/webhooks/content`. Watch it with
+   (schema + `Admin` user with `umbraco_admin_email`). uSync then imports the document, element
+   and data types from `src/Cms/uSync/v18` (copied into the image), the seeder creates the demo
+   site, the Articles page, 50 articles and 12 placeholder images, and the content webhook that
+   points at `<api url>/api/webhooks/content` is registered. Watch it with
    `az containerapp logs show -g <rg> -n cms --follow`.
 2. **api** creates the Meilisearch `content` index and runs the initial full reindex in the
    background, retrying with backoff until the cms answers. After that it checks the index
@@ -161,8 +169,8 @@ from Key Vault or an image pull error, wait a minute and run `terraform apply` a
    needed; to force a reindex later:
 
    ```sh
-   SECRET=$(az keyvault secret show --vault-name "$(terraform output -raw key_vault_name)" -n webhook-secret --query value -o tsv)
-   curl -X POST -H "X-Webhook-Secret: $SECRET" "$(terraform output -raw api_url)/api/search/reindex"
+   SECRET=$(az keyvault secret show --vault-name "$(terraform output -raw key_vault_name)" -n reindex-secret --query value -o tsv)
+   curl -X POST -H "X-Reindex-Secret: $SECRET" "$(terraform output -raw api_url)/api/search/reindex"
    ```
 3. Open `terraform output -raw web_url` for the site and `<cms_url>/umbraco` for the
    backoffice. The admin password is in Key Vault:
@@ -204,12 +212,15 @@ always resolve the latest version.
 | `delivery-api-key` | cms (`DeliveryApi:ApiKey`), api | `random_password.delivery_api_key` |
 | `hmac-secret` | cms (`Imaging:HMACSecretKey`), api | `random_bytes.hmac_secret` |
 | `webhook-secret` | cms (webhook header), api (`Webhooks:Secret`) | `random_password.webhook_secret` |
+| `reindex-secret` | api (`Search:ReindexSecret`) | `random_password.reindex_secret` |
 | `meilisearch-master-key` | meilisearch | `random_password.meilisearch_master_key` |
 | `meilisearch-connection-string` | api | derived from the master key |
 | `sql-admin-password` | (reference copy) | `random_password.sql_admin` |
 | `umbraco-db-connection-string` | cms | derived from the SQL password |
 | `umbraco-admin-password` | cms (first install only) | `random_password.umbraco_admin` |
 | `media-storage-connection-string` | cms | storage account primary key |
+| `seq-admin-password` | seq (first start only) | `random_password.seq_admin` |
+| `seq-ingestion-api-key` | cms, api (`Aspire:Seq:ApiKey`); registered in Seq once | `random_password.seq_ingestion_api_key` |
 
 **Rotate a generated secret** by replacing its generator; derived secrets follow automatically:
 
@@ -234,11 +245,12 @@ Notes per secret:
 - **webhook-secret**: both sides change together. The cms seeding composer updates the
   registered webhook's `X-Webhook-Secret` header on startup, so restart cms *and* api.
   The secret is stored as a plain custom header on the Umbraco webhook, so **backoffice users
-  with access to Settings > Webhooks can read it**. It authorizes `POST /api/webhooks/content`
-  and `POST /api/search/reindex` on the public api ingress. Neither can change content (both only
-  re-read the CMS, and a reindex never empties the live index), so the worst case is load. Rotate
-  it if a Settings user leaves. For stricter setups, put the reindex endpoint behind internal
-  ingress or IP restrictions.
+  with access to Settings > Webhooks can read it**. It only authorizes `POST /api/webhooks/content`
+  on the public api ingress, which re-reads the named node from the CMS and cannot change content,
+  so the worst case is load. Rotate it if a Settings user leaves.
+- **reindex-secret**: only the api uses it (`X-Reindex-Secret` on `POST /api/search/reindex`,
+  compared in constant time; the webhook secret is not accepted there). Restart api. For stricter
+  setups, put the reindex endpoint behind internal ingress or IP restrictions.
 - **hmac-secret**: previously signed resize URLs stop validating. The api signs URLs on every
   request, so only cached HTML (CDN, browser) holds stale URLs until it expires.
 - **delivery-api-key**: restart cms and api together; requests fail with 401 in between.
@@ -249,9 +261,169 @@ Notes per secret:
   `az storage account keys renew`, then `terraform apply` to pick up the new connection string.
 - **umbraco-admin-password** only matters for a fresh install; change the live password in the
   backoffice.
+- **seq-ingestion-api-key**: after replacing it, register the new token in Seq (see
+  [Seq bootstrap](#seq)) and remove the old key there, then restart cms and api. With
+  `RequireApiKeyForWritingEvents` on, logs are rejected until the new key is registered.
+- **seq-admin-password** only matters for a fresh (empty) Seq data share.
 
 Do not edit Terraform-managed secrets directly in Key Vault: the next `terraform apply`
 overwrites them.
+
+## Observability
+
+| What | Where | Answers |
+| --- | --- | --- |
+| Aspire dashboard | `terraform output -raw aspire_dashboard_url` | Live traces, metrics and structured logs (in memory, recent only). |
+| Seq | `terraform output -raw seq_url` | Searchable log/trace history, signals and log-based alerts. |
+| Azure Monitor | Application Insights `appi-<name>`, alert rules in the resource group | Is it up from outside? Platform metrics (restarts, 5xx, CPU/memory, replicas, SQL). |
+| Container Apps logs | Log Analytics `log-<unique>` / `az containerapp logs show` | Raw console and system logs. |
+
+### Aspire dashboard
+
+`observability.tf` enables the environment's built-in Aspire dashboard
+(`Microsoft.App/managedEnvironments/dotNetComponents`, `componentType = "AspireDashboard"`).
+azurerm has no resource for it, so it is an `azapi_resource` on API version
+`2025-10-02-preview`, which is the version Aspire 13.6's own Container Apps deployment uses
+and the newest one the azapi 2.13 schema accepts.
+
+- **Telemetry.** Terraform sets no `OTEL_*` variables, and neither does Aspire's own Container
+  Apps deployment (Aspire skips OTLP variables in publish mode). Its dashboard still receives
+  telemetry, which indicates that Container Apps injects the dashboard's OTLP endpoint into the
+  apps of the environment. ServiceDefaults enables the OTLP exporter only when
+  `OTEL_EXPORTER_OTLP_ENDPOINT` is set. This has not been tested against a live environment
+  yet, so after the first apply open the dashboard and check that `cms` and `api` appear. If they don't, set `OTEL_EXPORTER_OTLP_ENDPOINT` on the
+  apps yourself. The dashboard keeps telemetry in memory, so a dashboard restart clears it. Seq is
+  the durable store.
+- **Access.** Only users with write access (Contributor or Owner) on the Container Apps
+  environment can open it. Put their Entra **user** object IDs in
+  `aspire_dashboard_user_object_ids` (`az ad user show --id you@example.com --query id -o tsv`),
+  and Terraform assigns them Contributor on the environment. The assignment must be made to the
+  user directly: per Microsoft's troubleshooting guide, roles granted through a security group are
+  not honoured by the dashboard, which is why there is no group variable. Contributor also allows
+  changing the environment, so keep the list short.
+- **URL.** `https://aspire-dashboard.ext.<environment default domain>` (output
+  `aspire_dashboard_url`). Custom domains are not supported for the dashboard. It can take a
+  couple of minutes after creation before the URL stops returning 404/421.
+- The environment is the legacy consumption-only type (no `workload_profile`). Aspire's own
+  deployments always create a workload-profiles environment. If creating the component fails on
+  this environment type, add a `Consumption` workload profile to
+  `azurerm_container_app_environment.this` (this recreates the environment).
+
+### Seq
+
+Seq is the log search and alerting tool, both locally (AppHost resource `seq`) and in Azure
+(`seq.tf`). The apps send OpenTelemetry logs and traces to it with the same configuration in both
+places: `ConnectionStrings__seq` makes `AddServiceDefaults()` call `AddSeqEndpoint("seq")`
+(Aspire.Seq), which adds OTLP exporters to `<seq>/ingest/otlp` next to the dashboard exporter.
+Umbraco logs through Serilog, which bypasses the OpenTelemetry logger provider, so the cms adds
+Serilog OpenTelemetry sinks for the dashboard and Seq. The Node web app is not instrumented.
+
+**Hosting and storage trade-off.** Seq is a database. Datalust recommends only Azure Disks or
+**Premium** Azure Files for its storage (standard Azure Files leads to corruption) and lists VMs,
+AKS and ACI as supported hosts, not Container Apps. Container Apps cannot mount Azure Disks, so
+this setup uses the closest supported storage: a Premium (`FileStorage`) SMB share (100 GiB
+minimum, billed by provisioned size), one replica, and never more than one Seq process per share.
+The remaining risk is the revision overlap: in single-revision mode Container Apps starts the new
+revision before stopping the old one, so a change to the `seq` app (image, environment) briefly
+gives two Seq processes the same data directory. Change the Seq app rarely. For a Seq upgrade,
+deactivate the running revision first
+(`az containerapp revision deactivate -g <rg> -n seq --revision <name>`) and then run
+`terraform apply`. If Seq becomes business-critical, move it to an Azure VM or ACI with an Azure
+Disk, or use Datalust's hosted Seq, and point `ConnectionStrings__seq` at it. EmptyDir (as used
+for Meilisearch) would avoid the overlap problem but loses all logs on every restart.
+
+**Licensing.** Without a license key Seq runs on the free *Individual* plan: one user account
+(the `admin` user below), which is fine for one person. A team needs a paid Seq subscription
+(<https://datalust.co/pricing>). Apply the key under *Settings > License*.
+
+**Ingestion.** The apps reach Seq through its FQDN `https://seq.<default domain>`. Calls between
+apps of the same environment stay inside the environment. The same ingress also serves the UI, so
+`/ingest` is reachable from the internet. cms and api send `X-Seq-ApiKey` (Key Vault
+`seq-ingestion-api-key`, `Aspire:Seq:ApiKey`), and the bootstrap below makes Seq reject events
+without a known key (`RequireApiKeyForWritingEvents`). Until then Seq accepts events with or
+without a key, so logging works from the first start.
+
+**Bootstrap (once, after the first apply).**
+
+```sh
+SEQ_URL=$(terraform output -raw seq_url)
+KV=$(terraform output -raw key_vault_name)
+seqcli() { podman run --rm -i docker.io/datalust/seqcli:2025.2 "$@"; }   # or docker
+
+# 1. Open $SEQ_URL and log in as "admin" with the first-run password, which Seq makes you change:
+az keyvault secret show --vault-name "$KV" -n seq-admin-password --query value -o tsv
+
+# 2. API keys can only be created by a logged-in user (an API key cannot create keys):
+read -rs SEQ_ADMIN_PASSWORD   # the new admin password
+INGEST_KEY=$(az keyvault secret show --vault-name "$KV" -n seq-ingestion-api-key --query value -o tsv)
+echo "$SEQ_ADMIN_PASSWORD" | seqcli apikey create -s "$SEQ_URL" -t apps --token "$INGEST_KEY" \
+  --connect-username admin --connect-password-stdin
+SEQ_API_KEY=$(echo "$SEQ_ADMIN_PASSWORD" | seqcli apikey create -s "$SEQ_URL" -t automation \
+  --permissions Read,Write,Project,Organization,System --connect-username admin --connect-password-stdin)
+# Keep $SEQ_API_KEY somewhere safe (e.g. as a secret in your pipeline); it is the alerts.sh credential.
+
+# 3. Signals, alerts, notifications, retention, ingestion lock-down:
+SEQ_URL="$SEQ_URL" SEQ_API_KEY="$SEQ_API_KEY" SEQ_RETENTION="$(terraform output -raw seq_retention)" \
+SEQ_REQUIRE_INGEST_API_KEY=true \
+ALERT_EMAILS="ops@example.com" SMTP_HOST=smtp.example.com SMTP_PORT=587 \
+SMTP_USERNAME=... SMTP_PASSWORD=... SMTP_FROM=seq@example.com \
+ALERT_WEBHOOK_URL="https://..." \
+../seq/alerts.sh
+```
+
+### Alerts
+
+**Azure Monitor** (`observability.tf`) notifies the action group `ag-<name>-ops`: the e-mail
+addresses in `alert_email_addresses`, plus `alert_webhook_url` if set. The webhook gets the Azure
+Monitor *common alert schema* JSON. Slack and Teams incoming webhooks don't render that format, so
+point it at a Logic App or Teams/Power Automate workflow that does.
+
+| Alert | Signal | Fires when |
+| --- | --- | --- |
+| `availability-{web,api,cms}` | Standard availability test of `web /`, `api /health`, `cms /health` every 5 min from `availability_test_locations` (5 by default), expecting 200 with a valid TLS certificate | All but two locations fail |
+| `{cms,api,web}-5xx` | `Requests` with `statusCodeCategory = 5xx` | More than `http_5xx_alert_threshold` (10) in 5 min |
+| `<app>-restarts` | `RestartCount` (cumulative per replica) | A replica restarted more than twice. Resolves when the replica is replaced. |
+| `<app>-cpu` / `<app>-memory` | `CpuPercentage` / `MemoryPercentage` (preview metrics) | Average above 85% of the container limit for 15 min |
+| `{api,web}-replicas-max` | `Replicas` | At `max_replicas` for 15 min (scale-out limit reached) |
+| `sql-cpu` / `sql-storage` / `sql-connection-failed` | `cpu_percent` / `storage_percent` / `connection_failed` on the `umbraco` database | CPU above 80% (15 min avg), storage above 85%, more than 5 failed connections in 15 min |
+
+Application Insights (workspace-based, on the existing Log Analytics workspace) is used only for
+the availability tests. The apps do not send telemetry to it.
+
+**Seq** (`infra/seq/alerts.sh`) covers what only the logs know. The script is idempotent:
+signals, app instances and alerts are matched by title and updated in place. It runs seqcli in a
+container (podman or docker) and uses curl + jq for alerts, because seqcli has no alert command.
+Notifications use the Seq apps `Seq.App.Mail.Smtp` (any SMTP server, e.g. Azure Communication
+Services, Microsoft 365, SendGrid; `SMTP_SECURITY` defaults to `RequireTls`) and
+`Seq.App.HttpRequest`, which posts `{"text": "<alert message>"}` to `ALERT_WEBHOOK_URL`. A Slack
+incoming webhook accepts that as is. For Teams, use a workflow that reads the `text` field. Seq installs both from nuget.org, so the Seq container needs
+outbound internet access. Use the same recipients as `alert_email_addresses`.
+
+| Seq alert | Signal filter (based on what the code logs) | Fires when |
+| --- | --- | --- |
+| Error spike | Log events (not spans) at Error/Fatal/Critical from any app | More than `ERROR_SPIKE_THRESHOLD` (10) in 5 min |
+| Webhook secret rejected | api server spans with `http.route` in `/api/webhooks/content`, `/api/search/reindex` and status 401. The api returns 401 without logging, so the span is the signal. | More than 5 in 5 min |
+| Search indexing failing | `Reindex failed; retrying in {Delay}` / `Search index is empty; rebuilding from the content source` (`SearchIndexInitializer`), or any log with a Meilisearch exception | 3 or more in 10 min |
+| Delivery API failing | Logs of the Umbraco adapter's typed client (`System.Net.Http.HttpClient.IContentSource.LogicalHandler`): `HTTP request failed…` or a status of 400 or more other than 404 | Any in 5 min |
+
+The filters depend on those message templates, routes and the `IContentSource` HttpClient name.
+Update `alerts.sh` when you change them.
+
+### Health endpoints
+
+ServiceDefaults maps `/health` (all registered checks, which on the api includes Meilisearch) and
+`/alive` (only the `live`-tagged self check) in **every** environment. The response body is only
+the aggregate status (`Healthy`, `Degraded` or `Unhealthy`, with HTTP 503 when unhealthy). No
+check names, descriptions or exceptions are returned, so the endpoints are safe to expose on the
+public ingress. Both are excluded from tracing. The Seq exporter registers no health check, so a
+Seq outage never makes an app unhealthy.
+
+- The availability tests call `api /health` and `cms /health`, so the api test also fails when
+  Meilisearch is down.
+- The api has an HTTP `liveness_probe` on `/alive`, so a hung process is restarted, but a
+  Meilisearch or CMS outage never is. There is deliberately no readiness probe on `/health`, which
+  would take every api replica out of rotation when Meilisearch is down. cms keeps its TCP startup
+  probe.
 
 ## Operational notes and limitations
 
@@ -274,11 +446,9 @@ overwrites them.
 - **Network.** The environment is not VNet-integrated, so Azure SQL allows "Azure services"
   (`0.0.0.0` rule) and the storage account accepts public authenticated traffic. Add a VNet,
   private endpoints and `public_network_access_enabled = false` for stricter isolation.
-- **Health probes.** The default ServiceDefaults only map `/health` and `/alive` in
-  Development, so the apps use TCP probes. cms has an explicit TCP `startup_probe` with a
-  10-minute budget (60 × 10 s), because Umbraco runs the unattended install and migrations
-  before Kestrel listens. Map the health endpoints in Production and add
-  `liveness_probe`/`readiness_probe` blocks if you want HTTP probes.
+- **Health probes.** See [Health endpoints](#health-endpoints). cms keeps an explicit TCP
+  `startup_probe` with a 10-minute budget (60 × 10 s), because Umbraco runs the unattended
+  install and migrations before Kestrel listens.
 - **Custom domains.** Add `azurerm_container_app_custom_domain` resources and update
   `cms_url`/`api_url`/`web_url` in `main.tf` so the webhook target, media URLs and
   `UmbracoApplicationUrl` use the custom host names.

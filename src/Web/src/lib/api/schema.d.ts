@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Get a page by its URL path
-         * @description Returns the published page at `path` (e.g. `/about`; `/` is the home page).
+         * @description Returns the published page at `path` (e.g. `/articles`; `/` is the home page).
          */
         get: operations["GetContentByPath"];
         put?: never;
@@ -70,9 +70,49 @@ export interface paths {
         };
         /**
          * Get the navigation tree
-         * @description Root pages (normally the home page) with their descendants as children, in CMS sort order.
+         * @description Root pages (normally the home page) with their descendants as children, in CMS sort order. Articles are not included; list them with `/api/articles`.
          */
         get: operations["GetNavigation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List published articles, newest first
+         * @description Ordered by publish date, descending. `tag` keeps only articles with that tag (case-insensitive).
+         */
+        get: operations["GetArticles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List article tags with counts
+         * @description Every tag used by a published article and how many articles carry it, most used first.
+         */
+        get: operations["GetTags"];
         put?: never;
         post?: never;
         delete?: never;
@@ -90,7 +130,7 @@ export interface paths {
         };
         /**
          * Full-text search
-         * @description An empty `q` returns no hits. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.
+         * @description Searches pages and articles. An empty `q` returns no hits. `tag` and `contentType` narrow the results. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.
          */
         get: operations["Search"];
         put?: never;
@@ -112,7 +152,7 @@ export interface paths {
         put?: never;
         /**
          * Rebuild the search index from the content source
-         * @description Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded. Requires the `X-Webhook-Secret` header.
+         * @description Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded. Requires the `X-Reindex-Secret` header (`Search:ReindexSecret`).
          */
         post: operations["Reindex"];
         delete?: never;
@@ -125,6 +165,57 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Article: {
+            /** Format: date */
+            publishDate: string;
+            tags: string[];
+            bodyHtml: string;
+            /** Format: int32 */
+            readingTimeMinutes: number;
+        };
+        ArticleSummary: {
+            id: string;
+            path: string;
+            title: string;
+            summary: null | string;
+            image: null | components["schemas"]["Image"];
+            /** Format: date */
+            publishDate: string;
+            tags: string[];
+        };
+        Block: components["schemas"]["BlockHeroBlock"] | components["schemas"]["BlockCtaBlock"] | components["schemas"]["BlockLatestArticlesBlock"];
+        BlockCtaBlock: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cta";
+            heading: string;
+            text: null | string;
+            link: null | components["schemas"]["Link"];
+            style: components["schemas"]["CtaStyle"];
+        };
+        BlockHeroBlock: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "hero";
+            heading: string;
+            subheading: null | string;
+            image: null | components["schemas"]["Image"];
+            cta: null | components["schemas"]["Link"];
+        };
+        BlockLatestArticlesBlock: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "latestArticles";
+            heading: null | string;
+            tag: null | string;
+            articles: components["schemas"]["ArticleSummary"][];
+        };
         ContentSyncResult: {
             id: string;
             action: string;
@@ -132,6 +223,8 @@ export interface components {
         ContentWebhookPayload: {
             id: string;
         };
+        /** @enum {unknown} */
+        CtaStyle: "primary" | "secondary";
         FocalPoint: {
             /** Format: double */
             left: number;
@@ -153,6 +246,11 @@ export interface components {
             width: number;
             url: string;
         };
+        Link: {
+            url: string;
+            title: null | string;
+            target: null | string;
+        };
         NavItem: {
             id: string;
             name: string;
@@ -166,14 +264,24 @@ export interface components {
             name: string;
             title: string;
             summary: null | string;
-            bodyHtml: null | string;
             image: null | components["schemas"]["Image"];
+            blocks: components["schemas"]["Block"][];
+            article: null | components["schemas"]["Article"];
             culture: null | string;
             /** Format: date-time */
             updatedAt: string;
             properties: {
                 [key: string]: unknown;
             };
+        };
+        PagedOfArticleSummary: {
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            total: number;
+            items: components["schemas"]["ArticleSummary"][];
         };
         ProblemDetails: {
             type?: null | string;
@@ -194,6 +302,10 @@ export interface components {
             summary: null | string;
             contentType: string;
             highlight: null | string;
+            tags: string[];
+            /** Format: date */
+            publishDate: null | string;
+            imageUrl: null | string;
         };
         SearchResult: {
             query: string;
@@ -204,6 +316,11 @@ export interface components {
             /** Format: int32 */
             total: number;
             hits: components["schemas"]["SearchHit"][];
+        };
+        TagCount: {
+            tag: string;
+            /** Format: int32 */
+            count: number;
         };
     };
     responses: never;
@@ -372,11 +489,77 @@ export interface operations {
             };
         };
     };
+    GetArticles: {
+        parameters: {
+            query?: {
+                tag?: string;
+                culture?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedOfArticleSummary"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetTags: {
+        parameters: {
+            query?: {
+                culture?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagCount"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     Search: {
         parameters: {
             query?: {
                 q?: string;
                 contentType?: string;
+                tag?: string;
                 page?: number;
                 pageSize?: number;
             };
@@ -410,7 +593,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Webhook-Secret"?: string;
+                "X-Reindex-Secret"?: string;
             };
             path?: never;
             cookie?: never;

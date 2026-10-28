@@ -1,21 +1,32 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { api, type SearchResult } from '../lib/api/client';
+import Pagination from '../components/Pagination.astro';
+import TagList from '../components/TagList.astro';
+import { api, getTags, type SearchResult } from '../lib/api/client';
+import { formatDate, tagHref } from '../lib/format';
 
 const PAGE_SIZE = 10;
 const params = Astro.url.searchParams;
 const q = (params.get('q') ?? '').trim();
 const contentType = params.get('contentType') || undefined;
+const tag = params.get('tag') || undefined;
 const requestedPage = Number.parseInt(params.get('page') ?? '1', 10);
 const pageNumber = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
 let result: SearchResult | undefined;
 let error: string | undefined;
 
-if (q) {
-  const { data, error: problem, response } = await api().GET('/api/search', {
-    params: { query: { q, page: pageNumber, pageSize: PAGE_SIZE, contentType } },
-  });
+const [tags, search] = await Promise.all([
+  getTags(),
+  q
+    ? api().GET('/api/search', {
+        params: { query: { q, page: pageNumber, pageSize: PAGE_SIZE, contentType, tag } },
+      })
+    : undefined,
+]);
+
+if (search) {
+  const { data, error: problem, response } = search;
   if (data) {
     result = data;
   } else if (response.status === 400) {
@@ -26,19 +37,25 @@ if (q) {
   }
 }
 
-const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
-const pageHref = (n: number) => {
-  const next = new URLSearchParams({ q, page: String(n) });
+const searchHref = (overrides: { page?: number; tag?: string | null }) => {
+  const next = new URLSearchParams({ q });
+  const nextTag = overrides.tag === undefined ? tag : overrides.tag;
+  if (nextTag) next.set('tag', nextTag);
   if (contentType) next.set('contentType', contentType);
+  if (overrides.page && overrides.page > 1) next.set('page', String(overrides.page));
   return `/search?${next}`;
 };
+
+const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
+const fieldClass =
+  'rounded-lg border border-slate-300 bg-white px-4 py-2.5 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none';
 ---
 
 <Layout title={q ? `Search: ${q}` : 'Search'}>
   <div class="mx-auto max-w-3xl">
     <h1 class="text-3xl font-bold tracking-tight">Search</h1>
 
-    <form action="/search" method="get" role="search" class="mt-6 flex gap-2">
+    <form action="/search" method="get" role="search" class="mt-6 flex flex-col gap-2 sm:flex-row">
       <label for="q" class="sr-only">Search terms</label>
       <input
         id="q"
@@ -47,74 +64,118 @@ const pageHref = (n: number) => {
         value={q}
         autofocus={!q}
         placeholder="What are you looking for?"
-        class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+        class:list={[fieldClass, 'min-w-0 flex-1 placeholder:text-slate-400']}
       />
+      {
+        tags.length > 0 && (
+          <>
+            <label for="tag" class="sr-only">Topic</label>
+            <select id="tag" name="tag" class:list={[fieldClass, 'pr-9 sm:w-48']}>
+              <option value="">All topics</option>
+              {tags.map((t) => (
+                <option value={t.tag} selected={t.tag.toLowerCase() === tag?.toLowerCase()}>
+                  {t.tag} ({t.count})
+                </option>
+              ))}
+            </select>
+          </>
+        )
+      }
       {contentType && <input type="hidden" name="contentType" value={contentType} />}
       <button
         type="submit"
-        class="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white shadow-sm hover:bg-indigo-500"
+        class="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
       >
         Search
       </button>
     </form>
 
-    {error && <p class="mt-6 rounded-lg bg-red-50 px-4 py-3 text-red-700">{error}</p>}
+    {error && <p class="mt-6 rounded-lg bg-red-50 px-4 py-3 text-red-700" role="alert">{error}</p>}
+
+    {
+      !q && tags.length > 0 && (
+        <section class="mt-10">
+          <h2 class="text-sm font-semibold tracking-wide text-slate-500 uppercase">Browse by topic</h2>
+          <TagList tags={tags.map((t) => t.tag)} class="mt-3" />
+        </section>
+      )
+    }
 
     {
       result && (
         <section class="mt-8" aria-live="polite">
-          <p class="text-sm text-slate-500">
-            {result.total === 0
-              ? `No results for “${result.query}”.`
-              : `${result.total} result${result.total === 1 ? '' : 's'} for “${result.query}”`}
-          </p>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-500">
+            <p>
+              {result.total === 0
+                ? `No results for “${result.query}”`
+                : `${result.total} result${result.total === 1 ? '' : 's'} for “${result.query}”`}
+              {tag && ` in “${tag}”`}.
+            </p>
+            {tag && (
+              <a
+                href={searchHref({ tag: null })}
+                class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-300"
+              >
+                <span aria-hidden="true">×</span> Clear topic filter
+              </a>
+            )}
+          </div>
 
           <ol class="mt-4 space-y-3">
             {result.hits.map((hit) => (
-              <li>
-                <a
-                  href={hit.path}
-                  class="block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow"
-                >
+              <li class="relative flex gap-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition focus-within:ring-2 focus-within:ring-indigo-600 hover:border-indigo-300 hover:shadow">
+                <div class="min-w-0 flex-1">
                   <div class="flex items-baseline justify-between gap-4">
-                    <h2 class="text-lg font-semibold text-slate-900">{hit.title}</h2>
+                    <h2 class="text-lg font-semibold text-slate-900">
+                      <a href={hit.path} class="after:absolute after:inset-0 focus-visible:outline-none">
+                        {hit.title}
+                      </a>
+                    </h2>
                     <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                       {hit.contentType}
                     </span>
                   </div>
-                  <p class="mt-0.5 text-sm text-indigo-600">{hit.path}</p>
+                  <p class="mt-0.5 text-sm text-slate-500">
+                    <span class="text-indigo-600">{hit.path}</span>
+                    {hit.publishDate && (
+                      <>
+                        <span aria-hidden="true"> · </span>
+                        <time datetime={hit.publishDate}>{formatDate(hit.publishDate)}</time>
+                      </>
+                    )}
+                  </p>
                   {hit.highlight ? (
                     <p class="mt-2 text-slate-600" set:html={hit.highlight} />
                   ) : (
                     hit.summary && <p class="mt-2 text-slate-600">{hit.summary}</p>
                   )}
-                </a>
+                  <TagList tags={hit.tags} href={(t) => searchHref({ tag: t })} class="mt-3" />
+                </div>
+                {hit.imageUrl && (
+                  <img
+                    src={hit.imageUrl}
+                    alt=""
+                    width="96"
+                    height="96"
+                    loading="lazy"
+                    decoding="async"
+                    class="hidden size-24 shrink-0 rounded-lg bg-slate-100 object-cover sm:block"
+                  />
+                )}
               </li>
             ))}
           </ol>
 
-          {totalPages > 1 && (
-            <nav aria-label="Pagination" class="mt-8 flex items-center justify-between text-sm">
-              {result.page > 1 ? (
-                <a href={pageHref(result.page - 1)} rel="prev" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">
-                  ← Previous
-                </a>
-              ) : (
-                <span />
-              )}
-              <span class="text-slate-500">
-                Page {result.page} of {totalPages}
-              </span>
-              {result.page < totalPages ? (
-                <a href={pageHref(result.page + 1)} rel="next" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">
-                  Next →
-                </a>
-              ) : (
-                <span />
-              )}
-            </nav>
-          )}
+          <Pagination page={result.page} totalPages={totalPages} href={(n) => searchHref({ page: n })} />
         </section>
+      )
+    }
+
+    {
+      tag && !q && (
+        <p class="mt-8 text-slate-600">
+          Enter a search term, or <a href={tagHref(tag)} class="font-medium text-indigo-600 hover:text-indigo-500">browse all “{tag}” articles</a>.
+        </p>
       )
     }
   </div>

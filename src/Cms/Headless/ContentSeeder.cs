@@ -5,12 +5,10 @@ using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.IO;
 using Umbraco.Cms.Core.Models;
-using Umbraco.Cms.Core.Models.ContentTypeEditing;
 using Umbraco.Cms.Core.Notifications;
 using Umbraco.Cms.Core.PropertyEditors;
+using Umbraco.Cms.Core.Scoping;
 using Umbraco.Cms.Core.Services;
-using Umbraco.Cms.Core.Services.OperationStatus;
-using Umbraco.Cms.Core.Services.ContentTypeEditing;
 using Umbraco.Cms.Core.Strings;
 using Umbraco.Cms.Core.Sync;
 using Umbraco.Extensions;
@@ -18,15 +16,16 @@ using Umbraco.Extensions;
 namespace Cms.Headless;
 
 /// <summary>
-/// Idempotent demo seed: document types "home" and "page" (title, summary, body, image),
-/// a generated hero image, and a published Home node with a few child pages.
-/// Document types are created only if missing; content only if no root "home" node exists.
+/// Idempotent demo content on top of the uSync schema (src/Cms/uSync, imported on first boot before this runs):
+/// generated placeholder images, a "Home" site node with blocks, an "Articles" page and 50 articles.
+/// Runs only if the "site" document type exists and no root site node does yet, in one scope (transaction and media
+/// files), so a failed seed leaves nothing behind and is retried on the next boot.
 /// </summary>
 internal sealed class ContentSeeder(
     IRuntimeState runtimeState,
+    ICoreScopeProvider scopeProvider,
     IServerRoleAccessor serverRoleAccessor,
     IContentTypeService contentTypeService,
-    IContentTypeEditingService contentTypeEditingService,
     IContentService contentService,
     IMediaService mediaService,
     MediaFileManager mediaFileManager,
@@ -35,123 +34,103 @@ internal sealed class ContentSeeder(
     IContentTypeBaseServiceProvider contentTypeBaseServiceProvider,
     ILogger<ContentSeeder> logger) : INotificationAsyncHandler<UmbracoApplicationStartedNotification>
 {
-    private const string HomeAlias = "home";
-    private const string PageAlias = "page";
-    private static readonly Guid UserKey = Constants.Security.SuperUserKey;
+    private const string SiteAlias = "site";
+    private const int ImageCount = 12;
 
-    public async Task HandleAsync(UmbracoApplicationStartedNotification notification, CancellationToken cancellationToken)
+    // Placeholder image palettes (start/end colours of the gradient).
+    private static readonly (Rgb24 From, Rgb24 To)[] Palettes =
+    [
+        (new(30, 60, 170), new(120, 200, 255)), (new(90, 20, 120), new(250, 120, 160)), (new(10, 90, 80), new(140, 230, 170)),
+        (new(160, 60, 20), new(255, 200, 90)), (new(20, 30, 60), new(90, 130, 200)), (new(120, 20, 40), new(250, 150, 90)),
+        (new(30, 100, 140), new(200, 240, 220)), (new(60, 40, 140), new(150, 210, 250)), (new(40, 80, 30), new(220, 230, 110)),
+        (new(100, 40, 80), new(170, 180, 255)), (new(15, 50, 90), new(250, 170, 120)), (new(50, 50, 55), new(190, 190, 200)),
+    ];
+
+    public Task HandleAsync(UmbracoApplicationStartedNotification notification, CancellationToken cancellationToken)
     {
         if (runtimeState.Level != RuntimeLevel.Run || serverRoleAccessor.CurrentServerRole == ServerRole.Subscriber)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        IContentType page = contentTypeService.Get(PageAlias) ?? await CreateDocumentTypeAsync(PageAlias, "Page", "icon-document", allowedAsRoot: false, []);
-        if (!page.AllowedContentTypes?.Any(t => t.Key == page.Key) ?? true)
+        IContentType? site = contentTypeService.Get(SiteAlias);
+        if (site is null)
         {
-            // Pages may nest (self-reference is only possible once the type exists).
-            page.AllowedContentTypes = [new ContentTypeSort(page.Key, 0, PageAlias)];
-            await contentTypeService.UpdateAsync(page, UserKey);
+            logger.LogWarning("Document type {Alias} is missing (uSync import did not run?), skipping demo content", SiteAlias);
+            return Task.CompletedTask;
         }
 
-        IContentType home = contentTypeService.Get(HomeAlias)
-            ?? await CreateDocumentTypeAsync(HomeAlias, "Home", "icon-home", allowedAsRoot: true, [new ContentTypeSort(page.Key, 0, PageAlias)]);
-
-        if (contentService.GetRootContent().Any(c => c.ContentType.Alias == home.Alias))
+        if (contentService.GetRootContent().Any(c => c.ContentType.Alias == SiteAlias))
         {
-            return;
+            return Task.CompletedTask;
         }
 
         logger.LogInformation("Seeding demo content");
-        IMedia hero = CreateHeroImage();
+        using ICoreScope scope = scopeProvider.CreateCoreScope(scopeFileSystems: true);
+        IMedia folder = mediaService.CreateMediaWithIdentity("Placeholders", Constants.System.Root, Constants.Conventions.MediaTypes.Folder);
+        IMedia[] images = [.. Enumerable.Range(1, ImageCount).Select(i => CreateImage(folder.Id, i))];
 
-        IContent homeNode = CreateAndPublish(
-            "Home", Constants.System.Root, HomeAlias,
-            title: "Welcome to the Aspire demo",
-            summary: "A headless Umbraco CMS, a typed .NET API with Meilisearch, and an Astro front end, orchestrated by Aspire.",
-            body: "<p>This site is rendered by <strong>Astro</strong>. Content is authored in <strong>Umbraco</strong> and delivered through a typed API.</p><p>Try the search page to query content indexed in <strong>Meilisearch</strong>.</p>",
-            image: hero);
+        Guid hero = ElementTypeKey("heroBlock"), cta = ElementTypeKey("ctaBlock"), latest = ElementTypeKey("latestArticlesBlock");
+        var articlesKey = Guid.NewGuid();
 
-        IContent about = CreateAndPublish(
-            "About", homeNode.Id, PageAlias,
-            title: "About this project",
-            summary: "How the pieces fit together.",
-            body: "<h2>Architecture</h2><p>The web app only talks to the API. The API talks to the CMS and the search engine through swappable adapters.</p><ul><li>Umbraco Delivery API</li><li>Meilisearch</li><li>Astro SSR</li></ul>",
-            image: hero);
-
-        CreateAndPublish(
-            "Team", about.Id, PageAlias,
-            title: "The team",
-            summary: "The people behind the demo.",
-            body: "<p>A small team that likes simple, typed boundaries between systems.</p>",
-            image: null);
-
-        CreateAndPublish(
-            "Services", homeNode.Id, PageAlias,
-            title: "Our services",
-            summary: "Content modelling, search and front-end delivery.",
-            body: "<p>We help teams build fast, content-driven websites with headless CMSes and modern search.</p><p>Every page is indexed for full-text search on publish.</p>",
-            image: hero);
-
-        CreateAndPublish(
-            "Contact", homeNode.Id, PageAlias,
-            title: "Contact us",
-            summary: "Get in touch.",
-            body: "<p>Send an email to <a href=\"mailto:hello@example.com\">hello@example.com</a>.</p>",
-            image: null);
-    }
-
-    private async Task<IContentType> CreateDocumentTypeAsync(string alias, string name, string icon, bool allowedAsRoot, ContentTypeSort[] allowedChildren)
-    {
-        var groupKey = Guid.NewGuid();
-        ContentTypePropertyTypeModel Property(string propertyAlias, string propertyName, Guid dataTypeKey, int sortOrder, bool mandatory = false) => new()
+        IContent home = CreateAndPublish("Home", Constants.System.Root, SiteAlias, Guid.NewGuid(), new()
         {
-            Key = Guid.NewGuid(),
-            ContainerKey = groupKey,
-            Alias = propertyAlias,
-            Name = propertyName,
-            DataTypeKey = dataTypeKey,
-            SortOrder = sortOrder,
-            Validation = new PropertyTypeValidation { Mandatory = mandatory },
-        };
+            ["blocks"] = Blocks(
+                (hero, new()
+                {
+                    ["heading"] = "Notes on building for the web",
+                    ["subheading"] = "Articles about .NET, cloud, front-end engineering and design systems, served by a headless Umbraco CMS.",
+                    ["image"] = MediaPicker(images[0]),
+                    ["ctaLabel"] = "Browse all articles",
+                    ["ctaLink"] = DocumentLink("Browse all articles", articlesKey),
+                }),
+                (latest, new() { ["heading"] = "Latest articles", ["count"] = 6 }),
+                (cta, new()
+                {
+                    ["heading"] = "Built with Aspire",
+                    ["text"] = "This demo runs Umbraco, a typed .NET API, Meilisearch and an Astro front end from a single AppHost.",
+                    ["link"] = ExternalLink("Explore Aspire", "https://aspire.dev"),
+                    ["style"] = JsonSerializer.Serialize(new[] { "primary" }),
+                })),
+        });
 
-        var model = new ContentTypeCreateModel
+        IContent articles = CreateAndPublish("Articles", home.Id, "page", articlesKey, new()
         {
-            Alias = alias,
-            Name = name,
-            Icon = icon,
-            AllowedAsRoot = allowedAsRoot,
-            AllowedContentTypes = allowedChildren,
-            Containers = [new ContentTypePropertyContainerModel { Key = groupKey, Name = "Content", Type = "Group", SortOrder = 0 }],
-            Properties =
-            [
-                Property("title", "Title", Constants.DataTypes.Guids.TextstringGuid, 0, mandatory: true),
-                Property("summary", "Summary", Constants.DataTypes.Guids.TextareaGuid, 1),
-                Property("body", "Body", Constants.DataTypes.Guids.RichtextEditorGuid, 2),
-                Property("image", "Image", Constants.DataTypes.Guids.MediaPicker3SingleImageGuid, 3),
-            ],
-        };
+            ["title"] = "Articles",
+            ["blocks"] = Blocks(
+                (hero, new() { ["heading"] = "Articles", ["subheading"] = "Everything we have written, newest first.", ["image"] = MediaPicker(images[1]) }),
+                (latest, new() { ["heading"] = "Recently published", ["count"] = 12 })),
+        });
 
-        Attempt<IContentType?, ContentTypeOperationStatus> result = await contentTypeEditingService.CreateAsync(model, UserKey);
-        if (!result.Success || result.Result is null)
+        IReadOnlyList<DemoArticle> demoArticles = DemoArticles.Generate(DateTime.UtcNow);
+        for (var i = 0; i < demoArticles.Count; i++)
         {
-            throw new InvalidOperationException($"Could not create document type '{alias}': {result.Status}");
+            DemoArticle article = demoArticles[i];
+            CreateAndPublish(article.Title, articles.Id, "article", Guid.NewGuid(), new()
+            {
+                ["title"] = article.Title,
+                ["image"] = MediaPicker(images[i % images.Length]),
+                ["body"] = article.Body,
+                ["tags"] = JsonSerializer.Serialize(article.Tags),
+                ["publishDate"] = article.PublishDate,
+            });
         }
 
-        logger.LogInformation("Created document type {Alias}", alias);
-        return result.Result;
+        scope.Complete();
+        logger.LogInformation("Seeded {Count} articles", demoArticles.Count);
+        return Task.CompletedTask;
     }
 
-    private IContent CreateAndPublish(string name, int parentId, string contentTypeAlias, string title, string summary, string body, IMedia? image)
+    private Guid ElementTypeKey(string alias) =>
+        contentTypeService.Get(alias)?.Key ?? throw new InvalidOperationException($"Element type '{alias}' is missing");
+
+    private IContent CreateAndPublish(string name, int parentId, string contentTypeAlias, Guid key, Dictionary<string, object?> values)
     {
         IContent content = contentService.Create(name, parentId, contentTypeAlias);
-        content.SetValue("title", title);
-        content.SetValue("summary", summary);
-        content.SetValue("body", body);
-        if (image is not null)
+        content.Key = key;
+        foreach ((string alias, object? value) in values)
         {
-            // Media Picker 3 value format.
-            content.SetValue("image", JsonSerializer.Serialize(new[] { new { key = Guid.NewGuid(), mediaKey = image.Key } }));
+            content.SetValue(alias, value);
         }
 
         contentService.Save(content);
@@ -164,10 +143,38 @@ internal sealed class ContentSeeder(
         return content;
     }
 
-    private IMedia CreateHeroImage()
+    /// <summary>Block List value (v15+ format: layout, contentData and expose; no settings).</summary>
+    private static string Blocks(params (Guid ElementTypeKey, Dictionary<string, object> Values)[] blocks)
     {
-        // Generated gradient so the seed needs no binary assets in the repo.
-        const int width = 1920, height = 1080;
+        Guid[] keys = [.. blocks.Select(_ => Guid.NewGuid())];
+        return JsonSerializer.Serialize(new
+        {
+            layout = new Dictionary<string, object> { [Constants.PropertyEditors.Aliases.BlockList] = keys.Select(k => new { contentKey = k }) },
+            contentData = blocks.Select((b, i) => new
+            {
+                key = keys[i],
+                contentTypeKey = b.ElementTypeKey,
+                values = b.Values.Select(v => new { alias = v.Key, value = v.Value, culture = (string?)null, segment = (string?)null }),
+            }),
+            settingsData = Array.Empty<object>(),
+            expose = keys.Select(k => new { contentKey = k, culture = (string?)null, segment = (string?)null }),
+        });
+    }
+
+    // Stored (database) value formats, which are JSON strings both for properties and for values inside blocks.
+    private static string MediaPicker(IMedia media) => JsonSerializer.Serialize(new[] { new { key = Guid.NewGuid(), mediaKey = media.Key } });
+
+    private static string DocumentLink(string name, Guid documentKey) =>
+        JsonSerializer.Serialize(new[] { new { name, udi = Udi.Create(Constants.UdiEntityType.Document, documentKey).ToString() } });
+
+    private static string ExternalLink(string name, string url) => JsonSerializer.Serialize(new[] { new { name, url } });
+
+    private IMedia CreateImage(int parentId, int index)
+    {
+        // Generated diagonal gradient with soft rings, so the seed needs no binary assets in the repo.
+        const int width = 1600, height = 900;
+        (Rgb24 from, Rgb24 to) = Palettes[(index - 1) % Palettes.Length];
+        float cx = width * (0.2f + 0.6f * ((index * 37) % 10) / 10f), cy = height * (0.25f + 0.5f * ((index * 53) % 10) / 10f);
         using var image = new Image<Rgb24>(width, height);
         image.ProcessPixelRows(rows =>
         {
@@ -176,7 +183,10 @@ internal sealed class ContentSeeder(
                 Span<Rgb24> row = rows.GetRowSpan(y);
                 for (var x = 0; x < width; x++)
                 {
-                    row[x] = new Rgb24((byte)(30 + (x * 120 / width)), (byte)(60 + (y * 100 / height)), 170);
+                    float t = (x / (float)width + y / (float)height) / 2f;
+                    float ring = 0.5f + 0.5f * MathF.Cos(MathF.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / 28f);
+                    float mix = Math.Clamp(t + 0.12f * ring - 0.06f, 0f, 1f);
+                    row[x] = new Rgb24(Lerp(from.R, to.R, mix), Lerp(from.G, to.G, mix), Lerp(from.B, to.B, mix));
                 }
             }
         });
@@ -185,9 +195,12 @@ internal sealed class ContentSeeder(
         image.SaveAsJpeg(stream);
         stream.Position = 0;
 
-        IMedia media = mediaService.CreateMedia("Hero", Constants.System.Root, Constants.Conventions.MediaTypes.Image);
-        media.SetValue(mediaFileManager, mediaUrlGenerators, shortStringHelper, contentTypeBaseServiceProvider, Constants.Conventions.Media.File, "hero.jpg", stream);
+        IMedia media = mediaService.CreateMedia($"Placeholder {index:00}", parentId, Constants.Conventions.MediaTypes.Image);
+        media.SetValue(mediaFileManager, mediaUrlGenerators, shortStringHelper, contentTypeBaseServiceProvider,
+            Constants.Conventions.Media.File, $"placeholder-{index:00}.jpg", stream);
         mediaService.Save(media);
         return media;
     }
+
+    private static byte Lerp(byte a, byte b, float t) => (byte)(a + (b - a) * t);
 }

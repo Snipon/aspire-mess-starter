@@ -2,6 +2,11 @@ import createClient from 'openapi-fetch';
 import type { components, paths } from './schema';
 
 export type Page = components['schemas']['Page'];
+export type Block = components['schemas']['Block'];
+export type Article = components['schemas']['Article'];
+export type ArticleSummary = components['schemas']['ArticleSummary'];
+export type Link = components['schemas']['Link'];
+export type TagCount = components['schemas']['TagCount'];
 export type Image = components['schemas']['Image'];
 export type NavItem = components['schemas']['NavItem'];
 export type SearchResult = components['schemas']['SearchResult'];
@@ -30,6 +35,17 @@ export async function getNavigation(): Promise<NavItem[]> {
     return data ?? [];
   } catch (error) {
     console.error('Failed to load navigation', error);
+    return [];
+  }
+}
+
+/** All tags with their article counts; used for optional filters, so failures degrade to an empty list. */
+export async function getTags(): Promise<TagCount[]> {
+  try {
+    const { data } = await api().GET('/api/tags');
+    return data ?? [];
+  } catch (error) {
+    console.error('Failed to load tags', error);
     return [];
   }
 }

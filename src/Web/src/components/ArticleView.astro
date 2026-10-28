@@ -1,0 +1,50 @@
+---
+import ResponsiveImage from './ResponsiveImage.astro';
+import TagList from './TagList.astro';
+import type { Article, Page } from '../lib/api/client';
+import { formatDate } from '../lib/format';
+
+interface Props {
+  page: Page;
+  article: Article;
+}
+
+const { page, article } = Astro.props;
+// Articles live below their listing page (e.g. /articles/my-post → /articles).
+const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
+---
+
+<article>
+  <header class="mx-auto max-w-3xl">
+    <nav aria-label="Breadcrumb">
+      <a href={parentPath} class="text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+        <span aria-hidden="true">←</span> All articles
+      </a>
+    </nav>
+    <h1 class="mt-4 text-4xl font-bold tracking-tight text-balance text-slate-900 sm:text-5xl">{page.title}</h1>
+    <p class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+      <time datetime={article.publishDate}>{formatDate(article.publishDate)}</time>
+      <span aria-hidden="true">·</span>
+      <span>{article.readingTimeMinutes} min read</span>
+    </p>
+    <TagList tags={article.tags} class="mt-4" />
+  </header>
+
+  {
+    page.image && (
+      <figure class="mx-auto mt-10 max-w-4xl overflow-hidden rounded-2xl bg-slate-200 shadow-sm">
+        <ResponsiveImage
+          image={page.image}
+          loading="eager"
+          sizes="(min-width: 960px) 896px, 100vw"
+          class="aspect-video w-full object-cover"
+        />
+      </figure>
+    )
+  }
+
+  <div
+    class="prose prose-lg prose-slate mx-auto mt-10 max-w-3xl prose-headings:tracking-tight prose-a:text-indigo-600 prose-a:decoration-indigo-300 prose-a:underline-offset-2 prose-a:hover:decoration-indigo-600 prose-pre:rounded-xl prose-pre:bg-slate-900 prose-img:rounded-lg"
+    set:html={article.bodyHtml}
+  />
+</article>

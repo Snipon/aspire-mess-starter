@@ -1,0 +1,250 @@
+{
+  "total": 50,
+  "items": [
+    {
+      "contentType": "article",
+      "name": "Getting Started with .NET Aspire for Local Development",
+      "createDate": "2026-10-28T22:07:19.57Z",
+      "updateDate": "2026-10-28T22:07:19.653Z",
+      "route": {
+        "path": "/articles/getting-started-with-net-aspire-for-local-development/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "d8360124-a5a7-4865-a637-44fb684412ea",
+      "properties": {
+        "title": "Getting Started with .NET Aspire for Local Development",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "09620984-1c45-420b-81c7-769be481a540",
+            "name": "Placeholder 01",
+            "mediaType": "Image",
+            "url": "/media/bpbdjpzm/placeholder-01.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 34450,
+            "properties": {}
+          }
+        ],
+        "body": "If you have ever inherited a project, you know how much Aspire decisions shape the daily experience. Small, frequent changes are easier to review, test and roll back. Keep the boundaries explicit so each part can evolve on its own schedule. Measure before and after every change, otherwise you are optimising by intuition.\n\nThis article looks at Aspire from a practical angle. A clear contract between systems is worth more than any clever implementation. Make the right thing the easy thing, and most people will do it. Users rarely notice good engineering, but they always notice its absence.\n\n## Common pitfalls\n\nThe trick is to start small and let real usage tell you where to invest next. Make the right thing the easy thing, and most people will do it. Most of the complexity comes from edge cases, not from the happy path.\n\n- Add telemetry before you need it\n- Automate the checks you would otherwise forget\n- Review defaults with the whole team\n- Start with the smallest useful version\n- Budget time for clean-up after the first release\n\nObservability is not an afterthought; it is how you learn what the system really does. Every abstraction should earn its place by removing more complexity than it adds. Most of the complexity comes from edge cases, not from the happy path.\n\n## Why it matters\n\nObservability is not an afterthought; it is how you learn what the system really does. Feedback loops measured in seconds change how people work. Treat configuration as part of the product, with the same care as the code. Every abstraction should earn its place by removing more complexity than it adds.\n\n```csharp\nvar builder = WebApplication.CreateBuilder(args);\nbuilder.AddServiceDefaults();\n\nvar app = builder.Build();\napp.MapGet(\"/hello\", () => Results.Ok(new { message = \"Hello\" }));\napp.Run();\n```\n\nKeep the boundaries explicit so each part can evolve on its own schedule. Automation turns a fragile checklist into a repeatable step in the pipeline.\n\n## Going to production\n\nThe cost of a mistake is lowest when it is caught on a developer machine. Measure before and after every change, otherwise you are optimising by intuition. Treat configuration as part of the product, with the same care as the code.\n\nSmall, frequent changes are easier to review, test and roll back. Documentation matters here, because the next person will not have your context. The cost of a mistake is lowest when it is caught on a developer machine. Write down the trade-offs you accepted so they can be revisited later.\n\n## What to try next\n\nMake the right thing the easy thing, and most people will do it. Users rarely notice good engineering, but they always notice its absence. Naming things consistently pays off every time someone searches the codebase. Keep the boundaries explicit so each part can evolve on its own schedule.\n\nThe trick is to start small and let real usage tell you where to invest next. Measure before and after every change, otherwise you are optimising by intuition.\n\n## Further reading\n\n- [Aspire documentation](https://aspire.dev)\n- [.NET documentation](https://learn.microsoft.com/dotnet/)\n- [TypeScript handbook](https://www.typescriptlang.org/docs/handbook/intro.html)\n",
+        "tags": [
+          "aspire",
+          "dotnet",
+          "typescript"
+        ],
+        "publishDate": "2026-10-28T00:00:00"
+      },
+      "cultures": {}
+    },
+    {
+      "contentType": "article",
+      "name": "Orchestrating Containers Without Docker Compose",
+      "createDate": "2026-10-28T22:07:19.793Z",
+      "updateDate": "2026-10-28T22:07:19.857Z",
+      "route": {
+        "path": "/articles/orchestrating-containers-without-docker-compose/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "847ba1f7-bf6c-4902-b8c4-062aa76bed42",
+      "properties": {
+        "title": "Orchestrating Containers Without Docker Compose",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "085ae3ef-246b-4386-b188-487844e48cd7",
+            "name": "Placeholder 02",
+            "mediaType": "Image",
+            "url": "/media/maubzpqc/placeholder-02.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 34035,
+            "properties": {}
+          }
+        ],
+        "body": "Teams adopt container orchestration for different reasons, but the goal is almost always the same: ship faster without losing control. Feedback loops measured in seconds change how people work. A clear contract between systems is worth more than any clever implementation. Treat configuration as part of the product, with the same care as the code.\n\nThis article looks at container orchestration from a practical angle. The cost of a mistake is lowest when it is caught on a developer machine. When in doubt, prefer the boring solution that the whole team understands. Every abstraction should earn its place by removing more complexity than it adds.\n\n## Why it matters\n\nMake the right thing the easy thing, and most people will do it. Every abstraction should earn its place by removing more complexity than it adds. Small, frequent changes are easier to review, test and roll back. A good default removes a whole category of decisions from code review.\n\n- Review defaults with the whole team\n- Automate the checks you would otherwise forget\n- Prefer explicit configuration over conventions nobody remembers\n\nSmall, frequent changes are easier to review, test and roll back. Security and usability are not opposites when the defaults are sensible. Treat configuration as part of the product, with the same care as the code. The cost of a mistake is lowest when it is caught on a developer machine.\n\n## The core idea\n\nSecurity and usability are not opposites when the defaults are sensible. Automation turns a fragile checklist into a repeatable step in the pipeline. Write down the trade-offs you accepted so they can be revisited later.\n\n```csharp\nvar builder = DistributedApplication.CreateBuilder(args);\nvar db = builder.AddSqlServer(\"sql\").AddDatabase(\"app\");\nbuilder.AddProject<Projects.Api>(\"api\").WithReference(db).WaitFor(db);\nbuilder.Build().Run();\n```\n\nEvery abstraction should earn its place by removing more complexity than it adds. A clear contract between systems is worth more than any clever implementation. The trick is to start small and let real usage tell you where to invest next. A good default removes a whole category of decisions from code review.\n\n## Measuring the impact\n\nThe cost of a mistake is lowest when it is caught on a developer machine. Feedback loops measured in seconds change how people work. Write down the trade-offs you accepted so they can be revisited later. When in doubt, prefer the boring solution that the whole team understands. Treat configuration as part of the product, with the same care as the code.\n\nMost of the complexity comes from edge cases, not from the happy path. Observability is not an afterthought; it is how you learn what the system really does. Measure before and after every change, otherwise you are optimising by intuition. The cost of a mistake is lowest when it is caught on a developer machine.\n\n## A minimal setup\n\nDocumentation matters here, because the next person will not have your context. Security and usability are not opposites when the defaults are sensible. A good default removes a whole category of decisions from code review.\n\nWhen in doubt, prefer the boring solution that the whole team understands. Security and usability are not opposites when the defaults are sensible. Automation turns a fragile checklist into a repeatable step in the pipeline. Observability is not an afterthought; it is how you learn what the system really does.\n\n## Further reading\n\n- [Aspire documentation](https://aspire.dev)\n- [GitHub Actions documentation](https://docs.github.com/actions)\n",
+        "tags": [
+          "aspire",
+          "devops"
+        ],
+        "publishDate": "2026-10-19T00:00:00"
+      },
+      "cultures": {}
+    },
+    {
+      "contentType": "article",
+      "name": "Service Discovery Patterns in Distributed .NET Apps",
+      "createDate": "2026-10-28T22:07:19.96Z",
+      "updateDate": "2026-10-28T22:07:20.04Z",
+      "route": {
+        "path": "/articles/service-discovery-patterns-in-distributed-net-apps/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "0e8ec3b1-7b27-4d3c-af78-a42686dd2b12",
+      "properties": {
+        "title": "Service Discovery Patterns in Distributed .NET Apps",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "73a8b84b-704c-441a-954d-18824e1386aa",
+            "name": "Placeholder 03",
+            "mediaType": "Image",
+            "url": "/media/yrzo3rjf/placeholder-03.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 35806,
+            "properties": {}
+          }
+        ],
+        "body": "Teams adopt service discovery for different reasons, but the goal is almost always the same: ship faster without losing control. Feedback loops measured in seconds change how people work. The cost of a mistake is lowest when it is caught on a developer machine. Documentation matters here, because the next person will not have your context.\n\nThis article looks at service discovery from a practical angle. Make the right thing the easy thing, and most people will do it. Keep the boundaries explicit so each part can evolve on its own schedule. Automation turns a fragile checklist into a repeatable step in the pipeline.\n\n## Why it matters\n\nUsers rarely notice good engineering, but they always notice its absence. Automation turns a fragile checklist into a repeatable step in the pipeline. Small, frequent changes are easier to review, test and roll back. When in doubt, prefer the boring solution that the whole team understands. The trick is to start small and let real usage tell you where to invest next.\n\n- Document the decision, not just the outcome\n- Keep secrets out of source control\n- Review defaults with the whole team\n- Prefer explicit configuration over conventions nobody remembers\n- Start with the smallest useful version\n\nKeep the boundaries explicit so each part can evolve on its own schedule. Most of the complexity comes from edge cases, not from the happy path. Feedback loops measured in seconds change how people work. The trick is to start small and let real usage tell you where to invest next.\n\n## What to try next\n\nA clear contract between systems is worth more than any clever implementation. Most of the complexity comes from edge cases, not from the happy path. Keep the boundaries explicit so each part can evolve on its own schedule. Treat configuration as part of the product, with the same care as the code.\n\n```bash\naz containerapp revision list \\\n  --name api --resource-group rg-demo \\\n  --query \"[].{name:name, active:properties.active}\" -o table\n```\n\nMake the right thing the easy thing, and most people will do it. The cost of a mistake is lowest when it is caught on a developer machine. Automation turns a fragile checklist into a repeatable step in the pipeline. Most of the complexity comes from edge cases, not from the happy path.\n\n## Making it repeatable\n\nThe cost of a mistake is lowest when it is caught on a developer machine. Every abstraction should earn its place by removing more complexity than it adds. The trick is to start small and let real usage tell you where to invest next. Documentation matters here, because the next person will not have your context.\n\nObservability is not an afterthought; it is how you learn what the system really does. The cost of a mistake is lowest when it is caught on a developer machine. A clear contract between systems is worth more than any clever implementation.\n\n## Further reading\n\n- [.NET documentation](https://learn.microsoft.com/dotnet/)\n- [Azure Architecture Center](https://learn.microsoft.com/azure/architecture/)\n- [GitHub Actions documentation](https://docs.github.com/actions)\n",
+        "tags": [
+          "dotnet",
+          "cloud",
+          "devops"
+        ],
+        "publishDate": "2026-10-14T00:00:00"
+      },
+      "cultures": {}
+    },
+    {
+      "contentType": "article",
+      "name": "A Practical Guide to OpenTelemetry in ASP.NET Core",
+      "createDate": "2026-10-28T22:07:20.13Z",
+      "updateDate": "2026-10-28T22:07:20.25Z",
+      "route": {
+        "path": "/articles/a-practical-guide-to-opentelemetry-in-aspnet-core/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "6d06f402-afe9-421e-857f-0e00910875fe",
+      "properties": {
+        "title": "A Practical Guide to OpenTelemetry in ASP.NET Core",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "1baea918-cccd-4274-bc45-24d623ab4606",
+            "name": "Placeholder 04",
+            "mediaType": "Image",
+            "url": "/media/s3rprlne/placeholder-04.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 34601,
+            "properties": {}
+          }
+        ],
+        "body": "It is easy to underestimate OpenTelemetry until a production incident makes its value obvious. Documentation matters here, because the next person will not have your context. Users rarely notice good engineering, but they always notice its absence. The trick is to start small and let real usage tell you where to invest next.\n\nThis article looks at OpenTelemetry from a practical angle. Observability is not an afterthought; it is how you learn what the system really does. Most of the complexity comes from edge cases, not from the happy path. Make the right thing the easy thing, and most people will do it.\n\n## Making it repeatable\n\nAutomation turns a fragile checklist into a repeatable step in the pipeline. Documentation matters here, because the next person will not have your context. A good default removes a whole category of decisions from code review. Security and usability are not opposites when the defaults are sensible.\n\n- Review defaults with the whole team\n- Prefer explicit configuration over conventions nobody remembers\n- Test the failure paths, not only the success paths\n- Share what you learn in a short write-up\n- Budget time for clean-up after the first release\n\nSmall, frequent changes are easier to review, test and roll back. Feedback loops measured in seconds change how people work.\n\n## Common pitfalls\n\nDocumentation matters here, because the next person will not have your context. The cost of a mistake is lowest when it is caught on a developer machine. Write down the trade-offs you accepted so they can be revisited later. Every abstraction should earn its place by removing more complexity than it adds.\n\n```ts\ntype LoadState<T> =\n  | { status: \"loading\" }\n  | { status: \"error\"; error: Error }\n  | { status: \"ready\"; data: T };\n```\n\nWhen in doubt, prefer the boring solution that the whole team understands. Write down the trade-offs you accepted so they can be revisited later. Keep the boundaries explicit so each part can evolve on its own schedule.\n\n## Why it matters\n\nAutomation turns a fragile checklist into a repeatable step in the pipeline. A good default removes a whole category of decisions from code review. Feedback loops measured in seconds change how people work.\n\nKeep the boundaries explicit so each part can evolve on its own schedule. Users rarely notice good engineering, but they always notice its absence.\n\n## Further reading\n\n- [.NET documentation](https://learn.microsoft.com/dotnet/)\n- [GitHub Actions documentation](https://docs.github.com/actions)\n- [TypeScript handbook](https://www.typescriptlang.org/docs/handbook/intro.html)\n- [Design Tokens Community Group](https://www.designtokens.org)\n",
+        "tags": [
+          "dotnet",
+          "devops",
+          "typescript",
+          "design-systems"
+        ],
+        "publishDate": "2026-10-03T00:00:00"
+      },
+      "cultures": {}
+    },
+    {
+      "contentType": "article",
+      "name": "Minimal APIs That Stay Maintainable",
+      "createDate": "2026-10-28T22:07:20.34Z",
+      "updateDate": "2026-10-28T22:07:20.4Z",
+      "route": {
+        "path": "/articles/minimal-apis-that-stay-maintainable/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "4fe44965-6a18-4d09-bcf6-389e867ccfbd",
+      "properties": {
+        "title": "Minimal APIs That Stay Maintainable",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "075d57a2-0ecd-455f-8b8a-14b9539bb77f",
+            "name": "Placeholder 05",
+            "mediaType": "Image",
+            "url": "/media/fwobxmne/placeholder-05.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 31759,
+            "properties": {}
+          }
+        ],
+        "body": "Teams adopt minimal APIs for different reasons, but the goal is almost always the same: ship faster without losing control. A good default removes a whole category of decisions from code review. The trick is to start small and let real usage tell you where to invest next. Small, frequent changes are easier to review, test and roll back.\n\nThis article looks at minimal APIs from a practical angle. Every abstraction should earn its place by removing more complexity than it adds. A good default removes a whole category of decisions from code review. Observability is not an afterthought; it is how you learn what the system really does.\n\n## A minimal setup\n\nA clear contract between systems is worth more than any clever implementation. Most of the complexity comes from edge cases, not from the happy path. Automation turns a fragile checklist into a repeatable step in the pipeline. Keep the boundaries explicit so each part can evolve on its own schedule.\n\n- Test the failure paths, not only the success paths\n- Document the decision, not just the outcome\n- Prefer explicit configuration over conventions nobody remembers\n- Review defaults with the whole team\n\nWrite down the trade-offs you accepted so they can be revisited later. Most of the complexity comes from edge cases, not from the happy path. Naming things consistently pays off every time someone searches the codebase. When in doubt, prefer the boring solution that the whole team understands.\n\n## Measuring the impact\n\nTreat configuration as part of the product, with the same care as the code. Write down the trade-offs you accepted so they can be revisited later. Naming things consistently pays off every time someone searches the codebase.\n\n```csharp\nvar builder = WebApplication.CreateBuilder(args);\nbuilder.AddServiceDefaults();\n\nvar app = builder.Build();\napp.MapGet(\"/hello\", () => Results.Ok(new { message = \"Hello\" }));\napp.Run();\n```\n\nTreat configuration as part of the product, with the same care as the code. The trick is to start small and let real usage tell you where to invest next.\n\n## Common pitfalls\n\nAutomation turns a fragile checklist into a repeatable step in the pipeline. Measure before and after every change, otherwise you are optimising by intuition. Write down the trade-offs you accepted so they can be revisited later.\n\nThe cost of a mistake is lowest when it is caught on a developer machine. When in doubt, prefer the boring solution that the whole team understands. Naming things consistently pays off every time someone searches the codebase.\n\n## Making it repeatable\n\nThe trick is to start small and let real usage tell you where to invest next. Make the right thing the easy thing, and most people will do it. Keep the boundaries explicit so each part can evolve on its own schedule. Small, frequent changes are easier to review, test and roll back. Feedback loops measured in seconds change how people work.\n\nSecurity and usability are not opposites when the defaults are sensible. The trick is to start small and let real usage tell you where to invest next. Observability is not an afterthought; it is how you learn what the system really does. Most of the complexity comes from edge cases, not from the happy path.\n\n## Further reading\n\n- [.NET documentation](https://learn.microsoft.com/dotnet/)\n- [web.dev on Core Web Vitals](https://web.dev/articles/vitals)\n- [Design Tokens Community Group](https://www.designtokens.org)\n",
+        "tags": [
+          "dotnet",
+          "performance",
+          "design-systems"
+        ],
+        "publishDate": "2026-09-27T00:00:00"
+      },
+      "cultures": {}
+    },
+    {
+      "contentType": "article",
+      "name": "Typed HTTP Clients from OpenAPI Documents",
+      "createDate": "2026-10-28T22:07:20.487Z",
+      "updateDate": "2026-10-28T22:07:20.57Z",
+      "route": {
+        "path": "/articles/typed-http-clients-from-openapi-documents/",
+        "queryString": null,
+        "startItem": {
+          "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+          "path": "home"
+        }
+      },
+      "id": "17a1dff3-66f1-4a63-a6b7-bf1ab2e880e2",
+      "properties": {
+        "title": "Typed HTTP Clients from OpenAPI Documents",
+        "image": [
+          {
+            "focalPoint": null,
+            "crops": [],
+            "id": "91bf0b61-c2c5-40ac-8d6a-999df13f20d3",
+            "name": "Placeholder 06",
+            "mediaType": "Image",
+            "url": "/media/31apsj3m/placeholder-06.jpg",
+            "extension": "jpg",
+            "width": 1600,
+            "height": 900,
+            "bytes": 35121,
+            "properties": {}
+          }
+        ],
+        "body": "OpenAPI clients has moved from a niche practice to something most modern teams rely on every day. Documentation matters here, because the next person will not have your context. Small, frequent changes are easier to review, test and roll back. Every abstraction should earn its place by removing more complexity than it adds.\n\nThis article looks at OpenAPI clients from a practical angle. Automation turns a fragile checklist into a repeatable step in the pipeline. Documentation matters here, because the next person will not have your context. Keep the boundaries explicit so each part can evolve on its own schedule.\n\n## The core idea\n\nAutomation turns a fragile checklist into a repeatable step in the pipeline. Most of the complexity comes from edge cases, not from the happy path. Measure before and after every change, otherwise you are optimising by intuition. Naming things consistently pays off every time someone searches the codebase.\n\n- Automate the checks you would otherwise forget\n- Prefer explicit configuration over conventions nobody remembers\n- Add telemetry before you need it\n- Document the decision, not just the outcome\n- Budget time for clean-up after the first release\n\nMake the right thing the easy thing, and most people will do it. A clear contract between systems is worth more than any clever implementation. The trick is to start small and let real usage tell you where to invest next.\n\n## What to try next\n\nMeasure before and after every change, otherwise you are optimising by intuition. Small, frequent changes are easier to review, test and roll back. Documentation matters here, because the next person will not have your context.\n\n```csharp\nvar builder = WebApplication.CreateBuilder(args);\nbuilder.AddServiceDefaults();\n\nvar app = builder.Build();\napp.MapGet(\"/hello\", () => Results.Ok(new { message = \"Hello\" }));\napp.Run();\n```\n\nSecurity and usability are not opposites when the defaults are sensible. Write down the trade-offs you accepted so they can be revisited later.\n\n## Common pitfalls\n\nFeedback loops measured in seconds change how people work. Security and usability are not opposites when the defaults are sensible. Small, frequent changes are easier to review, test and roll back. The trick is to start small and let real usage tell you where to invest next.\n\nObservability is not an afterthought; it is how you learn what the system really does. Measure before and after every change, otherwise you are optimising by intuition. The cost of a mistake is lowest when it is caught on a developer machine. Users rarely notice good engineering, but they always notice its absence.\n\n## Measuring the impact\n\nMost of the complexity comes from edge cases, not from the happy path. The cost of a mistake is lowest when it is caught on a developer machine. Write down the trade-offs you accepted so they can be revisited later. When in doubt, prefer the boring solution that the whole team understands.\n\nThe cost of a mistake is lowest when it is caught on a developer machine. Naming things consistently pays off every time someone searches the codebase. Automation turns a fragile checklist into a repeatable step in the pipeline. Small, frequent changes are easier to review, test and roll back.\n\n## Further reading\n\n- [TypeScript handbook](https://www.typescriptlang.org/docs/handbook/intro.html)\n- [.NET documentation](https://learn.microsoft.com/dotnet/)\n",
+        "tags": [
+          "typescript",
+          "dotnet"
+        ],
+        "publishDate": "2026-09-22T00:00:00"
+      },
+      "cultures": {}
+    }
+  ]
+}

@@ -119,6 +119,7 @@ resource "azurerm_container_app" "cms" {
       "hmac-secret",
       "webhook-secret",
       "media-storage-connection-string",
+      "seq-ingestion-api-key",
     ])
     content {
       name                = secret.value
@@ -227,6 +228,15 @@ resource "azurerm_container_app" "cms" {
         name        = "ContentWebhook__Secret"
         secret_name = "webhook-secret"
       }
+      # Logs/traces to Seq (ServiceDefaults AddSeqEndpoint), same keys Aspire injects locally.
+      env {
+        name  = "ConnectionStrings__seq"
+        value = local.seq_url
+      }
+      env {
+        name        = "Aspire__Seq__ApiKey"
+        secret_name = "seq-ingestion-api-key"
+      }
 
       # Umbraco boots (unattended install / migrations) before Kestrel listens. Allow up to
       # 60 x 10 s = 10 minutes instead of the default TCP startup budget, so a first install or an
@@ -270,6 +280,8 @@ resource "azurerm_container_app" "api" {
       "delivery-api-key",
       "hmac-secret",
       "webhook-secret",
+      "reindex-secret",
+      "seq-ingestion-api-key",
     ])
     content {
       name                = secret.value
@@ -348,6 +360,26 @@ resource "azurerm_container_app" "api" {
       env {
         name        = "Webhooks__Secret"
         secret_name = "webhook-secret"
+      }
+      env {
+        name        = "Search__ReindexSecret"
+        secret_name = "reindex-secret"
+      }
+      # Logs/traces to Seq (ServiceDefaults AddSeqEndpoint), same keys Aspire injects locally.
+      env {
+        name  = "ConnectionStrings__seq"
+        value = local.seq_url
+      }
+      env {
+        name        = "Aspire__Seq__ApiKey"
+        secret_name = "seq-ingestion-api-key"
+      }
+
+      # /alive only runs the "live"-tagged self check, so a Meilisearch or CMS outage never restarts the api.
+      liveness_probe {
+        transport = "HTTP"
+        port      = 8080
+        path      = "/alive"
       }
     }
   }

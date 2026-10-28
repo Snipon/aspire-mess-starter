@@ -1,7 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ArticleView from '../components/ArticleView.astro';
+import BlockList from '../components/blocks/BlockList.astro';
 import NotFound from '../components/NotFound.astro';
-import ResponsiveImage from '../components/ResponsiveImage.astro';
 import { api } from '../lib/api/client';
 
 const path = `/${Astro.params.slug ?? ''}`;
@@ -14,35 +15,27 @@ if (!page && response.status !== 404 && response.status !== 400) {
 }
 if (!page) Astro.response.status = 404;
 
-const updated = page
-  ? new Intl.DateTimeFormat('en', { dateStyle: 'long' }).format(new Date(page.updatedAt))
-  : undefined;
+// Landing pages often have no summary; their hero's subheading describes them just as well.
+const hero = page?.blocks.find((block) => block.type === 'hero');
+const description = page?.summary ?? hero?.subheading;
 ---
 
 {
   page ? (
-    <Layout title={page.title} description={page.summary}>
-      <article>
-        <header class="max-w-3xl">
-          <h1 class="text-4xl font-bold tracking-tight text-balance sm:text-5xl">{page.title}</h1>
-          {page.summary && <p class="mt-5 text-xl leading-relaxed text-slate-600">{page.summary}</p>}
-          <p class="mt-4 text-sm text-slate-500">
-            Updated <time datetime={page.updatedAt}>{updated}</time>
-          </p>
-        </header>
-
-        {page.image && (
-          <figure class="mt-10 overflow-hidden rounded-2xl bg-slate-200 shadow-sm">
-            <ResponsiveImage
-              image={page.image}
-              loading="eager"
-              class="aspect-[16/9] w-full object-cover"
-            />
-          </figure>
-        )}
-
-        {page.bodyHtml && <div class="rich-text mt-10 max-w-3xl" set:html={page.bodyHtml} />}
-      </article>
+    <Layout title={page.title} description={description}>
+      {page.contentType === 'article' && page.article ? (
+        <ArticleView page={page} article={page.article} />
+      ) : (
+        <>
+          {page.blocks[0]?.type !== 'hero' && (
+            <header class="mb-12 max-w-3xl">
+              <h1 class="text-4xl font-bold tracking-tight text-balance sm:text-5xl">{page.title}</h1>
+              {page.summary && <p class="mt-5 text-xl leading-relaxed text-slate-600">{page.summary}</p>}
+            </header>
+          )}
+          <BlockList blocks={page.blocks} />
+        </>
+      )}
     </Layout>
   ) : (
     <Layout title="Page not found">

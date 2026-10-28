@@ -1,3 +1,7 @@
+using Serilog;
+using Serilog.Core;
+using Serilog.Sinks.OpenTelemetry;
+
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 #if DEBUG
@@ -5,6 +9,33 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 #endif
 
 builder.AddServiceDefaults();
+
+// Umbraco replaces ILoggerFactory with Serilog, so its logs bypass the OpenTelemetry logger provider from
+// ServiceDefaults (dashboard + Seq). Umbraco's Serilog pipeline also reads sinks from DI (ReadFrom.Services),
+// so add the same two destinations as Serilog sinks.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+{
+    // Endpoint, protocol, headers and service name come from the OTEL_* variables (Aspire / Container Apps).
+    builder.Services.AddSingleton<ILogEventSink>(_ => new LoggerConfiguration().WriteTo.OpenTelemetry(_ => { }).CreateLogger());
+}
+
+if (builder.Configuration.GetConnectionString("seq") is { Length: > 0 } seqUrl)
+{
+    // Same OTLP shape as the other apps' logs in Seq; only the service name/resource attributes come from OTEL_*.
+    var seqApiKey = builder.Configuration["Aspire:Seq:ApiKey"];
+    builder.Services.AddSingleton<ILogEventSink>(_ => new LoggerConfiguration()
+        .WriteTo.OpenTelemetry(options =>
+            {
+                options.Endpoint = $"{seqUrl}/ingest/otlp";
+                options.Protocol = OtlpProtocol.HttpProtobuf;
+                if (!string.IsNullOrEmpty(seqApiKey))
+                {
+                    options.Headers["X-Seq-ApiKey"] = seqApiKey;
+                }
+            },
+            name => name is "OTEL_SERVICE_NAME" or "OTEL_RESOURCE_ATTRIBUTES" ? Environment.GetEnvironmentVariable(name) : null)
+        .CreateLogger());
+}
 
 // Headless: backoffice + Delivery API only. No AddWebsite()/UseWebsite(), so Umbraco never
 // routes front-end requests to Razor templates. Media (/media/*, incl. ImageSharp processing)

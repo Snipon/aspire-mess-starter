@@ -1,0 +1,109 @@
+{
+  "contentType": "site",
+  "createDate": "2026-10-28T22:07:18.757Z",
+  "updateDate": "2026-10-28T22:07:19.193Z",
+  "route": {
+    "path": "/",
+    "queryString": null,
+    "startItem": {
+      "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+      "path": "home"
+    }
+  },
+  "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+  "name": "Home",
+  "properties": {
+    "blocks": {
+      "items": [
+        {
+          "content": {
+            "contentType": "heroBlock",
+            "id": "1b674937-7752-4e3f-b994-ea388bd243ad",
+            "name": "n/a",
+            "properties": {
+              "heading": "Notes on building for the web",
+              "subheading": "Articles about .NET, cloud, front-end engineering and design systems, served by a headless Umbraco CMS.",
+              "image": [
+                {
+                  "focalPoint": null,
+                  "crops": [],
+                  "id": "09620984-1c45-420b-81c7-769be481a540",
+                  "name": "Placeholder 01",
+                  "mediaType": "Image",
+                  "url": "/media/bpbdjpzm/placeholder-01.jpg",
+                  "extension": "jpg",
+                  "width": 1600,
+                  "height": 900,
+                  "bytes": 34450,
+                  "properties": {}
+                }
+              ],
+              "ctaLabel": "Browse all articles",
+              "ctaLink": [
+                {
+                  "url": null,
+                  "queryString": null,
+                  "title": "Browse all articles",
+                  "target": null,
+                  "destinationId": "934f76aa-f86b-448d-8627-247a7289ddf3",
+                  "destinationType": "page",
+                  "route": {
+                    "path": "/articles/",
+                    "queryString": null,
+                    "startItem": {
+                      "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+                      "path": "home"
+                    }
+                  },
+                  "linkType": "Content",
+                  "culture": null
+                }
+              ]
+            }
+          },
+          "settings": null
+        },
+        {
+          "content": {
+            "contentType": "latestArticlesBlock",
+            "id": "c0da5563-5652-4a24-b071-f538adb141b4",
+            "name": "n/a",
+            "properties": {
+              "heading": "Latest articles",
+              "count": 6,
+              "tag": null
+            }
+          },
+          "settings": null
+        },
+        {
+          "content": {
+            "contentType": "ctaBlock",
+            "id": "6d817509-5e42-4193-9ff7-b941666fa678",
+            "name": "n/a",
+            "properties": {
+              "heading": "Built with Aspire",
+              "text": "This demo runs Umbraco, a typed .NET API, Meilisearch and an Astro front end from a single AppHost.",
+              "link": [
+                {
+                  "url": "https://aspire.dev",
+                  "queryString": null,
+                  "title": "Explore Aspire",
+                  "target": null,
+                  "destinationId": null,
+                  "destinationType": null,
+                  "route": null,
+                  "linkType": "External",
+                  "culture": null
+                }
+              ],
+              "style": "primary"
+            }
+          },
+          "settings": null
+        }
+      ]
+    }
+  },
+  "cultures": {}
+}

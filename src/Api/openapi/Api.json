@@ -76,7 +76,7 @@
           "Content"
         ],
         "summary": "Get a page by its URL path",
-        "description": "Returns the published page at `path` (e.g. `/about`; `/` is the home page).",
+        "description": "Returns the published page at `path` (e.g. `/articles`; `/` is the home page).",
         "operationId": "GetContentByPath",
         "parameters": [
           {
@@ -192,7 +192,7 @@
           "Content"
         ],
         "summary": "Get the navigation tree",
-        "description": "Root pages (normally the home page) with their descendants as children, in CMS sort order.",
+        "description": "Root pages (normally the home page) with their descendants as children, in CMS sort order. Articles are not included; list them with `/api/articles`.",
         "operationId": "GetNavigation",
         "parameters": [
           {
@@ -230,13 +230,123 @@
         }
       }
     },
+    "/api/articles": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "List published articles, newest first",
+        "description": "Ordered by publish date, descending. `tag` keeps only articles with that tag (case-insensitive).",
+        "operationId": "GetArticles",
+        "parameters": [
+          {
+            "name": "tag",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "culture",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedOfArticleSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tags": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "List article tags with counts",
+        "description": "Every tag used by a published article and how many articles carry it, most used first.",
+        "operationId": "GetTags",
+        "parameters": [
+          {
+            "name": "culture",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TagCount"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/search": {
       "get": {
         "tags": [
           "Search"
         ],
         "summary": "Full-text search",
-        "description": "An empty `q` returns no hits. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.",
+        "description": "Searches pages and articles. An empty `q` returns no hits. `tag` and `contentType` narrow the results. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.",
         "operationId": "Search",
         "parameters": [
           {
@@ -248,6 +358,13 @@
           },
           {
             "name": "contentType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
             "in": "query",
             "schema": {
               "type": "string"
@@ -302,11 +419,11 @@
           "Search"
         ],
         "summary": "Rebuild the search index from the content source",
-        "description": "Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded. Requires the `X-Webhook-Secret` header.",
+        "description": "Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded. Requires the `X-Reindex-Secret` header (`Search:ReindexSecret`).",
         "operationId": "Reindex",
         "parameters": [
           {
-            "name": "X-Webhook-Secret",
+            "name": "X-Reindex-Secret",
             "in": "header",
             "schema": {
               "type": "string"
@@ -340,6 +457,230 @@
   },
   "components": {
     "schemas": {
+      "Article": {
+        "required": [
+          "publishDate",
+          "tags",
+          "bodyHtml",
+          "readingTimeMinutes"
+        ],
+        "type": "object",
+        "properties": {
+          "publishDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bodyHtml": {
+            "type": "string"
+          },
+          "readingTimeMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ArticleSummary": {
+        "required": [
+          "id",
+          "path",
+          "title",
+          "summary",
+          "image",
+          "publishDate",
+          "tags"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Image"
+              }
+            ]
+          },
+          "publishDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Block": {
+        "required": [
+          "type"
+        ],
+        "type": "object",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/BlockHeroBlock"
+          },
+          {
+            "$ref": "#/components/schemas/BlockCtaBlock"
+          },
+          {
+            "$ref": "#/components/schemas/BlockLatestArticlesBlock"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "hero": "#/components/schemas/BlockHeroBlock",
+            "cta": "#/components/schemas/BlockCtaBlock",
+            "latestArticles": "#/components/schemas/BlockLatestArticlesBlock"
+          }
+        }
+      },
+      "BlockCtaBlock": {
+        "required": [
+          "heading",
+          "text",
+          "link",
+          "style",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "cta"
+            ],
+            "type": "string"
+          },
+          "heading": {
+            "type": "string"
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "link": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Link"
+              }
+            ]
+          },
+          "style": {
+            "$ref": "#/components/schemas/CtaStyle"
+          }
+        }
+      },
+      "BlockHeroBlock": {
+        "required": [
+          "heading",
+          "subheading",
+          "image",
+          "cta",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "hero"
+            ],
+            "type": "string"
+          },
+          "heading": {
+            "type": "string"
+          },
+          "subheading": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Image"
+              }
+            ]
+          },
+          "cta": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Link"
+              }
+            ]
+          }
+        }
+      },
+      "BlockLatestArticlesBlock": {
+        "required": [
+          "heading",
+          "tag",
+          "articles",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "latestArticles"
+            ],
+            "type": "string"
+          },
+          "heading": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tag": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "articles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleSummary"
+            }
+          }
+        }
+      },
       "ContentSyncResult": {
         "required": [
           "id",
@@ -365,6 +706,12 @@
             "type": "string"
           }
         }
+      },
+      "CtaStyle": {
+        "enum": [
+          "primary",
+          "secondary"
+        ]
       },
       "FocalPoint": {
         "required": [
@@ -451,6 +798,31 @@
           }
         }
       },
+      "Link": {
+        "required": [
+          "url",
+          "title",
+          "target"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "target": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "NavItem": {
         "required": [
           "id",
@@ -485,8 +857,9 @@
           "name",
           "title",
           "summary",
-          "bodyHtml",
           "image",
+          "blocks",
+          "article",
           "culture",
           "updatedAt",
           "properties"
@@ -514,12 +887,6 @@
               "string"
             ]
           },
-          "bodyHtml": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
           "image": {
             "oneOf": [
               {
@@ -527,6 +894,22 @@
               },
               {
                 "$ref": "#/components/schemas/Image"
+              }
+            ]
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Block"
+            }
+          },
+          "article": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Article"
               }
             ]
           },
@@ -543,6 +926,35 @@
           "properties": {
             "type": "object",
             "additionalProperties": { }
+          }
+        }
+      },
+      "PagedOfArticleSummary": {
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleSummary"
+            }
           }
         }
       },
@@ -601,7 +1013,10 @@
           "title",
           "summary",
           "contentType",
-          "highlight"
+          "highlight",
+          "tags",
+          "publishDate",
+          "imageUrl"
         ],
         "type": "object",
         "properties": {
@@ -624,6 +1039,25 @@
             "type": "string"
           },
           "highlight": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "publishDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "imageUrl": {
             "type": [
               "null",
               "string"
@@ -661,6 +1095,22 @@
             "items": {
               "$ref": "#/components/schemas/SearchHit"
             }
+          }
+        }
+      },
+      "TagCount": {
+        "required": [
+          "tag",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "tag": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       }

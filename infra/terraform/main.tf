@@ -17,6 +17,7 @@ locals {
   api_url         = "https://api.${azurerm_container_app_environment.this.default_domain}"
   web_url         = "https://web.${azurerm_container_app_environment.this.default_domain}"
   meilisearch_url = "https://meilisearch.internal.${azurerm_container_app_environment.this.default_domain}"
+  seq_url         = "https://seq.${azurerm_container_app_environment.this.default_domain}"
 }
 
 resource "azurerm_resource_group" "this" {

@@ -1,0 +1,41 @@
+{
+  "contentType": "article",
+  "createDate": "2026-10-28T22:07:19.57Z",
+  "updateDate": "2026-10-28T22:07:19.653Z",
+  "route": {
+    "path": "/articles/getting-started-with-net-aspire-for-local-development/",
+    "queryString": null,
+    "startItem": {
+      "id": "ca89896a-1d02-4fe8-9965-2c89ddc4da59",
+      "path": "home"
+    }
+  },
+  "id": "d8360124-a5a7-4865-a637-44fb684412ea",
+  "name": "Getting Started with .NET Aspire for Local Development",
+  "properties": {
+    "title": "Getting Started with .NET Aspire for Local Development",
+    "image": [
+      {
+        "focalPoint": null,
+        "crops": [],
+        "id": "09620984-1c45-420b-81c7-769be481a540",
+        "name": "Placeholder 01",
+        "mediaType": "Image",
+        "url": "/media/bpbdjpzm/placeholder-01.jpg",
+        "extension": "jpg",
+        "width": 1600,
+        "height": 900,
+        "bytes": 34450,
+        "properties": {}
+      }
+    ],
+    "body": "If you have ever inherited a project, you know how much Aspire decisions shape the daily experience. Small, frequent changes are easier to review, test and roll back. Keep the boundaries explicit so each part can evolve on its own schedule. Measure before and after every change, otherwise you are optimising by intuition.\n\nThis article looks at Aspire from a practical angle. A clear contract between systems is worth more than any clever implementation. Make the right thing the easy thing, and most people will do it. Users rarely notice good engineering, but they always notice its absence.\n\n## Common pitfalls\n\nThe trick is to start small and let real usage tell you where to invest next. Make the right thing the easy thing, and most people will do it. Most of the complexity comes from edge cases, not from the happy path.\n\n- Add telemetry before you need it\n- Automate the checks you would otherwise forget\n- Review defaults with the whole team\n- Start with the smallest useful version\n- Budget time for clean-up after the first release\n\nObservability is not an afterthought; it is how you learn what the system really does. Every abstraction should earn its place by removing more complexity than it adds. Most of the complexity comes from edge cases, not from the happy path.\n\n## Why it matters\n\nObservability is not an afterthought; it is how you learn what the system really does. Feedback loops measured in seconds change how people work. Treat configuration as part of the product, with the same care as the code. Every abstraction should earn its place by removing more complexity than it adds.\n\n```csharp\nvar builder = WebApplication.CreateBuilder(args);\nbuilder.AddServiceDefaults();\n\nvar app = builder.Build();\napp.MapGet(\"/hello\", () => Results.Ok(new { message = \"Hello\" }));\napp.Run();\n```\n\nKeep the boundaries explicit so each part can evolve on its own schedule. Automation turns a fragile checklist into a repeatable step in the pipeline.\n\n## Going to production\n\nThe cost of a mistake is lowest when it is caught on a developer machine. Measure before and after every change, otherwise you are optimising by intuition. Treat configuration as part of the product, with the same care as the code.\n\nSmall, frequent changes are easier to review, test and roll back. Documentation matters here, because the next person will not have your context. The cost of a mistake is lowest when it is caught on a developer machine. Write down the trade-offs you accepted so they can be revisited later.\n\n## What to try next\n\nMake the right thing the easy thing, and most people will do it. Users rarely notice good engineering, but they always notice its absence. Naming things consistently pays off every time someone searches the codebase. Keep the boundaries explicit so each part can evolve on its own schedule.\n\nThe trick is to start small and let real usage tell you where to invest next. Measure before and after every change, otherwise you are optimising by intuition.\n\n## Further reading\n\n- [Aspire documentation](https://aspire.dev)\n- [.NET documentation](https://learn.microsoft.com/dotnet/)\n- [TypeScript handbook](https://www.typescriptlang.org/docs/handbook/intro.html)\n",
+    "tags": [
+      "aspire",
+      "dotnet",
+      "typescript"
+    ],
+    "publishDate": "2026-10-28T00:00:00"
+  },
+  "cultures": {}
+}

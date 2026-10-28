@@ -53,6 +53,11 @@ resource "random_password" "webhook_secret" {
   special = false
 }
 
+resource "random_password" "reindex_secret" {
+  length  = 40
+  special = false
+}
+
 resource "random_password" "meilisearch_master_key" {
   length  = 40
   special = false
@@ -76,17 +81,35 @@ resource "random_password" "umbraco_admin" {
   min_numeric = 2
 }
 
+# Seq: first-run admin password (Seq asks for a new one on first login) and the API key the apps
+# send with every log batch (registered in Seq once, see docs/deployment.md).
+resource "random_password" "seq_admin" {
+  length      = 24
+  special     = false
+  min_lower   = 2
+  min_upper   = 2
+  min_numeric = 2
+}
+
+resource "random_password" "seq_ingestion_api_key" {
+  length  = 32
+  special = false
+}
+
 locals {
   secrets = {
     "delivery-api-key"                = random_password.delivery_api_key.result
     "hmac-secret"                     = random_bytes.hmac_secret.base64
     "webhook-secret"                  = random_password.webhook_secret.result
+    "reindex-secret"                  = random_password.reindex_secret.result
     "meilisearch-master-key"          = random_password.meilisearch_master_key.result
     "meilisearch-connection-string"   = "Endpoint=${local.meilisearch_url};MasterKey=${random_password.meilisearch_master_key.result}"
     "sql-admin-password"              = random_password.sql_admin.result
     "umbraco-db-connection-string"    = "Server=tcp:${azurerm_mssql_server.this.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.umbraco.name};User ID=${var.sql_admin_login};Password=${random_password.sql_admin.result};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
     "umbraco-admin-password"          = random_password.umbraco_admin.result
     "media-storage-connection-string" = azurerm_storage_account.this.primary_connection_string
+    "seq-admin-password"              = random_password.seq_admin.result
+    "seq-ingestion-api-key"           = random_password.seq_ingestion_api_key.result
   }
 }
 

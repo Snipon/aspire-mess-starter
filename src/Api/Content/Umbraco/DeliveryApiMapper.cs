@@ -1,21 +1,32 @@
 using System.Text.Json;
 using Api.Contracts;
+using Api.Endpoints;
 
 namespace Api.Content.Umbraco;
 
 /// <summary>Maps Umbraco Delivery API v2 content JSON to contract types.</summary>
 public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signer, int[] renditionWidths)
 {
-    private static readonly HashSet<string> MappedProperties = ["title", "summary", "body", "image"];
+    public const string ArticleType = "article";
+
+    /// <summary>The latestArticles block's <c>count</c> has no default in Umbraco; this is the documented one.</summary>
+    public const int DefaultLatestArticles = 6;
+
+    public const int MaxLatestArticles = 50;
+
+    /// <summary>Resolves the articles of a latestArticles block (newest first, optionally only those with a tag).</summary>
+    public delegate Task<ArticleSummary[]> LatestArticlesResolver(string? tag, int count, CancellationToken ct);
+
+    private static readonly HashSet<string> MappedProperties = ["title", "summary", "image", "blocks", "body", "tags", "publishDate"];
 
     private readonly string _publicBaseUrl = publicBaseUrl.TrimEnd('/');
 
-    public Page ToPage(JsonElement item, string? culture)
+    /// <param name="latestArticles">Fills latestArticles blocks; when <c>null</c> they are left empty (e.g. for indexing).</param>
+    public async Task<Page> ToPageAsync(JsonElement item, string? culture, LatestArticlesResolver? latestArticles, CancellationToken ct)
     {
         var name = item.GetProperty("name").GetString() ?? string.Empty;
-        var properties = item.TryGetProperty("properties", out var props) && props.ValueKind == JsonValueKind.Object
-            ? props
-            : default;
+        var contentType = item.GetProperty("contentType").GetString()!;
+        var properties = GetProperties(item);
 
         var extra = new Dictionary<string, JsonElement>();
         if (properties.ValueKind == JsonValueKind.Object)
@@ -29,20 +40,48 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
             }
         }
 
-        var title = GetString(properties, "title");
+        Article? article = null;
+        var summary = GetString(properties, "summary");
+        if (contentType == ArticleType)
+        {
+            var body = MarkdownText.Parse(GetString(properties, "body"));
+            article = new Article(
+                GetPublishDate(item, properties),
+                GetTagsOf(properties),
+                MarkdownText.ToHtml(body, ToPublicMediaUrl),
+                MarkdownText.ReadingTimeMinutes(body));
+            summary ??= MarkdownText.Excerpt(body);
+        }
+
         return new Page(
             Id: item.GetProperty("id").GetString()!,
-            ContentType: item.GetProperty("contentType").GetString()!,
+            ContentType: contentType,
             Path: GetPath(item),
             Name: name,
-            Title: string.IsNullOrWhiteSpace(title) ? name : title,
-            Summary: GetString(properties, "summary"),
-            BodyHtml: GetRichText(properties, "body"),
+            Title: GetTitle(properties, name),
+            Summary: summary,
             Image: GetImage(properties, "image"),
+            Blocks: await GetBlocksAsync(properties, latestArticles, ct),
+            Article: article,
             Culture: culture,
             UpdatedAt: item.TryGetProperty("updateDate", out var updated) ? updated.GetDateTimeOffset() : default,
             Properties: extra);
     }
+
+    public ArticleSummary ToArticleSummary(JsonElement item)
+    {
+        var properties = GetProperties(item);
+        return new ArticleSummary(
+            Id: item.GetProperty("id").GetString()!,
+            Path: GetPath(item),
+            Title: GetTitle(properties, item.GetProperty("name").GetString() ?? string.Empty),
+            Summary: GetString(properties, "summary") ?? MarkdownText.Excerpt(MarkdownText.Parse(GetString(properties, "body"))),
+            Image: GetImage(properties, "image"),
+            PublishDate: GetPublishDate(item, properties),
+            Tags: GetTagsOf(properties));
+    }
+
+    public static string[] GetTags(JsonElement item) => GetTagsOf(GetProperties(item));
 
     public static string GetPath(JsonElement item)
     {
@@ -61,9 +100,134 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
 
     public string ToAbsoluteUrl(string url) => IsHttpUrl(url) ? url : _publicBaseUrl + "/" + url.TrimStart('/');
 
+    // Media is served by the CMS; other relative URLs are site paths handled by the web front end.
+    private string ToPublicMediaUrl(string url) =>
+        url.StartsWith("/media/", StringComparison.Ordinal) ? _publicBaseUrl + url : url;
+
     // Not Uri.TryCreate(..., Absolute): on Linux "/media/x.jpg" parses as an absolute file:// URI.
     private static bool IsHttpUrl(string url) =>
         url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+    private static JsonElement GetProperties(JsonElement item) =>
+        item.TryGetProperty("properties", out var props) && props.ValueKind == JsonValueKind.Object ? props : default;
+
+    private static string GetTitle(JsonElement properties, string name)
+    {
+        var title = GetString(properties, "title");
+        return string.IsNullOrWhiteSpace(title) ? name : title;
+    }
+
+    private async Task<Block[]> GetBlocksAsync(JsonElement properties, LatestArticlesResolver? latestArticles, CancellationToken ct)
+    {
+        // Block List: { "items": [ { "content": { "contentType", "id", "properties" }, "settings": ... } ] }
+        if (properties.ValueKind != JsonValueKind.Object
+            || !properties.TryGetProperty("blocks", out var value)
+            || value.ValueKind != JsonValueKind.Object
+            || !value.TryGetProperty("items", out var items)
+            || items.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        var blocks = new List<Block>();
+        foreach (var entry in items.EnumerateArray())
+        {
+            if (!entry.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var props = GetProperties(content);
+            Block? block = GetString(content, "contentType") switch
+            {
+                "heroBlock" => new HeroBlock(
+                    GetString(props, "heading") ?? string.Empty,
+                    GetString(props, "subheading"),
+                    GetImage(props, "image"),
+                    GetLink(props, "ctaLink", title: GetString(props, "ctaLabel"))),
+                "ctaBlock" => new CtaBlock(
+                    GetString(props, "heading") ?? string.Empty,
+                    GetString(props, "text"),
+                    GetLink(props, "link"),
+                    GetString(props, "style") == "secondary" ? CtaStyle.Secondary : CtaStyle.Primary),
+                "latestArticlesBlock" => await GetLatestArticlesAsync(props, latestArticles, ct),
+                _ => null, // Unknown block types are skipped, so new CMS blocks never break existing clients.
+            };
+            if (block is not null)
+            {
+                blocks.Add(block);
+            }
+        }
+
+        return blocks.ToArray();
+    }
+
+    private static async Task<LatestArticlesBlock> GetLatestArticlesAsync(
+        JsonElement props, LatestArticlesResolver? latestArticles, CancellationToken ct)
+    {
+        var tag = GetString(props, "tag");
+        // A free-text Textstring: anything but a single tag (e.g. "a, b" or "!a" in tag filter syntax) is ignored,
+        // the same rule the API applies to the tag its "All articles" link leads to.
+        tag = string.IsNullOrWhiteSpace(tag) ? null : tag.Trim();
+        tag = RequestValidation.IsValidTag(tag) ? tag : null;
+        var count = Math.Clamp(GetInt(props, "count") ?? DefaultLatestArticles, 1, MaxLatestArticles);
+        var articles = latestArticles is null ? [] : await latestArticles(tag, count, ct);
+        return new LatestArticlesBlock(GetString(props, "heading"), tag, articles);
+    }
+
+    /// <summary>Maps the first link of a Multi URL Picker (an array, or <c>null</c> when empty).</summary>
+    private Link? GetLink(JsonElement properties, string name, string? title = null)
+    {
+        var link = FirstObject(properties, name);
+        if (link.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var url = GetString(link, "linkType") switch
+        {
+            "Content" => link.TryGetProperty("route", out var route) && route.ValueKind == JsonValueKind.Object
+                ? NormalizePath(GetString(route, "path"))
+                : null,
+            "Media" => GetString(link, "url") is { Length: > 0 } media ? ToAbsoluteUrl(media) : null,
+            _ => GetString(link, "url"),
+        };
+        if (string.IsNullOrWhiteSpace(url) || !MarkdownText.IsSafeUrl(url))
+        {
+            return null;
+        }
+
+        // Umbraco keeps "?query" / "#anchor" apart from the URL.
+        return new Link(url + GetString(link, "queryString"), string.IsNullOrWhiteSpace(title) ? GetString(link, "title") : title,
+            GetString(link, "target"));
+    }
+
+    private static DateOnly GetPublishDate(JsonElement item, JsonElement properties)
+    {
+        // Date picker values have no offset ("2026-10-28T00:00:00"). Fall back to the create date like the CMS's
+        // publishDate sort does.
+        if (properties.ValueKind == JsonValueKind.Object
+            && properties.TryGetProperty("publishDate", out var value)
+            && value.ValueKind == JsonValueKind.String
+            && value.TryGetDateTime(out var date))
+        {
+            return DateOnly.FromDateTime(date);
+        }
+
+        return item.TryGetProperty("createDate", out var created) && created.TryGetDateTimeOffset(out var createDate)
+            ? DateOnly.FromDateTime(createDate.UtcDateTime)
+            : default;
+    }
+
+    private static string[] GetTagsOf(JsonElement properties) =>
+        properties.ValueKind == JsonValueKind.Object
+        && properties.TryGetProperty("tags", out var tags)
+        && tags.ValueKind == JsonValueKind.Array
+            ? tags.EnumerateArray()
+                .Where(t => t.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(t.GetString()))
+                .Select(t => t.GetString()!)
+                .ToArray()
+            : [];
 
     private static string? GetString(JsonElement properties, string name) =>
         properties.ValueKind == JsonValueKind.Object
@@ -72,39 +236,25 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
             ? value.GetString()
             : null;
 
-    private string? GetRichText(JsonElement properties, string name)
+    /// <summary>Pickers return an array of items (or a single item, depending on configuration).</summary>
+    private static JsonElement FirstObject(JsonElement properties, string name)
     {
         if (properties.ValueKind != JsonValueKind.Object || !properties.TryGetProperty(name, out var value))
         {
-            return null;
+            return default;
         }
 
-        // Rich text is { "markup": "...", "blocks": [] } unless RichTextOutputAsJson is enabled.
-        var markup = value.ValueKind switch
-        {
-            JsonValueKind.Object when value.TryGetProperty("markup", out var m) => m.GetString(),
-            JsonValueKind.String => value.GetString(),
-            _ => null,
-        };
-
-        // Make embedded media absolute so the browser loads it from the CMS's public URL.
-        return markup?.Replace("src=\"/media/", $"src=\"{_publicBaseUrl}/media/", StringComparison.Ordinal);
-    }
-
-    private Image? GetImage(JsonElement properties, string name)
-    {
-        if (properties.ValueKind != JsonValueKind.Object || !properties.TryGetProperty(name, out var value))
-        {
-            return null;
-        }
-
-        // Media pickers return an array of media items (or a single item, depending on configuration).
-        var media = value.ValueKind switch
+        return value.ValueKind switch
         {
             JsonValueKind.Array when value.GetArrayLength() > 0 => value[0],
             JsonValueKind.Object => value,
             _ => default,
         };
+    }
+
+    private Image? GetImage(JsonElement properties, string name)
+    {
+        var media = FirstObject(properties, name);
         if (media.ValueKind != JsonValueKind.Object
             || !media.TryGetProperty("url", out var urlElement)
             || urlElement.GetString() is not { Length: > 0 } url)
@@ -138,5 +288,10 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
     }
 
     private static int? GetInt(JsonElement element, string name) =>
-        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;
+        element.ValueKind == JsonValueKind.Object
+        && element.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt32(out var number)
+            ? number
+            : null;
 }
