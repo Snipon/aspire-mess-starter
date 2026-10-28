@@ -1,0 +1,52 @@
+---
+import Layout from '../layouts/Layout.astro';
+import NotFound from '../components/NotFound.astro';
+import ResponsiveImage from '../components/ResponsiveImage.astro';
+import { api } from '../lib/api/client';
+
+const path = `/${Astro.params.slug ?? ''}`;
+const { data: page, response } = await api().GET('/api/content', {
+  params: { query: { path } },
+});
+
+if (!page && response.status !== 404 && response.status !== 400) {
+  throw new Error(`Content API returned ${response.status} for ${path}`);
+}
+if (!page) Astro.response.status = 404;
+
+const updated = page
+  ? new Intl.DateTimeFormat('en', { dateStyle: 'long' }).format(new Date(page.updatedAt))
+  : undefined;
+---
+
+{
+  page ? (
+    <Layout title={page.title} description={page.summary}>
+      <article>
+        <header class="max-w-3xl">
+          <h1 class="text-4xl font-bold tracking-tight text-balance sm:text-5xl">{page.title}</h1>
+          {page.summary && <p class="mt-5 text-xl leading-relaxed text-slate-600">{page.summary}</p>}
+          <p class="mt-4 text-sm text-slate-500">
+            Updated <time datetime={page.updatedAt}>{updated}</time>
+          </p>
+        </header>
+
+        {page.image && (
+          <figure class="mt-10 overflow-hidden rounded-2xl bg-slate-200 shadow-sm">
+            <ResponsiveImage
+              image={page.image}
+              loading="eager"
+              class="aspect-[16/9] w-full object-cover"
+            />
+          </figure>
+        )}
+
+        {page.bodyHtml && <div class="rich-text mt-10 max-w-3xl" set:html={page.bodyHtml} />}
+      </article>
+    </Layout>
+  ) : (
+    <Layout title="Page not found">
+      <NotFound />
+    </Layout>
+  )
+}

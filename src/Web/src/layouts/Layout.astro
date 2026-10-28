@@ -1,0 +1,85 @@
+---
+import '../styles/global.css';
+import { getNavigation, type NavItem } from '../lib/api/client';
+
+interface Props {
+  title: string;
+  description?: string | null;
+}
+
+const { title, description } = Astro.props;
+const nav = await getNavigation();
+
+// Show each root (normally just Home) followed by its direct children as top-level links.
+const links: NavItem[] = nav.flatMap((root) => [root, ...root.children]);
+const current = Astro.url.pathname.replace(/\/+$/, '') || '/';
+const isActive = (path: string) => {
+  const p = path.replace(/\/+$/, '') || '/';
+  return p === '/' ? current === '/' : current === p || current.startsWith(`${p}/`);
+};
+const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ?? '') : '';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+  </head>
+  <body class="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-900 antialiased">
+    <header class="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
+        <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          <span>Aspire Test</span>
+        </a>
+        <nav aria-label="Main" class="order-3 w-full sm:order-none sm:w-auto sm:flex-1">
+          <ul class="flex flex-wrap gap-1 text-sm">
+            {
+              links.map((item) => (
+                <li>
+                  <a
+                    href={item.path}
+                    aria-current={isActive(item.path) ? 'page' : undefined}
+                    class:list={[
+                      'rounded-md px-3 py-1.5 transition-colors',
+                      isActive(item.path)
+                        ? 'bg-indigo-50 font-medium text-indigo-700'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                    ]}
+                  >
+                    {item.name}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+        <form action="/search" method="get" role="search" class="ml-auto">
+          <label for="site-search" class="sr-only">Search</label>
+          <input
+            id="site-search"
+            type="search"
+            name="q"
+            value={q}
+            placeholder="Search…"
+            class="w-40 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none sm:w-56"
+          />
+        </form>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 sm:py-14">
+      <slot />
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white">
+      <div class="mx-auto max-w-5xl px-4 py-6 text-sm text-slate-500 sm:px-6">
+        Content from Umbraco, search by Meilisearch, served by Astro.
+      </div>
+    </footer>
+  </body>
+</html>

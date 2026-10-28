@@ -1,0 +1,121 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { api, type SearchResult } from '../lib/api/client';
+
+const PAGE_SIZE = 10;
+const params = Astro.url.searchParams;
+const q = (params.get('q') ?? '').trim();
+const contentType = params.get('contentType') || undefined;
+const requestedPage = Number.parseInt(params.get('page') ?? '1', 10);
+const pageNumber = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+let result: SearchResult | undefined;
+let error: string | undefined;
+
+if (q) {
+  const { data, error: problem, response } = await api().GET('/api/search', {
+    params: { query: { q, page: pageNumber, pageSize: PAGE_SIZE, contentType } },
+  });
+  if (data) {
+    result = data;
+  } else if (response.status === 400) {
+    Astro.response.status = 400;
+    error = problem?.detail ?? problem?.title ?? 'Invalid search request.';
+  } else {
+    throw new Error(`Search API returned ${response.status}`);
+  }
+}
+
+const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
+const pageHref = (n: number) => {
+  const next = new URLSearchParams({ q, page: String(n) });
+  if (contentType) next.set('contentType', contentType);
+  return `/search?${next}`;
+};
+---
+
+<Layout title={q ? `Search: ${q}` : 'Search'}>
+  <div class="mx-auto max-w-3xl">
+    <h1 class="text-3xl font-bold tracking-tight">Search</h1>
+
+    <form action="/search" method="get" role="search" class="mt-6 flex gap-2">
+      <label for="q" class="sr-only">Search terms</label>
+      <input
+        id="q"
+        type="search"
+        name="q"
+        value={q}
+        autofocus={!q}
+        placeholder="What are you looking for?"
+        class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+      />
+      {contentType && <input type="hidden" name="contentType" value={contentType} />}
+      <button
+        type="submit"
+        class="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white shadow-sm hover:bg-indigo-500"
+      >
+        Search
+      </button>
+    </form>
+
+    {error && <p class="mt-6 rounded-lg bg-red-50 px-4 py-3 text-red-700">{error}</p>}
+
+    {
+      result && (
+        <section class="mt-8" aria-live="polite">
+          <p class="text-sm text-slate-500">
+            {result.total === 0
+              ? `No results for “${result.query}”.`
+              : `${result.total} result${result.total === 1 ? '' : 's'} for “${result.query}”`}
+          </p>
+
+          <ol class="mt-4 space-y-3">
+            {result.hits.map((hit) => (
+              <li>
+                <a
+                  href={hit.path}
+                  class="block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow"
+                >
+                  <div class="flex items-baseline justify-between gap-4">
+                    <h2 class="text-lg font-semibold text-slate-900">{hit.title}</h2>
+                    <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                      {hit.contentType}
+                    </span>
+                  </div>
+                  <p class="mt-0.5 text-sm text-indigo-600">{hit.path}</p>
+                  {hit.highlight ? (
+                    <p class="mt-2 text-slate-600" set:html={hit.highlight} />
+                  ) : (
+                    hit.summary && <p class="mt-2 text-slate-600">{hit.summary}</p>
+                  )}
+                </a>
+              </li>
+            ))}
+          </ol>
+
+          {totalPages > 1 && (
+            <nav aria-label="Pagination" class="mt-8 flex items-center justify-between text-sm">
+              {result.page > 1 ? (
+                <a href={pageHref(result.page - 1)} rel="prev" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">
+                  ← Previous
+                </a>
+              ) : (
+                <span />
+              )}
+              <span class="text-slate-500">
+                Page {result.page} of {totalPages}
+              </span>
+              {result.page < totalPages ? (
+                <a href={pageHref(result.page + 1)} rel="next" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">
+                  Next →
+                </a>
+              ) : (
+                <span />
+              )}
+            </nav>
+          )}
+        </section>
+      )
+    }
+  </div>
+</Layout>

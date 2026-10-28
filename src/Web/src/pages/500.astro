@@ -1,0 +1,17 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+interface Props {
+  error: unknown;
+}
+
+console.error(Astro.props.error);
+---
+
+<Layout title="Something went wrong">
+  <section class="mx-auto max-w-xl py-16 text-center">
+    <p class="text-sm font-semibold tracking-wide text-indigo-600 uppercase">Error</p>
+    <h1 class="mt-2 text-4xl font-bold tracking-tight">Something went wrong</h1>
+    <p class="mt-4 text-slate-600">The content service is unavailable right now. Please try again in a moment.</p>
+  </section>
+</Layout>

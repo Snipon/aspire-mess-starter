@@ -1,0 +1,27 @@
+{
+  "name": "web",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev --host --ignore-lock",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs",
+    "check": "astro check",
+    "gen:api": "openapi-typescript ../Api/openapi/Api.json -o src/lib/api/schema.d.ts"
+  },
+  "dependencies": {
+    "@astrojs/node": "^11.1.9",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.4.4",
+    "openapi-fetch": "^0.17.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@types/node": "^24.19.2",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9.3"
+  }
+}

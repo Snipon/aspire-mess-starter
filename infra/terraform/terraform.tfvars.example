@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+name                = "aspiretest"
+location            = "swedencentral"
+image_tag           = "latest"
+umbraco_admin_email = "admin@example.com"
+sql_database_sku    = "S0"
+
+tags = {
+  project = "aspire-test"
+}

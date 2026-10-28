@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/apphost/">
+    <File Path="apphost.cs" />
+    <File Path="apphost.run.json" />
+    <File Path="aspire.config.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Api/Api.csproj" />
+    <Project Path="src/Cms/Cms.csproj" />
+    <Project Path="src/ServiceDefaults/ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Api.Tests/Api.Tests.csproj" />
+  </Folder>
+</Solution>

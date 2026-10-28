@@ -1,0 +1,37 @@
+{
+  "contentType": "page",
+  "name": "About us",
+  "createDate": "2026-10-01T10:00:00Z",
+  "updateDate": "2026-10-20T12:30:00+02:00",
+  "route": {
+    "path": "/about-us/",
+    "queryString": null,
+    "startItem": { "id": "4c4e3c4a-5d2b-4a3f-9f1e-2d1b7d2b8a10", "path": "home" }
+  },
+  "id": "8d0f2b1e-6a3c-4b9a-9e47-0f0f6a1d2c33",
+  "properties": {
+    "title": "About Us",
+    "summary": "Who we are and what we do.",
+    "body": {
+      "markup": "<p>Hello <strong>world</strong></p><p><img src=\"/media/xyz789/inline.png\" alt=\"\"></p>",
+      "blocks": []
+    },
+    "image": [
+      {
+        "focalPoint": { "left": 0.3, "top": 0.6 },
+        "crops": [],
+        "id": "b1a5c4f2-3c1e-4d33-8f0e-7a6b5c4d3e21",
+        "name": "Team photo",
+        "mediaType": "Image",
+        "url": "/media/abc123/Team Photo.jpg",
+        "extension": "jpg",
+        "width": 1500,
+        "height": 1000,
+        "bytes": 254321,
+        "properties": {}
+      }
+    ],
+    "showInFooter": true
+  },
+  "cultures": {}
+}

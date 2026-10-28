@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Styling for CMS rich text (bodyHtml), which arrives as plain HTML without classes. */
+@layer components {
+  .rich-text {
+    @apply text-lg leading-relaxed text-slate-700;
+
+    & > * + * { @apply mt-5; }
+    & h2 { @apply mt-10 text-2xl font-semibold tracking-tight text-slate-900; }
+    & h3 { @apply mt-8 text-xl font-semibold text-slate-900; }
+    & a { @apply font-medium text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:decoration-indigo-600; }
+    & ul { @apply list-disc pl-6; }
+    & ol { @apply list-decimal pl-6; }
+    & li + li { @apply mt-2; }
+    & blockquote { @apply border-l-4 border-indigo-200 pl-4 italic text-slate-600; }
+    & img { @apply h-auto max-w-full rounded-lg; }
+    & strong { @apply font-semibold text-slate-900; }
+    & code { @apply rounded bg-slate-100 px-1.5 py-0.5 text-base; }
+  }
+
+  mark {
+    @apply rounded bg-amber-100 px-0.5 text-slate-900;
+  }
+}
