@@ -16,6 +16,7 @@ public sealed class HeadlessComposer : IComposer
     public void Compose(IUmbracoBuilder builder)
     {
         builder.Services.Configure<ContentWebhookOptions>(builder.Config.GetSection(ContentWebhookOptions.SectionName));
+        builder.Services.Configure<ProductPickerOptions>(builder.Config.GetSection(ProductPickerOptions.SectionName));
         builder.Services.AddHttpClient();
         builder.Services.AddSingleton<SearchIndexNotifier>();
 

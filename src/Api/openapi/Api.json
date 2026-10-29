@@ -924,6 +924,22 @@
           "readingTimeMinutes": {
             "type": "integer",
             "format": "int32"
+          },
+          "productSku": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "product": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductSummary"
+              }
+            ]
           }
         }
       },

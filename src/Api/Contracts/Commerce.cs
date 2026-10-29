@@ -51,7 +51,12 @@ public sealed record ProductSummary(
     bool InStock,
     double Rating,
     int ReviewCount,
-    int UnitsSold);
+    int UnitsSold)
+{
+    public static ProductSummary From(Product p) => new(
+        p.Sku, p.Slug, p.Path, p.Title, p.Category, p.Brand, p.Image, p.Price, p.Stock > 0, p.Stats.Rating, p.Stats.ReviewCount,
+        p.Stats.UnitsSold);
+}
 
 /// <summary>A page of products with facet counts (each counted without its own filter, like <see cref="SearchFacets"/>).</summary>
 public sealed record ProductSearchResult(string Query, string Sort, int Page, int PageSize, int Total, ProductSummary[] Items, ProductFacets Facets);

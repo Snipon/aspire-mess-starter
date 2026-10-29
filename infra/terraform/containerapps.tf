@@ -230,6 +230,10 @@ resource "azurerm_container_app" "cms" {
         value = "${local.api_url}/api/webhooks/content"
       }
       env {
+        name  = "ProductPicker__ApiUrl"
+        value = local.api_url
+      }
+      env {
         name        = "ContentWebhook__Secret"
         secret_name = "webhook-secret"
       }

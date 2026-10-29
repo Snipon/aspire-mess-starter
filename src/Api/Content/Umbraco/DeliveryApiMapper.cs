@@ -57,7 +57,8 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
                     GetPublishDate(item.CreateDate, props?.PublishDate),
                     GetTags(props),
                     MarkdownText.ToHtml(body, ToPublicMediaUrl),
-                    MarkdownText.ReadingTimeMinutes(body));
+                    MarkdownText.ReadingTimeMinutes(body),
+                    ProductSku: string.IsNullOrWhiteSpace(props?.Product) ? null : props.Product.Trim());
                 extra = props?.Additional;
                 break;
             case BlogPostContentResponseModel { Properties: var props }:

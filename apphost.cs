@@ -113,9 +113,11 @@ api.WithEnvironment("Providers__Commerce", "Drupal")
     .WithEnvironment("Drupal__PublicBaseUrl", commerce.GetEndpoint("http"))
     .WithEnvironment("Drupal__ApiKey", commerceApiKey);
 
-// The CMS pushes content changes to the API (endpoint reference only, no startup dependency).
+// The CMS pushes content changes to the API, and its product picker searches the API's products (endpoint references
+// only, no startup dependency).
 cms.WithEnvironment("ContentWebhook__TargetUrl",
-    ReferenceExpression.Create($"{api.GetEndpoint("http")}/api/webhooks/content"));
+    ReferenceExpression.Create($"{api.GetEndpoint("http")}/api/webhooks/content"))
+    .WithEnvironment("ProductPicker__ApiUrl", api.GetEndpoint("http"));
 
 // Astro SSR front end; only its server talks to the API.
 var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")

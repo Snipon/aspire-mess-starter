@@ -338,6 +338,8 @@ export interface components {
             bodyHtml: string;
             /** Format: int32 */
             readingTimeMinutes: number;
+            productSku?: null | string;
+            product?: null | components["schemas"]["ProductSummary"];
         };
         ArticleSummary: {
             id: string;

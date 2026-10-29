@@ -4,7 +4,16 @@ namespace Api.Contracts;
 /// <param name="BodyHtml">The body rendered from Markdown. Raw HTML in the source is escaped and unsafe link schemes
 /// are neutralised, so it can be inserted as-is.</param>
 /// <param name="ReadingTimeMinutes">Estimated at 200 words per minute; at least 1.</param>
-public sealed record Article(DateOnly PublishDate, string[] Tags, string BodyHtml, int ReadingTimeMinutes);
+/// <param name="ProductSku">SKU of the shop product the article refers to, as set in the CMS.</param>
+/// <param name="Product">That product from the shop; <c>null</c> when none is set, it is no longer in the shop, or the
+/// shop is off or unreachable.</param>
+public sealed record Article(
+    DateOnly PublishDate,
+    string[] Tags,
+    string BodyHtml,
+    int ReadingTimeMinutes,
+    string? ProductSku = null,
+    ProductSummary? Product = null);
 
 /// <summary>An article in a list.</summary>
 /// <param name="Summary">Plain-text excerpt of the body (about 160 characters).</param>

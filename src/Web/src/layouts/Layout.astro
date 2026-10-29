@@ -1,6 +1,6 @@
 ---
-import { ShoppingCartIcon } from 'lucide-react';
 import '../styles/global.css';
+import MiniCart from '../components/MiniCart';
 import SearchInput from '../components/SearchInput.astro';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -74,15 +74,8 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
             class="w-40 sm:w-56"
           />
         </form>
-        {/* No item count: pages are shared-cached, so nothing per visitor goes in the header. */}
-        <a
-          href="/cart"
-          aria-current={current === '/cart' ? 'page' : undefined}
-          class={cn(buttonVariants({ variant: current === '/cart' ? 'secondary' : 'ghost', size: 'icon' }))}
-        >
-          <ShoppingCartIcon aria-hidden="true" />
-          <span class="sr-only">Cart</span>
-        </a>
+        {/* Pages are shared-cached: the count and mini cart are fetched per visitor in the browser. */}
+        <MiniCart client:load active={current === '/cart'} />
       </div>
     </header>
 

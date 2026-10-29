@@ -40,7 +40,7 @@ flowchart LR
     commercedb --> commerce_postgres
     cms -- "connection string: umbracoDbDSN" --> umbraco
     cms -- "connection string: seq" --> seq
-    cms -- "ContentWebhook:TargetUrl" --> api
+    cms -- "ContentWebhook:TargetUrl<br/>ProductPicker:ApiUrl" --> api
     api -- "Umbraco:PublicBaseUrl<br/>service discovery" --> cms
     api -- "connection string: meilisearch" --> meilisearch
     api -- "connection string: seq" --> seq
@@ -241,7 +241,7 @@ takes longer than 3 s). `/status` is a web route, so a CMS page at that path is 
 cached: `src/Web/src/middleware.ts` gives every 200 GET page that sets no `Cache-Control` of its own
 `public, max-age=0, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400`, so nginx serves a page for up to
 a minute, then refreshes it in the background, and keeps serving the last good copy for a day while the web app is
-down; browsers always revalidate. `/status` sends `no-store` and `/api/suggest` `max-age=60`; error responses,
+down; browsers always revalidate. `/status` and `/api/cart` send `no-store` and `/api/suggest` `max-age=60`; error responses,
 responses with `Set-Cookie` and the Vite dev assets (`no-cache`) are never cached. Concurrent misses for one URL
 are collapsed into a single upstream request (`proxy_cache_lock`).
 
@@ -300,7 +300,7 @@ database uSync imports it on first boot (`uSync:Settings:ImportOnFirstBoot`), be
 | --- | --- | --- | --- |
 | `site` | document | `blocks` (Content Blocks) | root |
 | `page` | document | `title`, `blocks` (Content Blocks) | `site`, `page` |
-| `article` | document | `title`, `image` (single image), `body` (Markdown), `tags` (group `articles`), `publishDate` (optional; falls back to the create date) | `page` |
+| `article` | document | `title`, `image` (single image), `body` (Markdown), `tags` (group `articles`), `publishDate` (optional; falls back to the create date), `product` (Product picker: one shop SKU) | `page` |
 | `heroBlock` | element | `heading`, `subheading`, `image`, `ctaLabel`, `ctaLink` (one link) | Content Blocks |
 | `ctaBlock` | element | `heading`, `text`, `link` (one link), `style` (`primary`/`secondary`) | Content Blocks |
 | `latestArticlesBlock` | element | `heading`, `count` (1–50, empty = 6), `tag` (optional, a single tag; a list or `!tag` is ignored); a slider on the web | Content Blocks |
@@ -308,6 +308,12 @@ database uSync imports it on first boot (`uSync:Settings:ImportOnFirstBoot`), be
 | `blogPost` | document | `title`, `image` (single image), `body` (Markdown), `relatedArticle` (Content Picker; anything but an article is ignored), `publishDate` (optional; falls back to the create date) | `page` |
 | `latestBlogPostsBlock` | element | `heading`, `count` (1–50, empty = 6); the newest blog posts as a slider on the web | Content Blocks |
 | `blogPostListBlock` | element | `heading`, `pageSize` (1–50, empty = 12); all blog posts with a year filter and a pager, read by the web from `/api/search` | Content Blocks |
+
+**Product picker.** The `Product picker` data type is a custom property editor
+(`src/Cms/wwwroot/App_Plugins/ProductPicker`, a Lit element without a build step) that stores one product SKU as a
+plain string. It searches the shop as the editor types through the backoffice-only Management API endpoint
+`/umbraco/management/api/v1/product-picker/products?q=` (`Headless/ProductPickerController.cs`), which passes
+through the API's `/api/products` search (`ProductPicker__ApiUrl`), so the CMS knows the API contract, not Drupal.
 
 **Demo content is opt-in.** The seeder only runs when `DemoContent:Enabled` is `true`, which `apphost.cs` and
 `infra/terraform/containerapps.tf` set for this demo (`DemoContent__Enabled`). Starting a real project from this
@@ -341,7 +347,8 @@ How the API exposes it (`src/Api/Contracts`):
   `posts: BlogPostSummary[]`). Links are `{url, title?, target?}`; content links become site paths
   (`/articles`).
 - `Page.article` is non-null exactly when `contentType == "article"`: `{publishDate, tags, bodyHtml,
-  readingTimeMinutes}`. The Markdown is rendered by Markdig with raw HTML disabled and only http(s)/mailto/tel/
+  readingTimeMinutes, productSku, product}`. `product` is a `ProductSummary` read live from the shop by the content
+  endpoints; `null` when no product is picked, it is no longer in the shop, or the shop is off or failing. The Markdown is rendered by Markdig with raw HTML disabled and only http(s)/mailto/tel/
   relative URLs allowed, so `bodyHtml` can be inserted as-is. `Page.summary` is a ~160-character plain-text excerpt.
 - `Page.blogPost` is non-null exactly when `contentType == "blogPost"`: `{publishDate, bodyHtml, readingTimeMinutes,
   relatedArticle}` (an `ArticleSummary`, or `null` when unset or not an article). Item requests ask the Delivery API
@@ -396,7 +403,9 @@ visible in the Drupal admin (Commerce > Orders).
 `Commerce:ReindexInterval` (10 minutes), and re-indexes the products of each order right after checkout. Listings
 (`/api/products`) come from the index; product pages and carts are read live from Drupal. Product and shop pages are
 shared-cached by `web-cache` like other pages (stock shown there can be up to a minute old; checkout checks stock
-again), while `/cart` and `/checkout` are `no-store`. The header has no cart count for the same reason.
+again), while `/cart` and `/checkout` are `no-store`. For the same reason the header's cart icon renders without a
+count: the `MiniCart` island fetches `/api/cart` (`no-store`) in the browser and adds the item count and, on hover or
+focus, the cart's lines with subtotal and links to the cart and checkout.
 
 **Web.** The cart is an httpOnly, `SameSite=Lax` cookie with the cart id and token, set by the Astro server; adding,
 updating and removing are plain form posts to `/cart` (POST/redirect/GET), and `/checkout` posts to itself and shows
