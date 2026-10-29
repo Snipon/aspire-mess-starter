@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in customer's orders
+         * @description Needs the customer's access token from the identity provider (`Authorization: Bearer`, audience `CustomerAuth:Audience`); 401 without a valid one, and always when customer sign-in is off. Newest first.
+         */
+        get: operations["GetMyOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/status": {
         parameters: {
             query?: never;
@@ -310,7 +330,7 @@ export interface paths {
         put?: never;
         /**
          * Pay with the fake card processor and place the order
-         * @description Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; 4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, 4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an empty cart, missing stock or a cart that was already checked out.
+         * @description Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; 4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, 4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an empty cart, missing stock or a cart that was already checked out. With a customer's bearer token (see `GetMyOrders`) the order belongs to that customer; an invalid or expired token answers 401.
          */
         post: operations["Checkout"];
         delete?: never;
@@ -524,6 +544,26 @@ export interface components {
             name: string;
             path: string;
             children: components["schemas"]["NavItem"][];
+        };
+        Order: {
+            orderNumber: string;
+            /** Format: date-time */
+            placedAt: string;
+            status: string;
+            email: string;
+            items: components["schemas"]["CartItem"][];
+            /** Format: int32 */
+            itemCount: number;
+            total: components["schemas"]["Money"];
+        };
+        OrderPage: {
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            total: number;
+            items: components["schemas"]["Order"][];
         };
         OrderReceipt: {
             orderNumber: string;
@@ -741,6 +781,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContentSyncResult"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMyOrders: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPage"];
                 };
             };
             /** @description Bad Request */
@@ -1248,6 +1329,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderReceipt"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

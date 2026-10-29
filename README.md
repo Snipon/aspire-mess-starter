@@ -140,6 +140,7 @@ aspire secret list                             # or: aspire secret get Parameter
 | `hmac-secret` | base64 of 64 random bytes |
 | `commerce-admin-password` | 32 random alphanumeric characters (Drupal user `admin`) |
 | `commerce-api-key`, `commerce-hash-salt` | 32 random alphanumeric characters (the API's key for Drupal; Drupal's hash salt) |
+| `web-session-secret` | 32 random alphanumeric characters (encrypts the web's customer session cookie; rotating it signs every customer out) |
 | `sql-password`, `meilisearch-masterKey`, `commerce-postgres-password` | 32 random alphanumeric characters (Aspire's own parameters for `sql`, `meilisearch` and `commerce-postgres`) |
 
 The script is idempotent and never changes an existing value: the persistent containers depend on them. It uses
@@ -209,7 +210,8 @@ Scalar and the OpenAPI document are mapped in every environment on purpose for t
 | GET | `/api/carts/{cartId}` | `Cart`; 404 for unknown carts and wrong tokens alike |
 | POST | `/api/carts/{cartId}/items` | `{sku, quantity}`; 409 `out_of_stock` with `available` |
 | PATCH / DELETE | `/api/carts/{cartId}/items/{itemId}` | `{quantity}` (0 removes) / remove |
-| POST | `/api/carts/{cartId}/checkout` | `CheckoutRequest` → `OrderReceipt`; 400 field errors, 402 declined card, 409 empty cart / stock / already checked out |
+| POST | `/api/carts/{cartId}/checkout` | `CheckoutRequest` → `OrderReceipt`; 400 field errors, 402 declined card, 409 empty cart / stock / already checked out. With a customer's `Authorization: Bearer` token the order is theirs; 401 for an invalid or expired one |
+| GET | `/api/me/orders?page=1&pageSize=10` | `OrderPage` of the customer's placed orders, newest first; needs the customer's bearer token (401 without, and always when `CustomerAuth` is off) |
 | GET | `/api/status` | `StatusReport` (`status` + `components[]` of `{name, displayName, status, durationMs}`), always 200; see below |
 
 `/api/status` runs the health checks tagged `dependency`. Each adapter registers its own inside its `AddXxx` method
@@ -230,7 +232,8 @@ with Settings access can read it.
 
 Website routes: `/`, `/articles` and `/blog` (block pages), `/articles/<slug>` (article), `/blog/<slug>` (blog post,
 with a card linking its related article), `/shop` (products with facets and sorting), `/shop/<slug>` (product with
-stats and specs), `/cart` and `/checkout` (per visitor, `no-store`), `/tags/<tag>` (paged listing),
+stats and specs), `/cart` and `/checkout` (per visitor, `no-store`), `/account` (profile and orders of the signed-in
+customer, `no-store`), `/auth/login?returnTo=`, `/auth/callback` and `/auth/logout` (customer sign-in, `no-store`), `/tags/<tag>` (paged listing),
 `/search?q=&tag=`, `/status` (system status: Web, API round trip and each `/api/status` component; `no-store`, a
 Refresh link instead of auto-reload, and still renders with "API Down / Dependencies Unknown" when the API fails or
 takes longer than 3 s). `/status` is a web route, so a CMS page at that path is hidden behind it.
@@ -241,7 +244,7 @@ takes longer than 3 s). `/status` is a web route, so a CMS page at that path is 
 cached: `src/Web/src/middleware.ts` gives every 200 GET page that sets no `Cache-Control` of its own
 `public, max-age=0, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400`, so nginx serves a page for up to
 a minute, then refreshes it in the background, and keeps serving the last good copy for a day while the web app is
-down; browsers always revalidate. `/status` and `/api/cart` send `no-store` and `/api/suggest` `max-age=60`; error responses,
+down; browsers always revalidate. `/status`, `/api/cart`, `/api/me`, `/account` and `/auth/*` send `no-store` and `/api/suggest` `max-age=60`; error responses,
 responses with `Set-Cookie` and the Vite dev assets (`no-cache`) are never cached. Concurrent misses for one URL
 are collapsed into a single upstream request (`proxy_cache_lock`).
 
@@ -410,6 +413,36 @@ focus, the cart's lines with subtotal and links to the cart and checkout.
 **Web.** The cart is an httpOnly, `SameSite=Lax` cookie with the cart id and token, set by the Astro server; adding,
 updating and removing are plain form posts to `/cart` (POST/redirect/GET), and `/checkout` posts to itself and shows
 the receipt. No JavaScript is needed; Astro's origin check rejects cross-site form posts.
+
+### Customer accounts
+
+Customers sign in at the identity provider's `shop` realm (Keycloak locally, Entra External ID in production; sign-up
+is on the provider's page). Everything is generic OpenID Connect and off when unconfigured: without `OIDC_AUTHORITY`
+the web shows no sign-in and `/account` is a 404; without `CustomerAuth:Authority` the API treats every caller as a
+guest. Turn both on or both off.
+
+- **Web** (`src/Web/src/lib/auth.ts`, [openid-client](https://github.com/panva/openid-client)): the Astro server runs
+  the authorization code flow with PKCE as the confidential client `web`. `/auth/login` keeps state, nonce and the
+  PKCE verifier in a 10-minute encrypted cookie and redirects to the provider; `/auth/callback` exchanges the code and
+  validates the ID token (JWKS signature, `iss`, `aud`, `exp`, `nonce`); `returnTo` must be a same-site path. The
+  session is one httpOnly, `SameSite=Lax` cookie (`Secure` when `SITE_URL` is https), deflated and encrypted with
+  AES-256-GCM (key from `SESSION_SECRET`): subject, name, email and the access and refresh tokens. The access token is
+  refreshed when it has expired; a rejected refresh ends the session. `/auth/logout` (POST) ends it here and at the
+  provider (RP-initiated logout back to the home page). Redirect URIs are built on `SITE_URL` (the `web-cache` URL).
+  Node trusts the dev certificate of `https://localhost:8080` because Aspire sets `NODE_EXTRA_CA_CERTS` for the web.
+- **Caching**: pages never contain the session. The header's `AccountMenu` island asks `/api/me` (`no-store`) in the
+  browser, like the mini cart, and shows "Sign in" or a link to `/account`.
+- **Checkout** prefills email and name for a signed-in customer and sends their access token, so the order lands in
+  their history. If the token cannot be refreshed the customer signs in again (the cart stays) instead of the order
+  silently becoming a guest order.
+- **API** (`src/Api/Auth/CustomerAuth.cs`): JWT bearer tokens from `CustomerAuth:Authority` (issuer and keys from its
+  discovery document) for audience `CustomerAuth:Audience` (`shop-api`; the realm's audience mapper adds it).
+  `CustomerAuth:SubjectClaim` (default `sub`, `oid` for Entra ID) identifies the customer. The commerce port gets a
+  neutral `CustomerIdentity` (subject, email).
+- **Drupal** (`Customers.php`): the API is trusted through `X-Api-Key` and vouches for the customer. Checkout finds or
+  creates a Drupal user named `shop-<hash of the subject>` (blocked, no roles or password, the email only as its
+  initial email because shop emails are self-asserted) and makes it the order's customer.
+  `GET /headless/orders?customer=<subject>&offset=&limit=` lists that user's placed orders, newest first.
 
 ## Adapters: how the API stays CMS/search-engine neutral
 

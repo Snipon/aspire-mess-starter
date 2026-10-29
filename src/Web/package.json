@@ -37,6 +37,7 @@
     "cn": "^0.5.0",
     "lucide-react": "^1.64.0",
     "openapi-fetch": "^0.17.0",
+    "openid-client": "^6.8.8",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

@@ -1,0 +1,93 @@
+---
+import Layout from '../layouts/Layout.astro';
+import NotFound from '../components/NotFound.astro';
+import Pager from '@/components/Pager';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { api, type OrderPage } from '../lib/api/client';
+import { accessToken, authEnabled, getSession } from '../lib/auth';
+import { formatDate, formatMoney } from '../lib/format';
+
+const PAGE_SIZE = 10;
+
+// Per visitor: never stored by the reverse proxy or the browser.
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+let orders: OrderPage | undefined;
+const session = getSession(Astro.cookies);
+if (authEnabled()) {
+  const token = await accessToken(Astro.cookies, Astro.url);
+  if (!token) return Astro.redirect(`/auth/login?returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`, 302);
+
+  const page = Math.max(1, Number.parseInt(Astro.url.searchParams.get('page') ?? '1', 10) || 1);
+  const { data, response } = await api().GET('/api/me/orders', {
+    params: { query: { page, pageSize: PAGE_SIZE } },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!data && response.status !== 400) throw new Error(`Orders API returned ${response.status}`);
+  orders = data;
+} else {
+  Astro.response.status = 404;
+}
+const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
+---
+
+<Layout title={session ? 'Your account' : 'Not found'}>
+  {
+    !session ? (
+      <NotFound />
+    ) : (
+      <>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 class="text-4xl font-bold tracking-tight">{session.name ?? 'Your account'}</h1>
+            {session.email && <p class="mt-2 text-muted-foreground">{session.email}</p>}
+          </div>
+          <form method="post" action="/auth/logout">
+            <button type="submit" class={buttonVariants({ variant: 'outline' })}>
+              Sign out
+            </button>
+          </form>
+        </div>
+
+        <h2 class="mt-12 text-2xl font-semibold tracking-tight">Orders</h2>
+        {!orders || orders.items.length === 0 ? (
+          <p class="mt-4 text-muted-foreground">
+            {orders && orders.page > 1 ? 'No orders on this page.' : 'You have not placed any orders yet.'}{' '}
+            <a href="/shop" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0')}>
+              Browse the shop
+            </a>
+          </p>
+        ) : (
+          <ul class="mt-4 grid gap-4">
+            {orders.items.map((order) => (
+              <li class="rounded-xl border bg-background p-5">
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 class="font-semibold">Order {order.orderNumber}</h3>
+                  <span class="text-sm text-muted-foreground">
+                    {formatDate(order.placedAt)} · <span class="capitalize">{order.status}</span>
+                  </span>
+                </div>
+                <ul class="mt-3 space-y-1 text-sm">
+                  {order.items.map((item) => (
+                    <li class="flex justify-between gap-4">
+                      <span>
+                        {item.quantity} × {item.path ? <a href={item.path} class="hover:underline">{item.title}</a> : item.title}
+                      </span>
+                      <span class="tabular-nums">{formatMoney(item.total)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p class="mt-3 flex justify-between border-t pt-3 text-sm font-semibold">
+                  <span>Total</span>
+                  <span class="tabular-nums">{formatMoney(order.total)}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+        {orders && <Pager page={orders.page} totalPages={totalPages} href={(p) => `/account?page=${p}`} />}
+      </>
+    )
+  }
+</Layout>

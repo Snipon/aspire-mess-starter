@@ -46,6 +46,8 @@ var seqOidcSecret = builder.AddParameter("seq-oidc-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 var webOidcSecret = builder.AddParameter("web-oidc-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var webSessionSecret = builder.AddParameter("web-session-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 
 // Infrastructure containers (persistent so data and startup time survive AppHost restarts).
 var sql = builder.AddSqlServer("sql")
@@ -120,6 +122,8 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithEnvironment("Umbraco__HmacSecretKey", hmacSecret)
     .WithEnvironment("Webhooks__Secret", webhookSecret)
     .WithEnvironment("Search__ReindexSecret", reindexSecret)
+    .WithEnvironment("CustomerAuth__Authority", $"{KeycloakUrl}/realms/shop") // customer access tokens from the web
+    .WithEnvironment("CustomerAuth__Audience", "shop-api")
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
 
@@ -149,12 +153,17 @@ cms.WithEnvironment("ContentWebhook__TargetUrl",
     ReferenceExpression.Create($"{api.GetEndpoint("http")}/api/webhooks/content"))
     .WithEnvironment("ProductPicker__ApiUrl", api.GetEndpoint("http"));
 
-// Astro SSR front end; only its server talks to the API.
+// Astro SSR front end; only its server talks to the API. Customers sign in at the shop realm (client "web"); Aspire
+// points NODE_EXTRA_CA_CERTS at the dev certificate, so Node trusts https://localhost:8080.
 var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithNpm()
     .WithHttpEndpoint(env: "PORT")
     .WithExternalHttpEndpoints()
     .WithEnvironment("API_URL", api.GetEndpoint("http"))
+    .WithEnvironment("OIDC_AUTHORITY", $"{KeycloakUrl}/realms/shop")
+    .WithEnvironment("OIDC_CLIENT_ID", "web")
+    .WithEnvironment("OIDC_CLIENT_SECRET", webOidcSecret)
+    .WithEnvironment("SESSION_SECRET", webSessionSecret)
     .WithEnvironment("ASTRO_TELEMETRY_DISABLED", "1") // Astro CLI usage pings would otherwise show up as fetch spans
     .WithReference(seq)
     .WaitFor(api);
@@ -169,6 +178,9 @@ var webCache = builder.AddContainer("web-cache", "nginx", "1.29-alpine")
     .WithHttpEndpoint(port: 8082, targetPort: 8080) // fixed: the IdP redirect URI (infra/keycloak) names it
     .WithExternalHttpEndpoints()
     .WaitFor(web);
+
+// The web builds its sign-in redirect URIs on the public entry point (web-cache), not on its own port.
+web.WithEnvironment("SITE_URL", webCache.GetEndpoint("http"));
 
 // The API purges the whole web cache after each content webhook (publish, unpublish, ...), once the search index is
 // updated (endpoint reference only, no startup dependency).

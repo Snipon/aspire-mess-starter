@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Api.Auth;
 using Api.Commerce;
 using Api.Contracts;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -66,7 +67,17 @@ public static partial class CommerceEndpoints
             .WithDescription("Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; " +
                 "4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, " +
                 "4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an " +
-                "empty cart, missing stock or a cart that was already checked out.");
+                "empty cart, missing stock or a cart that was already checked out. With a customer's bearer token (see " +
+                "`GetMyOrders`) the order belongs to that customer; an invalid or expired token answers 401.")
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        app.MapGet("/api/me/orders", GetMyOrders)
+            .WithTags("Customer")
+            .WithName("GetMyOrders")
+            .WithSummary("The signed-in customer's orders")
+            .WithDescription("Needs the customer's access token from the identity provider (`Authorization: Bearer`, audience " +
+                "`CustomerAuth:Audience`); 401 without a valid one, and always when customer sign-in is off. Newest first.")
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         return app;
     }
@@ -154,7 +165,7 @@ public static partial class CommerceEndpoints
         ToResult(IsValidCart(cartId, token) && IsValidItem(itemId) ? await commerce.RemoveItemAsync(cartId, token!, itemId, ct) : (CommerceResult<Cart>)CartNotFound);
 
     private static async Task<Results<Ok<OrderReceipt>, ProblemHttpResult>> Checkout(
-        ICommerceSource commerce, IProductIndex index, ILoggerFactory loggers, string cartId,
+        ICommerceSource commerce, IProductIndex index, ILoggerFactory loggers, HttpContext http, string cartId,
         [FromHeader(Name = CartTokenHeader)] string? token, CheckoutRequest request, CancellationToken ct)
     {
         if (!IsValidCart(cartId, token))
@@ -162,7 +173,15 @@ public static partial class CommerceEndpoints
             return ToResult<OrderReceipt>(CartNotFound);
         }
 
-        var result = await commerce.CheckoutAsync(cartId, token!, request, ct);
+        // A signed-in customer whose token was rejected must not silently become a guest (the order would be missing
+        // from their history): the caller refreshes the token and tries again.
+        if (http.HasRejectedToken())
+        {
+            return TypedResults.Problem("The customer's access token is invalid or expired.", statusCode: StatusCodes.Status401Unauthorized,
+                extensions: new Dictionary<string, object?> { ["code"] = "invalid_token" });
+        }
+
+        var result = await commerce.CheckoutAsync(cartId, token!, request, http.GetCustomer(), ct);
         if (result.Value is { } receipt)
         {
             // Stock and units sold changed: refresh those products in the listing now instead of at the next reindex.
@@ -178,6 +197,22 @@ public static partial class CommerceEndpoints
         }
 
         return ToResult(result);
+    }
+
+    private static async Task<Results<Ok<OrderPage>, BadRequest<ProblemDetails>, UnauthorizedHttpResult>> GetMyOrders(
+        ICommerceSource commerce, HttpContext http, CancellationToken ct, int page = 1, int pageSize = 10)
+    {
+        if (http.GetCustomer() is not { } customer)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!RequestValidation.IsValidPaging(page, pageSize))
+        {
+            return TypedResults.BadRequest(Problems.BadRequest(RequestValidation.PagingError));
+        }
+
+        return TypedResults.Ok(await commerce.GetOrdersAsync(customer, page, pageSize, ct));
     }
 
     private static readonly CommerceError CartNotFound = new(CommerceErrorKind.NotFound, "cart_not_found", "No such cart.");

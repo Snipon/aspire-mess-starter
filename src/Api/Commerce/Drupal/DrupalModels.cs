@@ -1,3 +1,5 @@
+using Api.Contracts;
+
 namespace Api.Commerce.Drupal;
 
 // The JSON of the headless_commerce module's endpoints (src/Commerce/web/modules/custom/headless_commerce).
@@ -41,6 +43,21 @@ internal sealed record DrupalReceipt(
     string Email,
     string PaymentReference,
     string CardLast4,
+    DrupalCartItem[] Items,
+    int ItemCount,
+    DrupalMoney? Total);
+
+/// <summary>Checkout body: the contract's <see cref="CheckoutRequest"/> plus the signed-in customer, if any.</summary>
+internal sealed record DrupalCheckout(
+    string Email, CustomerName Name, PostalAddress Address, PaymentCard Card, CustomerIdentity? Customer);
+
+internal sealed record DrupalOrderPage(int Total, int Offset, DrupalOrder[] Items);
+
+internal sealed record DrupalOrder(
+    string OrderNumber,
+    DateTimeOffset PlacedAt,
+    string State,
+    string Email,
     DrupalCartItem[] Items,
     int ItemCount,
     DrupalMoney? Total);

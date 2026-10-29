@@ -1,5 +1,6 @@
 # JSON endpoints for the API. All but /headless/health require the X-Api-Key header (COMMERCE_API_KEY); carts also
-# need their X-Cart-Token. See Controller\ApiControllerBase.
+# need their X-Cart-Token. The API vouches for the customer it passes (checkout, orders): it validated their token.
+# See Controller\ApiControllerBase.
 headless_commerce.health:
   path: '/headless/health'
   defaults: { _controller: '\Drupal\headless_commerce\Controller\ProductController::health' }
@@ -52,4 +53,10 @@ headless_commerce.checkout:
   path: '/headless/carts/{cart}/checkout'
   defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::checkout' }
   methods: [POST]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.orders:
+  path: '/headless/orders'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::orders' }
+  methods: [GET]
   requirements: { _access: 'TRUE' }
