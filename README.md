@@ -139,7 +139,8 @@ What happens on start:
    minute after that.
 3. `commerce-postgres` starts (persistent) and `commerce` builds its image, installs Drupal into the empty database
    on first start, installs the `headless_commerce` module and seeds 2000 demo products (about two minutes the first
-   time; later starts only check). Its admin UI is at `<commerce url>/user/login`.
+   time; later starts only check). Its admin UI (Gin admin theme) is at
+   `<commerce url>/user/login`.
 4. `api` waits for Meilisearch, then reindexes content and products in the background once the CMS and Drupal answer.
 5. `web` runs `npm install` + `npm run dev` (Astro dev server on Aspire's `PORT`) once the api is healthy, and
    `web-cache` (nginx) starts in front of it.

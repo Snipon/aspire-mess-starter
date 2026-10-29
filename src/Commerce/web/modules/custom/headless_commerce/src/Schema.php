@@ -12,6 +12,10 @@ use Drupal\commerce_store\Entity\Store;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Extension\ModuleInstallerInterface;
+use Drupal\Core\Extension\ThemeHandlerInterface;
+use Drupal\Core\Extension\ThemeInstallerInterface;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\openid_connect\Entity\OpenIDConnectClientEntity;
@@ -21,8 +25,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * The commerce schema in code instead of exported config: a USD store, the product and variation fields, the category
- * and brand vocabularies, the fake card payment gateway and the staff sign-in through the identity provider. ensure()
- * only creates what is missing, so it runs from hook_install() and can run again from update hooks when fields are added.
+ * and brand vocabularies, the fake card payment gateway, the staff sign-in through the identity provider and the Gin
+ * admin theme. ensure() only creates what is missing, so it runs from hook_install() and can run again from update hooks
+ * when fields are added.
  */
 final class Schema {
 
@@ -36,6 +41,10 @@ final class Schema {
     private readonly ConfigFactoryInterface $configFactory,
     #[Autowire(service: 'commerce_price.currency_importer')]
     private readonly CurrencyImporterInterface $currencyImporter,
+    private readonly ModuleHandlerInterface $moduleHandler,
+    private readonly ModuleInstallerInterface $moduleInstaller,
+    private readonly ThemeHandlerInterface $themeHandler,
+    private readonly ThemeInstallerInterface $themeInstaller,
   ) {}
 
   public function ensure(): void {
@@ -148,6 +157,19 @@ final class Schema {
         ->set('role_mappings', ['administrator' => ['admin']])
         ->set('force_reset_role_mappings', TRUE)
         ->save();
+    }
+
+    // Admin theme (the minimal install profile has none, so admin pages fall back to Stark). Gin is set once; a theme
+    // chosen later in Appearance stays. Gin Toolbar (its sidebar navigation) requires the theme, so it is installed after it.
+    if (!$this->themeHandler->themeExists('gin')) {
+      $this->themeInstaller->install(['gin']);
+    }
+    if (!$this->moduleHandler->moduleExists('gin_toolbar')) {
+      $this->moduleInstaller->install(['gin_toolbar']);
+    }
+    $theme = $this->configFactory->getEditable('system.theme');
+    if (!$theme->get('admin')) {
+      $theme->set('admin', 'gin')->save();
     }
   }
 

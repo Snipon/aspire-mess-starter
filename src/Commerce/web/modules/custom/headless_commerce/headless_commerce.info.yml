@@ -1,6 +1,6 @@
 name: Headless Commerce
 type: module
-description: 'Store, product schema and fake card gateway in code, the demo catalog seeder, and the JSON endpoints the API uses (catalog, carts, checkout).'
+description: 'Store, product schema, fake card gateway and admin theme in code, the demo catalog seeder, and the JSON endpoints the API uses (catalog, carts, checkout).'
 package: Custom
 core_version_requirement: ^11
 dependencies:

@@ -21,3 +21,10 @@ function headless_commerce_update_11001(): void {
   \Drupal::service('module_installer')->install(['openid_connect']);
   \Drupal::service(Schema::class)->ensure();
 }
+
+/**
+ * Admin theme: installs Gin and Gin Toolbar and makes Gin the admin theme.
+ */
+function headless_commerce_update_11002(): void {
+  \Drupal::service(Schema::class)->ensure();
+}
