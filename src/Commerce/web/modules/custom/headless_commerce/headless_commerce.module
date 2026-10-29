@@ -1,0 +1,41 @@
+<?php
+
+/**
+ * @file
+ * Staff sign-in through the identity provider (openid_connect, see Schema::staffSignIn()).
+ */
+
+/**
+ * Implements hook_openid_connect_userinfo_alter().
+ *
+ * openid_connect maps Drupal roles from a "groups" claim only; staff carry their app roles (admin, editor) in "roles",
+ * like Entra ID app roles. Values without a mapping are ignored.
+ */
+function headless_commerce_openid_connect_userinfo_alter(array &$userinfo, array $context): void {
+  $userinfo['groups'] = array_values(array_unique(array_merge((array) ($userinfo['groups'] ?? []), (array) ($userinfo['roles'] ?? []))));
+}
+
+/**
+ * Implements hook_openid_connect_pre_authorize().
+ *
+ * openid_connect decodes the ID token without validating it. It comes straight from the token endpoint over TLS, so the
+ * signature is left unchecked, but the claims must name our issuer (OIDC_ISSUER; this pins the tenant when a shared
+ * endpoint such as Entra's /organizations is configured), our client (OIDC_CLIENT_ID) and must not be expired.
+ */
+function headless_commerce_openid_connect_pre_authorize($account, array $context): bool {
+  if ($context['plugin_id'] !== 'sso') {
+    return TRUE;
+  }
+
+  $token = is_array($context['user_data'] ?? NULL) ? $context['user_data'] : [];
+  $issuer = getenv('OIDC_ISSUER') ?: '';
+  $clientId = getenv('OIDC_CLIENT_ID') ?: '';
+  $valid = $issuer !== '' && ($token['iss'] ?? NULL) === $issuer
+    && $clientId !== '' && in_array($clientId, (array) ($token['aud'] ?? []), TRUE)
+    && is_numeric($token['exp'] ?? NULL) && $token['exp'] > time();
+  if (!$valid) {
+    \Drupal::logger('headless_commerce')->error('Rejected an ID token: issuer, audience or expiry does not match (expected issuer @issuer).', ['@issuer' => $issuer]);
+  }
+
+  return $valid;
+}

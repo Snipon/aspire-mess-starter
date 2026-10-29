@@ -12,7 +12,7 @@ RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --no-progress -
 COPY settings.php web/sites/default/settings.php
 COPY web/modules/custom web/modules/custom
 # Fails the build on PHP syntax errors in the custom module.
-RUN find web/modules/custom -type f \( -name '*.php' -o -name '*.install' \) -print0 | xargs -0 -n1 php -l > /dev/null
+RUN find web/modules/custom -type f \( -name '*.php' -o -name '*.install' -o -name '*.module' \) -print0 | xargs -0 -n1 php -l > /dev/null
 COPY entrypoint.sh /usr/local/bin/commerce-entrypoint
 RUN chmod +x /usr/local/bin/commerce-entrypoint \
     && mkdir -p web/sites/default/files \

@@ -5,3 +5,5 @@ services:
   Drupal\headless_commerce\Schema: ~
   Drupal\headless_commerce\ProductExporter: ~
   Drupal\headless_commerce\DemoCatalog: ~
+  Drupal\headless_commerce\Routing\RouteSubscriber:
+    tags: [{ name: event_subscriber }]

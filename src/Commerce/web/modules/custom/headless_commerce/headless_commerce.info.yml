@@ -11,3 +11,4 @@ dependencies:
   - drupal:datetime
   - drupal:image
   - drupal:taxonomy
+  - openid_connect:openid_connect
