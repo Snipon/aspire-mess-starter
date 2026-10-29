@@ -15,7 +15,8 @@ apphost=apphost.cs
 # Aspire parameter names: ours from apphost.cs, plus the ones SQL Server and Meilisearch create (<resource>-password,
 # <resource>-masterKey).
 params=(umbraco-admin-email umbraco-admin-password delivery-api-key hmac-secret webhook-secret reindex-secret
-  cache-purge-secret sql-password meilisearch-masterKey)
+  cache-purge-secret commerce-admin-password commerce-api-key commerce-hash-salt sql-password meilisearch-masterKey
+  commerce-postgres-password)
 
 secret() { aspire secret "$@" --apphost "$apphost" --nologo --non-interactive; }
 
@@ -85,8 +86,8 @@ if [[ ${1:-} == --rotate ]]; then
   [[ " ${params[*]} " == *" $name "* ]] || { echo "Unknown parameter '$name'. One of: ${params[*]}" >&2; exit 1; }
 
   case $name in
-    sql-password | meilisearch-masterKey)
-      resource=${name%%-*}
+    sql-password | meilisearch-masterKey | commerce-postgres-password)
+      resource=${name%-*}
       echo "WARNING: $name is set when the persistent '$resource' container and its data volume are first created." >&2
       echo "A new value only works after removing both (this deletes the data; the search index is rebuilt by the api):" >&2
       reset_commands "$resource" >&2

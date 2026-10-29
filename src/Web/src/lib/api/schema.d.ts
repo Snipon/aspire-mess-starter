@@ -181,10 +181,156 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search and list products
+         * @description Full-text search over title, brand, category, SKU and specs. `category`, `brand`, `minRating` (whole stars) and `inStock` narrow the results; `facets` counts each, ignoring that facet's own filter. `sort`: relevance (default; popular when `q` is empty), popular, price-asc, price-desc, rating, newest. Stock and sales come from the index (refreshed every few minutes and after each order); the product page has live values.
+         */
+        get: operations["SearchProducts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/products/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a product by slug
+         * @description Live from the commerce backend. An outdated slug still finds the product (it ends in the SKU); redirect when `slug` differs from the requested one.
+         */
+        get: operations["GetProduct"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/carts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an empty cart
+         * @description Returns the cart and its token. Every other cart call needs the token in `X-Cart-Token`; a missing or wrong token answers 404, like an unknown cart.
+         */
+        post: operations["CreateCart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/carts/{cartId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a cart */
+        get: operations["GetCart"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/carts/{cartId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a product to the cart
+         * @description Adds `quantity` (1–99) of the product with `sku`, merging with an existing line. 409 `out_of_stock` (with `available`) when the cart would hold more than is in stock.
+         */
+        post: operations["AddCartItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/carts/{cartId}/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a cart line */
+        delete: operations["RemoveCartItem"];
+        options?: never;
+        head?: never;
+        /**
+         * Change the quantity of a cart line
+         * @description `quantity` 0–99; 0 removes the line.
+         */
+        patch: operations["UpdateCartItem"];
+        trace?: never;
+    };
+    "/api/carts/{cartId}/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay with the fake card processor and place the order
+         * @description Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; 4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, 4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an empty cart, missing stock or a cart that was already checked out.
+         */
+        post: operations["Checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AddCartItem: {
+            sku: string;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            quantity: number;
+        };
         Article: {
             /** Format: date */
             publishDate: string;
@@ -282,6 +428,33 @@ export interface components {
             /** Format: date */
             publishDate: string;
         };
+        Cart: {
+            id: string;
+            items: components["schemas"]["CartItem"][];
+            /** Format: int32 */
+            itemCount: number;
+            subtotal: components["schemas"]["Money"];
+            total: components["schemas"]["Money"];
+        };
+        CartItem: {
+            id: string;
+            sku: string;
+            path: null | string;
+            title: string;
+            image: null | components["schemas"]["Image"];
+            unitPrice: components["schemas"]["Money"];
+            /** Format: int32 */
+            quantity: number;
+            total: components["schemas"]["Money"];
+            /** Format: int32 */
+            stock: number;
+        };
+        CheckoutRequest: {
+            email: string;
+            name: components["schemas"]["CustomerName"];
+            address: components["schemas"]["PostalAddress"];
+            card: components["schemas"]["PaymentCard"];
+        };
         ComponentStatus: {
             name: string;
             displayName: string;
@@ -296,8 +469,16 @@ export interface components {
         ContentWebhookPayload: {
             id: string;
         };
+        CreatedCart: {
+            token: string;
+            cart: components["schemas"]["Cart"];
+        };
         /** @enum {unknown} */
         CtaStyle: "primary" | "secondary";
+        CustomerName: {
+            given: string;
+            family: string;
+        };
         FacetCount: {
             value: string;
             /** Format: int32 */
@@ -331,11 +512,28 @@ export interface components {
             title: null | string;
             target: null | string;
         };
+        Money: {
+            /** Format: double */
+            amount: number;
+            currency: string;
+        };
         NavItem: {
             id: string;
             name: string;
             path: string;
             children: components["schemas"]["NavItem"][];
+        };
+        OrderReceipt: {
+            orderNumber: string;
+            /** Format: date-time */
+            placedAt: string;
+            email: string;
+            paymentReference: string;
+            cardLast4: string;
+            items: components["schemas"]["CartItem"][];
+            /** Format: int32 */
+            itemCount: number;
+            total: components["schemas"]["Money"];
         };
         Page: {
             id: string;
@@ -364,6 +562,22 @@ export interface components {
             total: number;
             items: components["schemas"]["ArticleSummary"][];
         };
+        PaymentCard: {
+            number: string;
+            /** Format: int32 */
+            expMonth: number;
+            /** Format: int32 */
+            expYear: number;
+            cvc: string;
+        };
+        PostalAddress: {
+            line1: string;
+            line2: null | string;
+            locality: string;
+            postalCode: string;
+            administrativeArea: null | string;
+            countryCode: string;
+        };
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -371,6 +585,80 @@ export interface components {
             status?: null | number;
             detail?: null | string;
             instance?: null | string;
+        };
+        Product: {
+            sku: string;
+            slug: string;
+            path: string;
+            title: string;
+            descriptionHtml: string;
+            summary: null | string;
+            category: string;
+            brand: string;
+            image: null | components["schemas"]["Image"];
+            price: components["schemas"]["Money"];
+            /** Format: int32 */
+            stock: number;
+            specs: components["schemas"]["ProductSpec"][];
+            stats: components["schemas"]["ProductStats"];
+            /** Format: int32 */
+            weightGrams: null | number;
+            /** Format: int32 */
+            warrantyMonths: null | number;
+            /** Format: date */
+            releaseDate: null | string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ProductFacets: {
+            categories: components["schemas"]["FacetCount"][];
+            brands: components["schemas"]["FacetCount"][];
+            ratings: components["schemas"]["FacetCount"][];
+            availability: components["schemas"]["FacetCount"][];
+        };
+        ProductSearchResult: {
+            query: string;
+            sort: string;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            total: number;
+            items: components["schemas"]["ProductSummary"][];
+            facets: components["schemas"]["ProductFacets"];
+        };
+        ProductSpec: {
+            label: string;
+            value: string;
+            unit: null | string;
+        };
+        ProductStats: {
+            /** Format: double */
+            rating: number;
+            /** Format: int32 */
+            reviewCount: number;
+            /** Format: int32 */
+            unitsSold: number;
+            /** Format: double */
+            returnRate: number;
+        };
+        ProductSummary: {
+            sku: string;
+            slug: string;
+            path: string;
+            title: string;
+            category: string;
+            brand: string;
+            image: null | components["schemas"]["Image"];
+            price: components["schemas"]["Money"];
+            inStock: boolean;
+            /** Format: double */
+            rating: number;
+            /** Format: int32 */
+            reviewCount: number;
+            /** Format: int32 */
+            unitsSold: number;
         };
         ReindexResult: {
             /** Format: int32 */
@@ -415,6 +703,10 @@ export interface components {
             tag: string;
             /** Format: int32 */
             count: number;
+        };
+        UpdateCartItem: {
+            /** Format: int32 */
+            quantity: number;
         };
     };
     responses: never;
@@ -731,6 +1023,229 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SearchProducts: {
+        parameters: {
+            query?: {
+                q?: string;
+                category?: string;
+                brand?: string;
+                minRating?: number;
+                inStock?: boolean;
+                sort?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSearchResult"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateCart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedCart"];
+                };
+            };
+        };
+    };
+    GetCart: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cart-Token"?: string;
+            };
+            path: {
+                cartId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cart"];
+                };
+            };
+        };
+    };
+    AddCartItem: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cart-Token"?: string;
+            };
+            path: {
+                cartId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddCartItem"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cart"];
+                };
+            };
+        };
+    };
+    RemoveCartItem: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cart-Token"?: string;
+            };
+            path: {
+                cartId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cart"];
+                };
+            };
+        };
+    };
+    UpdateCartItem: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cart-Token"?: string;
+            };
+            path: {
+                cartId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCartItem"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cart"];
+                };
+            };
+        };
+    };
+    Checkout: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Cart-Token"?: string;
+            };
+            path: {
+                cartId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderReceipt"];
                 };
             };
         };

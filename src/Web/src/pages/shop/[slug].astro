@@ -1,0 +1,130 @@
+---
+import { ArrowLeftIcon } from 'lucide-react';
+import Layout from '../../layouts/Layout.astro';
+import NotFound from '../../components/NotFound.astro';
+import ResponsiveImage from '@/components/ResponsiveImage';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { api } from '../../lib/api/client';
+import { formatDate, formatMoney, formatNumber } from '../../lib/format';
+
+const slug = Astro.params.slug ?? '';
+const { data: product, response } = await api().GET('/api/products/{slug}', { params: { path: { slug } } });
+if (!product && response.status !== 404 && response.status !== 400) {
+  throw new Error(`Product API returned ${response.status} for ${slug}`);
+}
+
+// An outdated slug (renamed product) still finds the product by SKU: send visitors to the canonical URL.
+if (product && product.slug !== slug) return Astro.redirect(product.path, 301);
+if (!product) Astro.response.status = 404;
+
+const maxQuantity = product ? Math.min(product.stock, 10) : 0;
+const stats = product
+  ? [
+      ['Rating', `${product.stats.rating.toFixed(1)} / 5`],
+      ['Reviews', formatNumber(product.stats.reviewCount)],
+      ['Units sold', formatNumber(product.stats.unitsSold)],
+      ['Return rate', `${product.stats.returnRate.toFixed(1)}%`],
+      ['In stock', formatNumber(product.stock)],
+      ['Warranty', product.warrantyMonths ? (product.warrantyMonths % 12 === 0 ? `${product.warrantyMonths / 12} yr` : `${product.warrantyMonths} mo`) : '–'],
+      ['Weight', product.weightGrams ? (product.weightGrams >= 1000 ? `${(product.weightGrams / 1000).toFixed(1)} kg` : `${product.weightGrams} g`) : '–'],
+      ['Released', product.releaseDate ? formatDate(product.releaseDate) : '–'],
+    ]
+  : [];
+---
+
+{
+  product ? (
+    <Layout title={`${product.title} – Shop`} description={product.summary}>
+      <nav aria-label="Breadcrumb">
+        <a href="/shop" class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2.5 text-muted-foreground')}>
+          <ArrowLeftIcon aria-hidden="true" /> Shop
+        </a>
+      </nav>
+
+      <div class="mt-4 grid gap-8 lg:grid-cols-2 lg:gap-12">
+        <figure class="self-start overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10">
+          {product.image && (
+            <ResponsiveImage image={product.image} loading="eager" sizes="(min-width: 1024px) 480px, 100vw" className="aspect-[4/3] w-full object-cover" />
+          )}
+        </figure>
+
+        <div>
+          <p class="text-sm text-muted-foreground">
+            <a href={`/shop?brand=${encodeURIComponent(product.brand)}`} class="hover:text-foreground hover:underline">{product.brand}</a>
+            {' · '}
+            <a href={`/shop?category=${encodeURIComponent(product.category)}`} class="hover:text-foreground hover:underline">{product.category}</a>
+            {' · '}SKU {product.sku}
+          </p>
+          <h1 class="mt-2 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{product.title}</h1>
+          <p class="mt-3 text-sm text-muted-foreground">
+            <span aria-hidden="true">★</span> {product.stats.rating.toFixed(1)}<span class="sr-only"> out of 5</span> · {formatNumber(product.stats.reviewCount)} reviews · {formatNumber(product.stats.unitsSold)} sold
+          </p>
+          <p class="mt-6 text-3xl font-semibold tabular-nums">{formatMoney(product.price)}</p>
+          <p class="mt-2">
+            {product.stock > 0 ? (
+              <Badge variant="secondary">{product.stock < 10 ? `Only ${product.stock} left` : 'In stock'}</Badge>
+            ) : (
+              <Badge variant="destructive">Out of stock</Badge>
+            )}
+          </p>
+
+          <form method="post" action="/cart" class="mt-6 flex items-end gap-3">
+            <input type="hidden" name="action" value="add" />
+            <input type="hidden" name="sku" value={product.sku} />
+            <label class="grid gap-1.5 text-sm font-medium">
+              Quantity
+              <select
+                name="quantity"
+                disabled={maxQuantity === 0}
+                class="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {Array.from({ length: Math.max(maxQuantity, 1) }, (_, i) => (
+                  <option value={i + 1}>{i + 1}</option>
+                ))}
+              </select>
+            </label>
+            <button type="submit" disabled={maxQuantity === 0} class={cn(buttonVariants({ size: 'lg' }))}>
+              Add to cart
+            </button>
+          </form>
+
+          <dl class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {stats.map(([label, value]) => (
+              <div class="rounded-lg border bg-background p-3">
+                <dt class="text-xs text-muted-foreground">{label}</dt>
+                <dd class="mt-1 font-semibold tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
+
+      <div class="mt-12 grid gap-10 lg:grid-cols-2 lg:gap-12">
+        <section aria-labelledby="specs">
+          <h2 id="specs" class="text-xl font-bold tracking-tight">Specifications</h2>
+          <dl class="mt-4 divide-y rounded-xl border bg-background">
+            {product.specs.map((spec) => (
+              <div class="grid grid-cols-2 gap-4 px-4 py-2.5 text-sm">
+                <dt class="text-muted-foreground">{spec.label}</dt>
+                <dd class="font-medium">
+                  {spec.value}
+                  {spec.unit && ` ${spec.unit}`}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+        <section aria-labelledby="about">
+          <h2 id="about" class="text-xl font-bold tracking-tight">About this product</h2>
+          <div class="prose prose-neutral dark:prose-invert mt-4 max-w-none prose-headings:text-base prose-headings:tracking-tight" set:html={product.descriptionHtml} />
+        </section>
+      </div>
+    </Layout>
+  ) : (
+    <Layout title="Product not found">
+      <NotFound />
+    </Layout>
+  )
+}

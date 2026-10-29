@@ -340,6 +340,11 @@ resource "azurerm_container_app" "api" {
         name  = "Providers__Search"
         value = "Meilisearch"
       }
+      env {
+        # Drupal Commerce is not deployed (local only), so the shop endpoints are off.
+        name  = "Providers__Commerce"
+        value = "None"
+      }
       # Same logical address as in Aspire; resolved by Microsoft.Extensions.ServiceDiscovery
       # from the services__cms__* entry below (what Aspire's WithReference(cms) injects locally).
       env {

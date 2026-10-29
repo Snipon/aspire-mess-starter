@@ -1,0 +1,115 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\headless_commerce;
+
+use Drupal\commerce_order\Entity\OrderType;
+use Drupal\commerce_payment\Entity\PaymentGateway;
+use Drupal\commerce_price\CurrencyImporterInterface;
+use Drupal\commerce_price\Entity\Currency;
+use Drupal\commerce_store\Entity\Store;
+use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\taxonomy\Entity\Vocabulary;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+
+/**
+ * The commerce schema in code instead of exported config: a USD store, the product and variation fields, the category
+ * and brand vocabularies and the fake card payment gateway. ensure() only creates what is missing, so it runs from
+ * hook_install() and can run again from update hooks when fields are added.
+ */
+final class Schema {
+
+  public const GATEWAY = 'fake_card';
+
+  public function __construct(
+    private readonly EntityTypeManagerInterface $entityTypeManager,
+    private readonly EntityDisplayRepositoryInterface $displayRepository,
+    #[Autowire(service: 'commerce_price.currency_importer')]
+    private readonly CurrencyImporterInterface $currencyImporter,
+  ) {}
+
+  public function ensure(): void {
+    if (!Currency::load('USD')) {
+      $this->currencyImporter->import('USD');
+    }
+
+    $stores = $this->entityTypeManager->getStorage('commerce_store');
+    if (!$stores->loadDefault()) {
+      $store = Store::create([
+        'type' => 'online',
+        'uid' => 1,
+        'name' => 'Dev Gear Store',
+        'mail' => 'store@example.com',
+        'default_currency' => 'USD',
+        'timezone' => 'UTC',
+        'address' => ['country_code' => 'US', 'administrative_area' => 'CA', 'locality' => 'San Francisco', 'postal_code' => '94103', 'address_line1' => '1 Demo Street'],
+        'billing_countries' => [],
+      ]);
+      $store->setDefault(TRUE);
+      $store->save();
+    }
+
+    // No receipt emails: the container has no mail transport and the demo shows the receipt itself.
+    $orderType = OrderType::load('default');
+    if ($orderType?->shouldSendReceipt()) {
+      $orderType->setSendReceipt(FALSE)->save();
+    }
+
+    foreach (['product_category' => 'Product category', 'product_brand' => 'Brand'] as $id => $label) {
+      if (!Vocabulary::load($id)) {
+        Vocabulary::create(['vid' => $id, 'name' => $label])->save();
+      }
+    }
+
+    $this->field('commerce_product', 'default', 'field_description', 'string_long', 'Description (Markdown)');
+    $this->field('commerce_product', 'default', 'field_image', 'image', 'Image', [], ['file_directory' => 'products', 'file_extensions' => 'png jpg jpeg webp', 'alt_field_required' => FALSE]);
+    $this->field('commerce_product', 'default', 'field_category', 'entity_reference', 'Category', ['target_type' => 'taxonomy_term'], $this->terms('product_category'));
+    $this->field('commerce_product', 'default', 'field_brand', 'entity_reference', 'Brand', ['target_type' => 'taxonomy_term'], $this->terms('product_brand'));
+    $this->field('commerce_product', 'default', 'field_specs', 'string_long', 'Specifications (JSON: [{"label", "value", "unit"}])');
+    $this->field('commerce_product', 'default', 'field_rating', 'decimal', 'Average rating (0-5)', ['precision' => 3, 'scale' => 2]);
+    $this->field('commerce_product', 'default', 'field_review_count', 'integer', 'Review count');
+    $this->field('commerce_product', 'default', 'field_units_sold', 'integer', 'Units sold');
+    $this->field('commerce_product', 'default', 'field_return_rate', 'decimal', 'Return rate (%)', ['precision' => 5, 'scale' => 2]);
+    $this->field('commerce_product', 'default', 'field_weight_grams', 'integer', 'Weight (g)');
+    $this->field('commerce_product', 'default', 'field_warranty_months', 'integer', 'Warranty (months)');
+    $this->field('commerce_product', 'default', 'field_release_date', 'datetime', 'Release date', ['datetime_type' => 'date']);
+    $this->field('commerce_product_variation', 'default', 'field_stock', 'integer', 'Stock');
+
+    if (!PaymentGateway::load(self::GATEWAY)) {
+      // Manual gateway: payments are recorded as completed by CartController::checkout() after the fake card check.
+      PaymentGateway::create([
+        'id' => self::GATEWAY,
+        'label' => 'Fake card (demo, no money moves)',
+        'plugin' => 'manual',
+        'configuration' => [
+          'display_label' => 'Card (test)',
+          'mode' => 'test',
+          'instructions' => ['value' => 'Demo payment: card details are checked by fixed test rules and never stored.', 'format' => 'plain_text'],
+        ],
+      ])->save();
+    }
+  }
+
+  private function terms(string $vocabulary): array {
+    return ['handler' => 'default:taxonomy_term', 'handler_settings' => ['target_bundles' => [$vocabulary => $vocabulary]]];
+  }
+
+  /**
+   * Creates the field (storage, instance and a form widget for editors) if it does not exist yet.
+   */
+  private function field(string $entityType, string $bundle, string $name, string $type, string $label, array $storageSettings = [], array $settings = []): void {
+    if (!FieldStorageConfig::loadByName($entityType, $name)) {
+      FieldStorageConfig::create(['field_name' => $name, 'entity_type' => $entityType, 'type' => $type, 'settings' => $storageSettings])->save();
+    }
+
+    if (!FieldConfig::loadByName($entityType, $bundle, $name)) {
+      FieldConfig::create(['field_name' => $name, 'entity_type' => $entityType, 'bundle' => $bundle, 'label' => $label, 'settings' => $settings])->save();
+      $this->displayRepository->getFormDisplay($entityType, $bundle)->setComponent($name)->save();
+    }
+  }
+
+}

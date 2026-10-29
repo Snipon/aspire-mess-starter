@@ -201,6 +201,9 @@ jobs:
           - image: web
             context: src/Web
             file: src/Web/Dockerfile
+          - image: commerce
+            context: src/Commerce
+            file: src/Commerce/Dockerfile
     steps:
       - uses: actions/checkout@v7
 

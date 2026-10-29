@@ -1,0 +1,29 @@
+{
+    "id": "043a9e65-5506-4ef7-ba9f-09c1394e85b7",
+    "sku": "DG00001",
+    "slug": "juniper-nomad-14-dg00001",
+    "title": "Juniper Nomad 14",
+    "description": "The Juniper Nomad 14 is the laptop we reach for when a setup has to just work. Pair it with the rest of your setup for a desk that feels like one system.\n\n## Highlights\n\n- **Processor:** Snapdragon X Elite\n- **Memory:** 64 GB\n- **Storage:** 4096 GB\n- **Display size:** 14 in\n",
+    "category": "Laptops",
+    "brand": "Juniper",
+    "image": { "url": "/sites/default/files/products/laptops-3.jpg", "width": 800, "height": 600, "alt": "Juniper Nomad 14" },
+    "price": { "amount": "1487.990000", "currency": "USD" },
+    "stock": 53,
+    "specs": [
+        { "label": "Processor", "value": "Snapdragon X Elite", "unit": null },
+        { "label": "Memory", "value": "64", "unit": "GB" },
+        { "label": "Storage", "value": "4096", "unit": "GB" },
+        { "label": "Display size", "value": "14", "unit": "in" },
+        { "label": "Resolution", "value": "2880 × 1800", "unit": null },
+        { "label": "Refresh rate", "value": "60", "unit": "Hz" },
+        { "label": "Battery", "value": "51", "unit": "Wh" },
+        { "label": "Ports", "value": "3× Thunderbolt 4, SD", "unit": null },
+        { "label": "Operating system", "value": "Ubuntu 24.04 LTS", "unit": null },
+        { "label": "Backlit keyboard", "value": "No", "unit": null }
+    ],
+    "stats": { "rating": 3.7, "reviewCount": 148, "unitsSold": 1892, "returnRate": 3.2 },
+    "weightGrams": 2198,
+    "warrantyMonths": 36,
+    "releaseDate": "2022-06-02",
+    "updatedAt": "2026-10-29T17:08:08+00:00"
+}

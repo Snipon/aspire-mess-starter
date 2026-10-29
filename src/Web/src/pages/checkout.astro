@@ -1,0 +1,207 @@
+---
+import { CheckCircle2Icon } from 'lucide-react';
+import Layout from '../layouts/Layout.astro';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { api, type OrderReceipt } from '../lib/api/client';
+import { cartHeaders, clearCart, loadCart } from '../lib/cart';
+import { formatMoney } from '../lib/format';
+
+// Per visitor: never stored by the reverse proxy or the browser.
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+const loaded = await loadCart(Astro.cookies);
+const values: Record<string, string> = { countryCode: 'US' };
+let fieldErrors: Record<string, string> = {};
+let paymentError: string | undefined;
+let receipt: OrderReceipt | undefined;
+
+if (Astro.request.method === 'POST' && loaded) {
+  const form = await Astro.request.formData();
+  for (const [key, value] of form) {
+    // Card details are never echoed back into the page.
+    if (!['number', 'cvc'].includes(key)) values[key] = String(value).trim();
+  }
+
+  const [expMonth, expYear] = String(form.get('expiry') ?? '').split('/').map((part) => Number.parseInt(part.trim(), 10));
+  const { data, error, response } = await api().POST('/api/carts/{cartId}/checkout', {
+    params: cartHeaders(loaded.ref),
+    body: {
+      email: values.email ?? '',
+      name: { given: values.given ?? '', family: values.family ?? '' },
+      address: {
+        line1: values.line1 ?? '',
+        line2: values.line2 || null,
+        locality: values.locality ?? '',
+        postalCode: values.postalCode ?? '',
+        administrativeArea: values.administrativeArea || null,
+        countryCode: (values.countryCode ?? '').toUpperCase(),
+      },
+      card: {
+        number: String(form.get('number') ?? ''),
+        expMonth: expMonth || 0,
+        expYear: expYear ? (expYear < 100 ? 2000 + expYear : expYear) : 0,
+        cvc: String(form.get('cvc') ?? '').trim(),
+      },
+    },
+  });
+
+  const problem = error as { code?: string; detail?: string; fields?: Record<string, string> } | undefined;
+  if (data) {
+    receipt = data;
+    clearCart(Astro.cookies);
+  } else if (response.status === 400 && problem?.fields) {
+    fieldErrors = problem.fields;
+  } else if (response.status === 402) {
+    paymentError = problem?.detail ?? 'The card was declined.';
+  } else if (response.status === 409 || response.status === 404) {
+    return Astro.redirect(`/cart?error=${encodeURIComponent(problem?.code ?? 'cart_not_found')}`, 303);
+  } else {
+    throw new Error(`Checkout API returned ${response.status}`);
+  }
+}
+
+if (!receipt && (!loaded || loaded.cart.items.length === 0)) return Astro.redirect('/cart', 303);
+const cart = loaded?.cart;
+
+const field = (name: string, label: string, attrs: Record<string, string | boolean> = {}) => ({ name, label, attrs, error: fieldErrors[name] });
+const expiryError = fieldErrors.expiry;
+---
+
+<Layout title={receipt ? 'Order placed' : 'Checkout'}>
+  {
+    receipt ? (
+      <section class="mx-auto max-w-xl text-center">
+        <CheckCircle2Icon className="mx-auto size-12 text-primary" aria-hidden="true" />
+        <h1 class="mt-4 text-3xl font-bold tracking-tight">Thank you, order {receipt.orderNumber} is placed</h1>
+        <p class="mt-3 text-muted-foreground">
+          A confirmation would go to {receipt.email}. Paid {formatMoney(receipt.total)} with the card ending in {receipt.cardLast4}{' '}
+          (reference {receipt.paymentReference}; demo payment, no money moved).
+        </p>
+        <ul class="mt-8 divide-y rounded-xl border bg-background text-left">
+          {receipt.items.map((item) => (
+            <li class="flex justify-between gap-4 px-4 py-3 text-sm">
+              <span>
+                {item.quantity} × {item.title}
+              </span>
+              <span class="tabular-nums">{formatMoney(item.total)}</span>
+            </li>
+          ))}
+        </ul>
+        <a href="/shop" class={cn(buttonVariants(), 'mt-8')}>
+          Continue shopping
+        </a>
+      </section>
+    ) : (
+      cart && (
+        <>
+          <h1 class="text-4xl font-bold tracking-tight">Checkout</h1>
+          {paymentError && (
+            <Alert variant="destructive" className="mt-6">
+              <AlertDescription>{paymentError} Try another card.</AlertDescription>
+            </Alert>
+          )}
+          {Object.keys(fieldErrors).length > 0 && (
+            <Alert variant="destructive" className="mt-6">
+              <AlertDescription>Please correct the highlighted fields.</AlertDescription>
+            </Alert>
+          )}
+          <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_18rem]">
+            <form method="post" class="grid gap-8" novalidate>
+              {[
+                {
+                  legend: 'Contact',
+                  fields: [field('email', 'Email', { type: 'email', autocomplete: 'email', required: true })],
+                },
+                {
+                  legend: 'Billing address',
+                  fields: [
+                    field('given', 'First name', { autocomplete: 'given-name', required: true }),
+                    field('family', 'Last name', { autocomplete: 'family-name', required: true }),
+                    field('line1', 'Address', { autocomplete: 'address-line1', required: true }),
+                    field('line2', 'Apartment, suite (optional)', { autocomplete: 'address-line2' }),
+                    field('locality', 'City', { autocomplete: 'address-level2', required: true }),
+                    field('administrativeArea', 'State / region (optional)', { autocomplete: 'address-level1' }),
+                    field('postalCode', 'Postal code', { autocomplete: 'postal-code', required: true }),
+                    field('countryCode', 'Country code (e.g. US)', { autocomplete: 'country', maxlength: '2', required: true }),
+                  ],
+                },
+              ].map((group) => (
+                <fieldset class="grid gap-4 sm:grid-cols-2">
+                  <legend class="mb-2 text-lg font-semibold">{group.legend}</legend>
+                  {group.fields.map((f) => (
+                    <label class={cn('grid gap-1.5 text-sm font-medium', f.name === 'email' || f.name === 'line1' ? 'sm:col-span-2' : '')}>
+                      {f.label}
+                      <Input
+                        name={f.name}
+                        value={values[f.name] ?? ''}
+                        aria-invalid={f.error ? 'true' : undefined}
+                        aria-describedby={f.error ? `${f.name}-error` : undefined}
+                        {...f.attrs}
+                      />
+                      {f.error && (
+                        <span id={`${f.name}-error`} class="text-sm font-normal text-destructive">
+                          {f.error}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </fieldset>
+              ))}
+
+              <fieldset class="grid gap-4 sm:grid-cols-4">
+                <legend class="mb-2 text-lg font-semibold">Card</legend>
+                <p class="text-sm text-muted-foreground sm:col-span-4">
+                  Demo payment, no money moves. Use 4242 4242 4242 4242 to succeed; 4000 0000 0000 0002 is declined and
+                  4000 0000 0000 9995 has insufficient funds. Any future expiry and any 3 digits work.
+                </p>
+                <label class="grid gap-1.5 text-sm font-medium sm:col-span-2">
+                  Card number
+                  <Input name="number" inputMode="numeric" autoComplete="cc-number" required aria-invalid={fieldErrors.number ? 'true' : undefined} />
+                  {fieldErrors.number && <span class="text-sm font-normal text-destructive">{fieldErrors.number}</span>}
+                </label>
+                <label class="grid gap-1.5 text-sm font-medium">
+                  Expiry (MM/YY)
+                  <Input name="expiry" placeholder="12/30" autoComplete="cc-exp" value={values.expiry ?? ''} required aria-invalid={expiryError ? 'true' : undefined} />
+                  {expiryError && <span class="text-sm font-normal text-destructive">{expiryError}</span>}
+                </label>
+                <label class="grid gap-1.5 text-sm font-medium">
+                  CVC
+                  <Input name="cvc" inputMode="numeric" autoComplete="cc-csc" maxLength={4} required aria-invalid={fieldErrors.cvc ? 'true' : undefined} />
+                  {fieldErrors.cvc && <span class="text-sm font-normal text-destructive">{fieldErrors.cvc}</span>}
+                </label>
+              </fieldset>
+
+              <button type="submit" class={cn(buttonVariants({ size: 'lg' }), 'w-full sm:w-auto sm:justify-self-start')}>
+                Pay {formatMoney(cart.total)}
+              </button>
+            </form>
+
+            <aside class="h-fit rounded-xl border bg-background p-5">
+              <h2 class="font-semibold">Order</h2>
+              <ul class="mt-3 space-y-2 text-sm">
+                {cart.items.map((item) => (
+                  <li class="flex justify-between gap-3">
+                    <span>
+                      {item.quantity} × {item.title}
+                    </span>
+                    <span class="tabular-nums">{formatMoney(item.total)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p class="mt-4 flex justify-between border-t pt-3 font-semibold">
+                <span>Total</span>
+                <span class="tabular-nums">{formatMoney(cart.total)}</span>
+              </p>
+              <a href="/cart" class={cn(buttonVariants({ variant: 'link' }), 'mt-2 px-0')}>
+                Edit cart
+              </a>
+            </aside>
+          </div>
+        </>
+      )
+    )
+  }
+</Layout>

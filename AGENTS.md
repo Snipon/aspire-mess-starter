@@ -7,13 +7,14 @@ version of what to run, what not to touch and how changes flow through the stack
 
 | Path | What |
 | --- | --- |
-| `apphost.cs` | Aspire AppHost (file-based): sql, meilisearch, seq, cms, api, web, web-cache |
+| `apphost.cs` | Aspire AppHost (file-based): sql, meilisearch, seq, commerce-postgres, cms, commerce, api, web, web-cache |
 | `src/Cms` | Headless Umbraco 18. Schema in `uSync/v18`; seeding, webhooks and Delivery API query extensions in `Headless/` |
-| `src/Api` | .NET 10 minimal API. `Contracts/` is the public contract; `Content/` and `Search/` are adapters behind `IContentSource`/`ISearchIndex` |
+| `src/Commerce` | Drupal 11 + Commerce 3 image. Schema, seeder, fake card and JSON endpoints in `web/modules/custom/headless_commerce` |
+| `src/Api` | .NET 10 minimal API. `Contracts/` is the public contract; `Content/`, `Search/` and `Commerce/` hold the ports (`IContentSource`, `ISearchIndex`, `ICommerceSource`, `IProductIndex`) and their adapters |
 | `src/Web` | Astro 7 SSR + React + Tailwind 4 + shadcn/ui. Talks only to the API (server-side) |
 | `infra/web-cache` | nginx reverse proxy cache + njs purge endpoint |
 | `infra/terraform` | Azure deployment (no web-cache there) |
-| `tests/Api.Tests` | xUnit tests for the API (mapping fixtures in `Fixtures/delivery`) |
+| `tests/Api.Tests` | xUnit tests for the API (fixtures captured from Umbraco in `Fixtures/delivery`, from Drupal in `Fixtures/drupal`) |
 
 ## Commands
 
@@ -57,19 +58,38 @@ restart. The web runs `npm run dev` and hot-reloads.
 5. **Demo content** (optional): `ContentSeeder.cs`; it must stay idempotent and top up existing installs.
 6. **Docs**: README content model table and API section.
 
+## Changing the commerce backend (Drupal)
+
+- Product fields, vocabularies, store and gateway are created in code by `headless_commerce/src/Schema.php`
+  (`ensure()` only adds what is missing). Add the field there, add a `hook_update_N()` in `headless_commerce.install`
+  that calls `Schema::ensure()`, and export it in `ProductExporter`; the entrypoint runs `drush updatedb` on start.
+- Endpoint shapes are mirrored by `src/Api/Commerce/Drupal/DrupalModels.cs`; there is no generated client, so update
+  both sides and the fixtures in `tests/Api.Tests/Fixtures/drupal`.
+- Composer changes: there is no local PHP toolchain, so update `composer.json`/`composer.lock` inside the base image:
+
+  ```sh
+  podman run --rm -v ./src/Commerce:/out docker.io/library/drupal:11-php8.4-apache sh -c '
+    docker-php-ext-install bcmath >/dev/null && cp /out/composer.json /out/composer.lock /opt/drupal/ && cd /opt/drupal &&
+    COMPOSER_ALLOW_SUPERUSER=1 composer require --no-interaction "drupal/<module>:^1" && cp composer.json composer.lock /out/'
+  ```
+- The image lints the module's PHP on build. Rebuild by restarting the AppHost (`commerce` is a Dockerfile resource).
+
 ## Rules
 
 - **Secrets**: all secrets are Aspire parameters in the AppHost user secrets (`scripts/init-secrets.sh`). Never put
   them in `appsettings*.json`, `.env` or code, and never read or print their values; ask the user to run
   `aspire secret get ...` themselves when one is needed.
-- **Demo content is opt-in** (`DemoContent:Enabled`, set in `apphost.cs` and `containerapps.tf`). Core code must
-  work with an empty CMS.
+- **Demo content is opt-in** (`DemoContent:Enabled` for the CMS and `DEMO_CONTENT` for Drupal, set in `apphost.cs`
+  and `containerapps.tf`). Core code must work with an empty CMS and an empty catalog.
 - **Adapters stay neutral**: nothing outside `Content/Umbraco` and `Search/Meilisearch` knows about Umbraco or
   Meilisearch; the web knows only the API contract.
 - **Caching**: the web middleware sets the shared-cache policy (`s-maxage`); pages that must not be cached send
-  `Cache-Control: no-store`. The API purges web-cache after each content webhook (`WebCachePurger`).
+  `Cache-Control: no-store`. The API purges web-cache after each content webhook (`WebCachePurger`). Anything per
+  visitor (cart, checkout, the cart cookie) must stay out of cached pages: no cart count in the header.
+- **Commerce calls are not idempotent**: the Drupal client retries GETs only. Never add retries to cart or checkout
+  calls.
 - **Style**: match the surrounding code (comment density, naming, file-scoped namespaces, records for contracts).
   Keep changes minimal; no new dependencies for a few lines of code.
-- **Persistent containers** (sql, meilisearch, seq) hold local data; do not remove them or their volumes without
+- **Persistent containers** (sql, meilisearch, seq, commerce-postgres) hold local data; do not remove them or their volumes without
   asking.
 - Aspire-specific agent skills live in `.agents/skills` (orchestration, monitoring, deployment).

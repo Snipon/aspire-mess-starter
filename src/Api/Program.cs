@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Api.Caching;
+using Api.Commerce;
 using Api.Content;
 using Api.Endpoints;
 using Api.Search;
@@ -14,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.AddContentSource();
 builder.AddSearchIndex();
+builder.AddCommerce();
 
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -78,6 +80,7 @@ app.MapScalarApiReference(); // /scalar
 
 app.MapContentEndpoints();
 app.MapSearchEndpoints();
+app.MapCommerceEndpoints(app.Configuration);
 app.MapStatusEndpoints();
 app.MapDefaultEndpoints();
 
