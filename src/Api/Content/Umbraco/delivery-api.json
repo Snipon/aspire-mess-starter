@@ -1375,6 +1375,116 @@
           }
         }
       },
+      "BlogPostContentModel": {
+        "required": [
+          "contentType"
+        ],
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IApiContentBaseModel"
+          }
+        ],
+        "properties": {
+          "contentType": {
+            "const": "blogPost"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/BlogPostContentPropertiesModel"
+          }
+        }
+      },
+      "BlogPostContentPropertiesModel": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "image": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/IApiMediaWithCropsModel"
+            }
+          },
+          "body": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "relatedArticle": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/IApiContentModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publishDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "BlogPostContentResponseModel": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IApiContentResponseBaseModel"
+          },
+          {
+            "$ref": "#/components/schemas/BlogPostContentModel"
+          }
+        ]
+      },
+      "BlogPostListBlockElementModel": {
+        "required": [
+          "contentType"
+        ],
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IApiElementBaseModel"
+          }
+        ],
+        "properties": {
+          "contentType": {
+            "const": "blogPostListBlock"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/BlogPostListBlockElementPropertiesModel"
+          }
+        }
+      },
+      "BlogPostListBlockElementPropertiesModel": {
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "CtaBlockElementModel": {
         "required": [
           "contentType"
@@ -1633,6 +1743,9 @@
           },
           {
             "$ref": "#/components/schemas/PageContentModel"
+          },
+          {
+            "$ref": "#/components/schemas/BlogPostContentModel"
           }
         ],
         "discriminator": {
@@ -1640,7 +1753,8 @@
           "mapping": {
             "article": "#/components/schemas/ArticleContentModel",
             "site": "#/components/schemas/SiteContentModel",
-            "page": "#/components/schemas/PageContentModel"
+            "page": "#/components/schemas/PageContentModel",
+            "blogPost": "#/components/schemas/BlogPostContentModel"
           }
         }
       },
@@ -1751,6 +1865,9 @@
           },
           {
             "$ref": "#/components/schemas/PageContentResponseModel"
+          },
+          {
+            "$ref": "#/components/schemas/BlogPostContentResponseModel"
           }
         ],
         "discriminator": {
@@ -1758,7 +1875,8 @@
           "mapping": {
             "article": "#/components/schemas/ArticleContentResponseModel",
             "site": "#/components/schemas/SiteContentResponseModel",
-            "page": "#/components/schemas/PageContentResponseModel"
+            "page": "#/components/schemas/PageContentResponseModel",
+            "blogPost": "#/components/schemas/BlogPostContentResponseModel"
           }
         }
       },
@@ -1854,6 +1972,12 @@
           },
           {
             "$ref": "#/components/schemas/ArticleListBlockElementModel"
+          },
+          {
+            "$ref": "#/components/schemas/BlogPostListBlockElementModel"
+          },
+          {
+            "$ref": "#/components/schemas/LatestBlogPostsBlockElementModel"
           }
         ],
         "discriminator": {
@@ -1862,7 +1986,9 @@
             "heroBlock": "#/components/schemas/HeroBlockElementModel",
             "latestArticlesBlock": "#/components/schemas/LatestArticlesBlockElementModel",
             "ctaBlock": "#/components/schemas/CtaBlockElementModel",
-            "articleListBlock": "#/components/schemas/ArticleListBlockElementModel"
+            "articleListBlock": "#/components/schemas/ArticleListBlockElementModel",
+            "blogPostListBlock": "#/components/schemas/BlogPostListBlockElementModel",
+            "latestBlogPostsBlock": "#/components/schemas/LatestBlogPostsBlockElementModel"
           }
         }
       },
@@ -2307,6 +2433,43 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "LatestBlogPostsBlockElementModel": {
+        "required": [
+          "contentType"
+        ],
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/IApiElementBaseModel"
+          }
+        ],
+        "properties": {
+          "contentType": {
+            "const": "latestBlogPostsBlock"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/LatestBlogPostsBlockElementPropertiesModel"
+          }
+        }
+      },
+      "LatestBlogPostsBlockElementPropertiesModel": {
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "count": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
           }
         }
       },

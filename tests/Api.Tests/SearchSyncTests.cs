@@ -1,5 +1,6 @@
 using System.Net;
 using System.Runtime.CompilerServices;
+using Api.Caching;
 using Api.Content;
 using Api.Contracts;
 using Api.Endpoints;
@@ -73,7 +74,7 @@ public sealed class SearchSyncTests
             [new ImageRendition(480, "https://cms/media/a.jpg?width=480&hmac=x"), new ImageRendition(960, "https://cms/media/a.jpg?width=960&hmac=y")]);
         var page = new Page("1", "article", "/articles/a", "A", "A", "Excerpt", image, [],
             new Article(new DateOnly(2026, 10, 28), ["css", "security"], "<h2>Intro</h2><p>Body &amp; more</p>", 3),
-            null, DateTimeOffset.UnixEpoch, []);
+            null, null, DateTimeOffset.UnixEpoch, []);
 
         var doc = SearchDocument.FromPage(page);
 
@@ -93,7 +94,7 @@ public sealed class SearchSyncTests
                 new LatestArticlesBlock("Latest", null, []),
                 new CtaBlock("Built with Aspire", "Read more", null, CtaStyle.Primary),
             ],
-            null, null, DateTimeOffset.UnixEpoch, []);
+            null, null, null, DateTimeOffset.UnixEpoch, []);
 
         var doc = SearchDocument.FromPage(page);
 
@@ -131,7 +132,26 @@ public sealed class SearchSyncTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    private static async Task<WebApplication> StartSearchApiAsync(string? reindexSecret)
+    [Fact]
+    public async Task Content_webhook_purges_the_web_cache_after_syncing()
+    {
+        var purges = new List<HttpRequestMessage>();
+        await using var app = await StartSearchApiAsync(reindexSecret: null, purges);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/webhooks/content")
+        {
+            Content = new StringContent("""{ "id": "1" }""", System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add(SharedSecret.WebhookHeader, "webhook-secret");
+
+        using var response = await app.GetTestClient().SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var purge = Assert.Single(purges);
+        Assert.Equal("http://web-cache/_purge", purge.RequestUri?.ToString());
+        Assert.Equal(["purge-secret"], purge.Headers.GetValues(WebCachePurger.SecretHeader));
+    }
+
+    private static async Task<WebApplication> StartSearchApiAsync(string? reindexSecret, List<HttpRequestMessage>? purges = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
         builder.WebHost.UseTestServer();
@@ -139,12 +159,16 @@ public sealed class SearchSyncTests
         {
             ["Webhooks:Secret"] = "webhook-secret",
             ["Search:ReindexSecret"] = reindexSecret,
+            ["WebCache:PurgeUrl"] = "http://web-cache/_purge",
+            ["WebCache:PurgeSecret"] = "purge-secret",
         });
         var content = new FakeContent();
         content.Add("1", "/");
         builder.Services.AddSingleton<IContentSource>(content);
         builder.Services.AddSingleton<ISearchIndex, FakeIndex>();
         builder.Services.AddTransient<SearchIndexer>();
+        builder.Services.AddHttpClient<WebCachePurger>()
+            .ConfigurePrimaryHttpMessageHandler(() => new RecordingHandler(purges ?? []));
         var app = builder.Build();
         app.MapSearchEndpoints();
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -233,7 +257,7 @@ public sealed class SearchSyncTests
         public List<string> Fetched { get; } = [];
 
         public void Add(string id, string path) =>
-            _pages[id] = new Page(id, "page", path, id, id, null, null, [], null, null, DateTimeOffset.UnixEpoch, []);
+            _pages[id] = new Page(id, "page", path, id, id, null, null, [], null, null, null, DateTimeOffset.UnixEpoch, []);
 
         public Task<Page?> GetByIdAsync(string id, string? culture, CancellationToken ct)
         {
@@ -311,5 +335,14 @@ public sealed class SearchSyncTests
         public Task<IReadOnlyList<string>> GetIdsBelowPathAsync(string path, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<string>>(Docs.Values
                 .Where(d => MeilisearchSearchIndex.AncestorsOf(d.Path).Contains(path)).Select(d => d.Id).ToList());
+    }
+
+    private sealed class RecordingHandler(List<HttpRequestMessage> requests) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            requests.Add(request);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+        }
     }
 }

@@ -17,6 +17,15 @@ public sealed record ArticleSummary(
     DateOnly PublishDate,
     string[] Tags);
 
+/// <summary>Blog-post-specific fields of a <see cref="Page"/>.</summary>
+/// <param name="BodyHtml">Rendered and sanitised like <see cref="Article.BodyHtml"/>.</param>
+/// <param name="RelatedArticle">The article the post refers to; <c>null</c> when none is set or it is not published.</param>
+public sealed record BlogPost(DateOnly PublishDate, string BodyHtml, int ReadingTimeMinutes, ArticleSummary? RelatedArticle);
+
+/// <summary>A blog post in a list.</summary>
+/// <param name="Summary">Plain-text excerpt of the body (about 160 characters).</param>
+public sealed record BlogPostSummary(string Id, string Path, string Title, string? Summary, Image? Image, DateOnly PublishDate);
+
 /// <summary>A tag and the number of published articles that carry it.</summary>
 public sealed record TagCount(string Tag, int Count);
 

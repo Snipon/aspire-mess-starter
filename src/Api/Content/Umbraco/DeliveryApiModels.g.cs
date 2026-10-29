@@ -100,6 +100,41 @@ public sealed record ArticleListBlockElementPropertiesModel
     public Dictionary<string, JsonElement>? Additional { get; init; }
 }
 
+public sealed record BlogPostContentPropertiesModel
+{
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    [JsonPropertyName("image")]
+    public ApiMediaWithCropsModel[]? Image { get; init; }
+
+    [JsonPropertyName("body")]
+    public string? Body { get; init; }
+
+    [JsonPropertyName("relatedArticle")]
+    public ApiContentModel? RelatedArticle { get; init; }
+
+    [JsonPropertyName("publishDate")]
+    public DateTimeOffset? PublishDate { get; init; }
+
+    /// <summary>Properties the spec does not know yet.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; init; }
+}
+
+public sealed record BlogPostListBlockElementPropertiesModel
+{
+    [JsonPropertyName("heading")]
+    public string? Heading { get; init; }
+
+    [JsonPropertyName("pageSize")]
+    public int? PageSize { get; init; }
+
+    /// <summary>Properties the spec does not know yet.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; init; }
+}
+
 public sealed record CtaBlockElementPropertiesModel
 {
     [JsonPropertyName("heading")]
@@ -174,6 +209,7 @@ public abstract record ApiContentModel : IDiscriminatedUnion
         "article" => typeof(ArticleContentModel),
         "site" => typeof(SiteContentModel),
         "page" => typeof(PageContentModel),
+        "blogPost" => typeof(BlogPostContentModel),
         _ => typeof(UnknownApiContentModel),
     };
 
@@ -214,6 +250,12 @@ public sealed record PageContentModel : ApiContentModel
     public PageContentPropertiesModel? Properties { get; init; }
 }
 
+public sealed record BlogPostContentModel : ApiContentModel
+{
+    [JsonPropertyName("properties")]
+    public BlogPostContentPropertiesModel? Properties { get; init; }
+}
+
 /// <summary>A contentType the spec does not know yet.</summary>
 public sealed record UnknownApiContentModel : ApiContentModel
 {
@@ -231,6 +273,7 @@ public abstract record ApiContentResponseModel : IDiscriminatedUnion
         "article" => typeof(ArticleContentResponseModel),
         "site" => typeof(SiteContentResponseModel),
         "page" => typeof(PageContentResponseModel),
+        "blogPost" => typeof(BlogPostContentResponseModel),
         _ => typeof(UnknownApiContentResponseModel),
     };
 
@@ -274,6 +317,12 @@ public sealed record PageContentResponseModel : ApiContentResponseModel
     public PageContentPropertiesModel? Properties { get; init; }
 }
 
+public sealed record BlogPostContentResponseModel : ApiContentResponseModel
+{
+    [JsonPropertyName("properties")]
+    public BlogPostContentPropertiesModel? Properties { get; init; }
+}
+
 /// <summary>A contentType the spec does not know yet.</summary>
 public sealed record UnknownApiContentResponseModel : ApiContentResponseModel
 {
@@ -313,6 +362,8 @@ public abstract record ApiElementModel : IDiscriminatedUnion
         "latestArticlesBlock" => typeof(LatestArticlesBlockElementModel),
         "ctaBlock" => typeof(CtaBlockElementModel),
         "articleListBlock" => typeof(ArticleListBlockElementModel),
+        "blogPostListBlock" => typeof(BlogPostListBlockElementModel),
+        "latestBlogPostsBlock" => typeof(LatestBlogPostsBlockElementModel),
         _ => typeof(UnknownApiElementModel),
     };
 
@@ -348,6 +399,18 @@ public sealed record ArticleListBlockElementModel : ApiElementModel
 {
     [JsonPropertyName("properties")]
     public ArticleListBlockElementPropertiesModel? Properties { get; init; }
+}
+
+public sealed record BlogPostListBlockElementModel : ApiElementModel
+{
+    [JsonPropertyName("properties")]
+    public BlogPostListBlockElementPropertiesModel? Properties { get; init; }
+}
+
+public sealed record LatestBlogPostsBlockElementModel : ApiElementModel
+{
+    [JsonPropertyName("properties")]
+    public LatestBlogPostsBlockElementPropertiesModel? Properties { get; init; }
 }
 
 /// <summary>A contentType the spec does not know yet.</summary>
@@ -631,6 +694,19 @@ public sealed record LatestArticlesBlockElementPropertiesModel
 
     [JsonPropertyName("tag")]
     public string? Tag { get; init; }
+
+    /// <summary>Properties the spec does not know yet.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; init; }
+}
+
+public sealed record LatestBlogPostsBlockElementPropertiesModel
+{
+    [JsonPropertyName("heading")]
+    public string? Heading { get; init; }
+
+    [JsonPropertyName("count")]
+    public int? Count { get; init; }
 
     /// <summary>Properties the spec does not know yet.</summary>
     [JsonExtensionData]

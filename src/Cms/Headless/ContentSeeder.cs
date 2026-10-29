@@ -17,12 +17,14 @@ namespace Cms.Headless;
 
 /// <summary>
 /// Idempotent demo content on top of the uSync schema (src/Cms/uSync, imported on first boot before this runs):
-/// generated placeholder images, a "Home" site node with blocks, an "Articles" page and <see cref="DemoArticles.Count"/>
-/// articles. Runs only if the "site" document type exists, in one scope (transaction and media files), so a failed seed
-/// leaves nothing behind and is retried on the next boot. When the site was seeded before, only the demo articles missing
-/// from the Articles page (by name) are added, so an install seeded with fewer articles is topped up, and an Articles
-/// page still showing the previously seeded "latest articles" block gets the article list instead. Everything created
-/// is then sent to the search index (<see cref="SearchIndexNotifier"/>).
+/// generated placeholder images, a "Home" site node with blocks, an "Articles" page with <see cref="DemoArticles.Count"/>
+/// articles and a "Blog" page with <see cref="DemoBlogPosts.Count"/> blog posts. Runs only if the "site" document type
+/// exists, in one scope (transaction and media files), so a failed seed leaves nothing behind and is retried on the next
+/// boot. When the site was seeded before, only the demo articles and blog posts missing from their pages (by name) are
+/// added, so an install seeded with fewer is topped up; an Articles page still showing the previously seeded "latest
+/// articles" block gets the article list instead, and a Home page still in the layout seeded before blog posts existed
+/// gets the blog post slider and a Blog page. Everything created is then sent to the search index
+/// (<see cref="SearchIndexNotifier"/>).
 /// </summary>
 internal sealed class ContentSeeder(
     IRuntimeState runtimeState,
@@ -40,6 +42,7 @@ internal sealed class ContentSeeder(
 {
     private const string SiteAlias = "site";
     private const int ImageCount = 12;
+    private const int MaxChildren = 100_000;
 
     // Placeholder image palettes (start/end colours of the gradient).
     private static readonly (Rgb24 From, Rgb24 To)[] Palettes =
@@ -75,29 +78,12 @@ internal sealed class ContentSeeder(
         IMedia folder = mediaService.CreateMediaWithIdentity("Placeholders", Constants.System.Root, Constants.Conventions.MediaTypes.Folder);
         IMedia[] images = [.. Enumerable.Range(1, ImageCount).Select(i => CreateImage(folder.Id, i))];
 
-        Guid hero = ElementTypeKey("heroBlock"), cta = ElementTypeKey("ctaBlock"), latest = ElementTypeKey("latestArticlesBlock");
         var created = new List<Guid>();
         var articlesKey = Guid.NewGuid();
 
         IContent home = CreateAndPublish("Home", Constants.System.Root, SiteAlias, Guid.NewGuid(), new()
         {
-            ["blocks"] = Blocks(
-                (hero, new()
-                {
-                    ["heading"] = "Notes on building for the web",
-                    ["subheading"] = "Articles about .NET, cloud, front-end engineering and design systems, served by a headless Umbraco CMS.",
-                    ["image"] = MediaPicker(images[0]),
-                    ["ctaLabel"] = "Browse all articles",
-                    ["ctaLink"] = DocumentLink("Browse all articles", articlesKey),
-                }),
-                (latest, new() { ["heading"] = "Latest articles", ["count"] = 6 }),
-                (cta, new()
-                {
-                    ["heading"] = "Built with Aspire",
-                    ["text"] = "This demo runs Umbraco, a typed .NET API, Meilisearch and an Astro front end from a single AppHost.",
-                    ["link"] = ExternalLink("Explore Aspire", "https://aspire.dev"),
-                    ["style"] = JsonSerializer.Serialize(new[] { "primary" }),
-                })),
+            ["blocks"] = HomeBlocks(images, articlesKey),
         });
 
         IContent articles = CreateAndPublish("Articles", home.Id, "page", articlesKey, new()
@@ -108,13 +94,52 @@ internal sealed class ContentSeeder(
         created.AddRange([home.Key, articles.Key]);
 
         IReadOnlyList<DemoArticle> demoArticles = DemoArticles.Generate(DateTime.UtcNow);
-        created.AddRange(CreateArticles(articles.Id, demoArticles, images));
+        List<Guid> articleKeys = CreateArticles(articles.Id, demoArticles, images);
+        created.AddRange(articleKeys);
+
+        IReadOnlyList<DemoBlogPost> demoPosts = DemoBlogPosts.Generate(DateTime.UtcNow, demoArticles);
+        IContent blog = CreateBlogPage(home.Id, images);
+        created.Add(blog.Key);
+        created.AddRange(CreateBlogPosts(blog.Id, demoPosts, images,
+            demoArticles.Select((a, i) => (a.Title, articleKeys[i])).ToDictionary(StringComparer.OrdinalIgnoreCase)));
 
         scope.Complete();
-        logger.LogInformation("Seeded {Count} articles", demoArticles.Count);
+        logger.LogInformation("Seeded {Articles} articles and {Posts} blog posts", demoArticles.Count, demoPosts.Count);
         searchIndexNotifier.NotifyInBackground(created);
         return Task.CompletedTask;
     }
+
+    private string HomeBlocks(IMedia[] images, Guid articlesKey) => Blocks(
+        (ElementTypeKey("heroBlock"), new()
+        {
+            ["heading"] = "Notes on building for the web",
+            ["subheading"] = "Articles about .NET, cloud, front-end engineering and design systems, served by a headless Umbraco CMS.",
+            ["image"] = MediaPicker(images[0]),
+            ["ctaLabel"] = "Browse all articles",
+            ["ctaLink"] = DocumentLink("Browse all articles", articlesKey),
+        }),
+        (ElementTypeKey("latestArticlesBlock"), new() { ["heading"] = "Latest articles", ["count"] = 6 }),
+        (ElementTypeKey("latestBlogPostsBlock"), new() { ["heading"] = "From the blog", ["count"] = 8 }),
+        (ElementTypeKey("ctaBlock"), new()
+        {
+            ["heading"] = "Built with Aspire",
+            ["text"] = "This demo runs Umbraco, a typed .NET API, Meilisearch and an Astro front end from a single AppHost.",
+            ["link"] = ExternalLink("Explore Aspire", "https://aspire.dev"),
+            ["style"] = JsonSerializer.Serialize(new[] { "primary" }),
+        }));
+
+    private IContent CreateBlogPage(int homeId, IMedia[] images) => CreateAndPublish("Blog", homeId, "page", Guid.NewGuid(), new()
+    {
+        ["title"] = "Blog",
+        ["blocks"] = Blocks(
+            (ElementTypeKey("heroBlock"), new()
+            {
+                ["heading"] = "Blog",
+                ["subheading"] = "Shorter notes from the team, each pointing to an article for the long version.",
+                ["image"] = MediaPicker(images[2 % images.Length]),
+            }),
+            (ElementTypeKey("blogPostListBlock"), new() { ["heading"] = "All posts", ["pageSize"] = 12 })),
+    });
 
     private string ArticlesPageBlocks(IMedia[] images) => Blocks(
         (ElementTypeKey("heroBlock"), new()
@@ -127,23 +152,31 @@ internal sealed class ContentSeeder(
 
     private void UpdateExistingSite(IContent home)
     {
-        const int maxChildren = 100_000;
-        IContent? articles = contentService.GetPagedChildren(home.Id, 0, maxChildren, out _)
-            .FirstOrDefault(c => c.ContentType.Alias == "page" && c.Name == "Articles");
+        IContent[] pages = [.. contentService.GetPagedChildren(home.Id, 0, MaxChildren, out _).Where(c => c.ContentType.Alias == "page")];
+        IContent? articles = pages.FirstOrDefault(c => c.Name == "Articles");
         IMedia? folder = mediaService.GetRootMedia().FirstOrDefault(m => m.Name == "Placeholders");
         if (articles is null || folder is null)
         {
             return; // Restructured by hand: leave it alone.
         }
 
-        var existing = contentService.GetPagedChildren(articles.Id, 0, maxChildren, out _)
-            .Select(c => c.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        DemoArticle[] missing = [.. DemoArticles.Generate(DateTime.UtcNow).Where(a => !existing.Contains(a.Title))];
-        IMedia[] images = [.. mediaService.GetPagedChildren(folder.Id, 0, maxChildren, out _)];
+        Dictionary<string, Guid> articleKeys = ChildKeysByName(articles);
+        IReadOnlyList<DemoArticle> demoArticles = DemoArticles.Generate(DateTime.UtcNow);
+        DemoArticle[] missing = [.. demoArticles.Where(a => !articleKeys.ContainsKey(a.Title))];
+        IMedia[] images = [.. mediaService.GetPagedChildren(folder.Id, 0, MaxChildren, out _)];
         bool upgradeArticlesPage = HasOnlyBlocks(articles, "heroBlock", "latestArticlesBlock")
             && contentTypeService.Get("articleListBlock") is not null;
-        if (images.Length == 0 || (missing.Length == 0 && !upgradeArticlesPage))
+
+        // The Blog page is only created together with the home page's slider (Home still in the layout seeded before
+        // blog posts existed), so deleting it by hand later is respected.
+        bool hasBlogSchema = new[] { "blogPost", "blogPostListBlock", "latestBlogPostsBlock" }.All(a => contentTypeService.Get(a) is not null);
+        bool upgradeHome = hasBlogSchema && HasOnlyBlocks(home, "heroBlock", "latestArticlesBlock", "ctaBlock");
+        IContent? blog = pages.FirstOrDefault(c => c.Name == "Blog");
+        Dictionary<string, Guid> postKeys = blog is null ? [] : ChildKeysByName(blog);
+        DemoBlogPost[] missingPosts = hasBlogSchema && (blog is not null || upgradeHome)
+            ? [.. DemoBlogPosts.Generate(DateTime.UtcNow, demoArticles).Where(p => !postKeys.ContainsKey(p.Title))]
+            : [];
+        if (images.Length == 0 || (missing.Length == 0 && missingPosts.Length == 0 && !upgradeArticlesPage && !upgradeHome))
         {
             return;
         }
@@ -161,12 +194,47 @@ internal sealed class ContentSeeder(
         if (missing.Length > 0)
         {
             logger.LogInformation("Adding {Count} missing demo articles", missing.Length);
-            changed.AddRange(CreateArticles(articles.Id, missing, images));
+            List<Guid> added = CreateArticles(articles.Id, missing, images);
+            changed.AddRange(added);
+            for (var i = 0; i < missing.Length; i++)
+            {
+                articleKeys.TryAdd(missing[i].Title, added[i]);
+            }
+        }
+
+        if (upgradeHome)
+        {
+            logger.LogInformation("Adding the blog post slider to the home page");
+            home.SetValue("blocks", HomeBlocks(images, articles.Key));
+            Publish(home);
+            changed.Add(home.Key);
+            if (blog is null)
+            {
+                blog = CreateBlogPage(home.Id, images);
+                changed.Add(blog.Key);
+            }
+        }
+
+        if (blog is not null && missingPosts.Length > 0)
+        {
+            logger.LogInformation("Adding {Count} missing demo blog posts", missingPosts.Length);
+            changed.AddRange(CreateBlogPosts(blog.Id, missingPosts, images, articleKeys));
         }
 
         scope.Complete();
-        logger.LogInformation("Updated the demo content ({Count} articles added)", missing.Length);
+        logger.LogInformation("Updated the demo content ({Articles} articles and {Posts} blog posts added)", missing.Length, missingPosts.Length);
         searchIndexNotifier.NotifyInBackground(changed);
+    }
+
+    private Dictionary<string, Guid> ChildKeysByName(IContent parent)
+    {
+        var keys = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (IContent child in contentService.GetPagedChildren(parent.Id, 0, MaxChildren, out _))
+        {
+            keys.TryAdd(child.Name ?? string.Empty, child.Key);
+        }
+
+        return keys;
     }
 
     /// <summary>Whether the page's blocks are exactly one of each of the given element types, in order (the seeded layout).</summary>
@@ -198,6 +266,28 @@ internal sealed class ContentSeeder(
                 ["body"] = article.Body,
                 ["tags"] = JsonSerializer.Serialize(article.Tags),
                 ["publishDate"] = article.PublishDate,
+            });
+        }
+
+        return keys;
+    }
+
+    private List<Guid> CreateBlogPosts(int parentId, IReadOnlyList<DemoBlogPost> posts, IMedia[] images, IReadOnlyDictionary<string, Guid> articleKeys)
+    {
+        var keys = new List<Guid>(posts.Count);
+        for (var i = 0; i < posts.Count; i++)
+        {
+            DemoBlogPost post = posts[i];
+            keys.Add(Guid.NewGuid());
+            CreateAndPublish(post.Title, parentId, "blogPost", keys[^1], new()
+            {
+                ["title"] = post.Title,
+                ["image"] = MediaPicker(images[(i + 5) % images.Length]),
+                ["body"] = post.Body,
+                ["relatedArticle"] = articleKeys.TryGetValue(post.Article.Title, out Guid articleKey)
+                    ? Udi.Create(Constants.UdiEntityType.Document, articleKey).ToString()
+                    : null,
+                ["publishDate"] = post.PublishDate,
             });
         }
 

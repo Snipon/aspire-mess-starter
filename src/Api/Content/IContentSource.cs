@@ -9,7 +9,7 @@ public interface IContentSource
 
     Task<Page?> GetByIdAsync(string id, string? culture, CancellationToken ct);
 
-    /// <summary>The site tree without articles (they are listed by <see cref="GetArticlesAsync"/>).</summary>
+    /// <summary>The site tree without articles and blog posts (they are listed by <see cref="GetArticlesAsync"/> and search).</summary>
     Task<NavItem[]> GetNavigationAsync(string? culture, CancellationToken ct);
 
     /// <summary>Published articles, newest publish date first, optionally only those tagged <paramref name="tag"/>.</summary>

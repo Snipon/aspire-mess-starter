@@ -8,6 +8,8 @@ namespace Api.Contracts;
 [JsonDerivedType(typeof(CtaBlock), "cta")]
 [JsonDerivedType(typeof(LatestArticlesBlock), "latestArticles")]
 [JsonDerivedType(typeof(ArticleListBlock), "articleList")]
+[JsonDerivedType(typeof(LatestBlogPostsBlock), "latestBlogPosts")]
+[JsonDerivedType(typeof(BlogPostListBlock), "blogPostList")]
 public abstract record Block;
 
 /// <summary>A page header with an optional background image and call to action.</summary>
@@ -24,6 +26,12 @@ public sealed record LatestArticlesBlock(string? Heading, string? Tag, ArticleSu
 /// endpoint), because they depend on its query string.
 /// </summary>
 public sealed record ArticleListBlock(string? Heading, int PageSize) : Block;
+
+/// <summary>The newest blog posts, resolved by the API (shown as a slider).</summary>
+public sealed record LatestBlogPostsBlock(string? Heading, BlogPostSummary[] Posts) : Block;
+
+/// <summary>All blog posts with a year filter and a pager; like <see cref="ArticleListBlock"/>, the client fetches them.</summary>
+public sealed record BlogPostListBlock(string? Heading, int PageSize) : Block;
 
 [JsonConverter(typeof(JsonStringEnumConverter<CtaStyle>))]
 public enum CtaStyle

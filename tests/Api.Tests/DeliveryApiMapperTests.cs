@@ -23,7 +23,7 @@ public sealed class DeliveryApiMapperTests
     private static T Parse<T>(string json) => JsonSerializer.Deserialize<T>(json, Json)!;
 
     private static Task<Page> MapAsync(ApiContentResponseModel item, DeliveryApiMapper.LatestArticlesResolver? latest = null) =>
-        Mapper.ToPageAsync(item, culture: null, latest, TestContext.Current.CancellationToken);
+        Mapper.ToPageAsync(item, culture: null, latest, latestBlogPosts: null, TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task Maps_image_with_focal_point_and_signed_renditions()
@@ -268,6 +268,94 @@ public sealed class DeliveryApiMapperTests
         Assert.Empty(article.Tags);
         Assert.Equal(string.Empty, article.BodyHtml);
         Assert.Equal(1, article.ReadingTimeMinutes);
+    }
+
+    // A blog post as the Delivery API returns it with expand=properties[relatedArticle] (the related article is the
+    // captured article fixture).
+    private static ApiContentResponseModel BlogPostItem(string relatedArticleJson) => Parse<ApiContentResponseModel>($$"""
+        { "id": "5b0b6a2e-1f1e-4d7e-9c55-2f1f6f1c0b01", "contentType": "blogPost", "name": "Week in Review: Webhook Security",
+          "createDate": "2026-10-29T16:19:03Z", "updateDate": "2026-10-29T16:19:03Z", "route": { "path": "/blog/week-in-review-webhook-security/" },
+          "properties": {
+            "title": "Week in Review: Webhook Security",
+            "image": [ { "id": "09620984-1c45-420b-81c7-769be481a540", "name": "Placeholder 06", "mediaType": "Image",
+              "url": "/media/x/placeholder-06.jpg", "width": 1600, "height": 900, "focalPoint": null, "crops": [], "properties": {} } ],
+            "body": "A short post on webhook security.\n\n## What we tried\n\nMost of the complexity comes from edge cases.",
+            "relatedArticle": {{relatedArticleJson}},
+            "publishDate": "2026-10-28T00:00:00"
+          } }
+        """);
+
+    [Fact]
+    public async Task Maps_blog_post_with_rendered_markdown_and_expanded_related_article()
+    {
+        var related = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "delivery/article.json"));
+
+        var page = await MapAsync(BlogPostItem(related));
+
+        Assert.Equal("blogPost", page.ContentType);
+        Assert.Equal("/blog/week-in-review-webhook-security", page.Path);
+        Assert.Equal("Week in Review: Webhook Security", page.Title);
+        Assert.Equal("https://cms.example.com/media/x/placeholder-06.jpg", page.Image?.Url);
+        Assert.Equal("A short post on webhook security. Most of the complexity comes from edge cases.", page.Summary); // headings skipped
+        Assert.Null(page.Article);
+        Assert.Empty(page.Properties);
+
+        var post = Assert.IsType<BlogPost>(page.BlogPost);
+        Assert.Equal(new DateOnly(2026, 10, 28), post.PublishDate);
+        Assert.Contains("<h2>What we tried</h2>", post.BodyHtml);
+        Assert.Equal(1, post.ReadingTimeMinutes);
+
+        var article = Assert.IsType<ArticleSummary>(post.RelatedArticle);
+        Assert.Equal("d8360124-a5a7-4865-a637-44fb684412ea", article.Id);
+        Assert.Equal("/articles/getting-started-with-net-aspire-for-local-development", article.Path);
+        Assert.Equal("Getting Started with .NET Aspire for Local Development", article.Title);
+        Assert.Equal(new DateOnly(2026, 10, 28), article.PublishDate);
+        Assert.Equal(["aspire", "dotnet", "typescript"], article.Tags);
+        Assert.Equal("https://cms.example.com/media/bpbdjpzm/placeholder-01.jpg", article.Image?.Url);
+        Assert.StartsWith("If you have ever inherited a project", article.Summary);
+
+        // Indexed like an article: body text and publish date, no tags.
+        var doc = SearchDocument.FromPage(page);
+        Assert.StartsWith("A short post on webhook security. What we tried", doc.Body);
+        Assert.Equal(new DateOnly(2026, 10, 28), doc.PublishDate);
+        Assert.Empty(doc.Tags);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("""{ "id": "00000000-0000-0000-0000-000000000002", "contentType": "page", "name": "About", "route": { "path": "/about/" }, "properties": {} }""")]
+    public async Task Blog_post_related_article_is_null_when_unset_or_not_an_article(string relatedArticleJson)
+    {
+        var post = Assert.IsType<BlogPost>((await MapAsync(BlogPostItem(relatedArticleJson))).BlogPost);
+
+        Assert.Null(post.RelatedArticle);
+    }
+
+    [Fact]
+    public async Task Resolves_latest_blog_posts_with_count_defaulting_to_6_and_clamped()
+    {
+        var item = Parse<ApiContentResponseModel>("""
+            { "id": "00000000-0000-0000-0000-000000000001", "contentType": "site", "name": "Home", "route": { "path": "/" }, "properties": { "blocks": { "items": [
+              { "content": { "contentType": "latestBlogPostsBlock", "properties": { "heading": "From the blog", "count": null } } },
+              { "content": { "contentType": "latestBlogPostsBlock", "properties": { "count": 500 } } },
+              { "content": { "contentType": "blogPostListBlock", "properties": { "heading": "All posts", "pageSize": null } } }
+            ] } } }
+            """);
+        BlogPostSummary[] posts = [new("1", "/blog/a", "A", null, null, new DateOnly(2026, 10, 28))];
+        var requested = new List<int>();
+
+        var page = await Mapper.ToPageAsync(item, culture: null, latestArticles: null, (count, _) =>
+        {
+            requested.Add(count);
+            return Task.FromResult(posts);
+        }, TestContext.Current.CancellationToken);
+
+        Assert.Equal([6, DeliveryApiMapper.MaxLatestArticles], requested);
+        var latest = Assert.IsType<LatestBlogPostsBlock>(page.Blocks[0]);
+        Assert.Equal("From the blog", latest.Heading);
+        Assert.Same(posts, latest.Posts);
+        Assert.Equal(new BlogPostListBlock("All posts", 12), page.Blocks[2]);
+        Assert.Empty((await MapAsync(item)).Blocks.OfType<LatestBlogPostsBlock>().SelectMany(b => b.Posts)); // unresolved
     }
 
     [Fact]

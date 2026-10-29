@@ -10,13 +10,16 @@ import { api, type ArticleSummary, type Block } from '../../lib/api/client';
 import { log } from '../../lib/log';
 
 interface Props {
-  block: Extract<Block, { type: 'articleList' }>;
+  block: Extract<Block, { type: 'articleList' | 'blogPostList' }>;
 }
 
+// Articles get topic and year filters; blog posts (no tags) only the year.
 const { block } = Astro.props;
-const heading = block.heading ?? 'All articles';
+const posts = block.type === 'blogPostList';
+const noun = posts ? 'post' : 'article';
+const heading = block.heading ?? (posts ? 'All blog posts' : 'All articles');
 const params = Astro.url.searchParams;
-const tag = params.get('tag') || undefined;
+const tag = (!posts && params.get('tag')) || undefined;
 const yearParam = Number.parseInt(params.get('year') ?? '', 10);
 const year = Number.isInteger(yearParam) && yearParam >= 1 && yearParam <= 9999 ? yearParam : undefined;
 const requestedPage = Number.parseInt(params.get('page') ?? '1', 10);
@@ -25,14 +28,14 @@ const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage
 // The search index lists articles newest first when there is no query, with facet counts in the same call.
 const search = await api()
   .GET('/api/search', {
-    params: { query: { q: '', contentType: 'article', tag, year, page, pageSize: block.pageSize } },
+    params: { query: { q: '', contentType: posts ? 'blogPost' : 'article', tag, year, page, pageSize: block.pageSize } },
   })
   .catch((cause: unknown) => {
     log.error('Search API unreachable', cause);
     return undefined;
   });
 const result = search?.data;
-if (search && !result) log.error('Article list failed', undefined, { status: search.response.status });
+if (search && !result) log.error('Article list failed', undefined, { status: search.response.status, contentType: block.type });
 
 const articles: ArticleSummary[] = (result?.hits ?? []).flatMap((hit) =>
   hit.publishDate
@@ -54,7 +57,9 @@ const listHref = (overrides: Overrides) => {
 
 const groups: FacetGroup[] = result
   ? [
-      { label: 'Topic', values: result.facets.tags, selected: tag, href: (value) => listHref({ tag: value }) },
+      ...(posts
+        ? []
+        : [{ label: 'Topic', values: result.facets.tags, selected: tag, href: (value) => listHref({ tag: value }) } satisfies FacetGroup]),
       { label: 'Year', values: result.facets.years, selected: year?.toString(), href: (value) => listHref({ year: value }) },
     ]
   : [];
@@ -67,7 +72,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
   {
     !result ? (
       <Alert variant="destructive" className="mt-6">
-        <AlertDescription>Articles are temporarily unavailable. Please try again shortly.</AlertDescription>
+        <AlertDescription>{posts ? 'Blog posts' : 'Articles'} are temporarily unavailable. Please try again shortly.</AlertDescription>
       </Alert>
     ) : (
       <div class="mt-6 flex flex-col gap-8 lg:flex-row">
@@ -75,7 +80,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
         <div class="min-w-0 flex-1" aria-live="polite">
           <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             <p>
-              {result.total} article{result.total === 1 ? '' : 's'}
+              {result.total} {noun}{result.total === 1 ? '' : 's'}
               {tag && ` about “${tag}”`}
               {year && ` from ${year}`}
               {totalPages > 1 && ` · page ${result.page} of ${totalPages}`}
@@ -95,7 +100,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
             </div>
           ) : (
             <p class="mt-4 rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
-              No articles match these filters.
+              No {noun}s match these filters.
             </p>
           )}
           <Pager page={result.page} totalPages={totalPages} href={(n) => listHref({ page: n })} />

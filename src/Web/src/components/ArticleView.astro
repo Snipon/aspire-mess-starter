@@ -1,19 +1,23 @@
 ---
 import { ArrowLeftIcon } from 'lucide-react';
+import ArticleCard from '@/components/ArticleCard';
 import ResponsiveImage from '@/components/ResponsiveImage';
 import TagList from '@/components/TagList';
 import { buttonVariants } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import type { Article, Page } from '../lib/api/client';
+import type { Article, BlogPost, Page } from '../lib/api/client';
 import { formatDate } from '../lib/format';
 
 interface Props {
   page: Page;
-  article: Article;
+  /** An article, or a blog post (no tags, optionally a related article). */
+  article: Article | BlogPost;
 }
 
 const { page, article } = Astro.props;
+const tags = 'tags' in article ? article.tags : [];
+const related = 'relatedArticle' in article ? article.relatedArticle : null;
 // Articles live below their listing page (e.g. /articles/my-post → /articles).
 const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
 ---
@@ -22,7 +26,7 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
   <header class="mx-auto max-w-3xl">
     <nav aria-label="Breadcrumb">
       <a href={parentPath} class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2.5 text-muted-foreground')}>
-        <ArrowLeftIcon aria-hidden="true" /> All articles
+        <ArrowLeftIcon aria-hidden="true" /> {page.contentType === 'blogPost' ? 'All blog posts' : 'All articles'}
       </a>
     </nav>
     <h1 class="mt-4 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{page.title}</h1>
@@ -31,7 +35,7 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
       <Separator orientation="vertical" />
       <span>{article.readingTimeMinutes} min read</span>
     </p>
-    <TagList tags={article.tags} className="mt-4" />
+    <TagList tags={tags} className="mt-4" />
   </header>
 
   {
@@ -51,4 +55,15 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
     class="prose prose-lg prose-neutral dark:prose-invert mx-auto mt-10 max-w-3xl prose-headings:tracking-tight prose-a:text-primary prose-a:decoration-primary/40 prose-a:underline-offset-2 prose-a:hover:decoration-primary prose-pre:rounded-xl prose-pre:bg-neutral-900 prose-img:rounded-lg"
     set:html={article.bodyHtml}
   />
+
+  {
+    related && (
+      <aside aria-labelledby="related-article" class="mx-auto mt-14 max-w-3xl">
+        <h2 id="related-article" class="text-xl font-bold tracking-tight">Read the full article</h2>
+        <div class="mt-4 max-w-sm">
+          <ArticleCard article={related} />
+        </div>
+      </aside>
+    )
+  }
 </article>

@@ -23,8 +23,8 @@ const description = page?.summary ?? hero?.subheading;
 {
   page ? (
     <Layout title={page.title} description={description}>
-      {page.contentType === 'article' && page.article ? (
-        <ArticleView page={page} article={page.article} />
+      {page.article || page.blogPost ? (
+        <ArticleView page={page} article={(page.article ?? page.blogPost)!} />
       ) : (
         <>
           {page.blocks[0]?.type !== 'hero' && (
