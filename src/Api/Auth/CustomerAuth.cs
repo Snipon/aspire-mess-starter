@@ -15,7 +15,7 @@ public static class CustomerAuth
     {
         var options = builder.Configuration.GetSection(CustomerAuthOptions.SectionName).Get<CustomerAuthOptions>() ?? new();
         builder.Services.AddSingleton(options);
-        if (string.IsNullOrWhiteSpace(options.Authority))
+        if (!options.Enabled)
         {
             return builder;
         }
@@ -37,26 +37,29 @@ public static class CustomerAuth
 
     /// <summary>Authenticates bearer tokens when customer auth is on; a no-op otherwise.</summary>
     public static IApplicationBuilder UseCustomerAuth(this WebApplication app) =>
-        string.IsNullOrWhiteSpace(app.Services.GetRequiredService<CustomerAuthOptions>().Authority) ? app : app.UseAuthentication();
+        app.Services.GetRequiredService<CustomerAuthOptions>().Enabled ? app.UseAuthentication() : app;
 
     /// <summary>The signed-in customer, or null for an anonymous request.</summary>
-    public static CustomerIdentity? GetCustomer(this HttpContext http)
-    {
-        var subjectClaim = http.RequestServices.GetRequiredService<CustomerAuthOptions>().SubjectClaim;
-        return http.User.Identity?.IsAuthenticated == true && http.User.FindFirstValue(subjectClaim) is { Length: > 0 } subject
-            ? new CustomerIdentity(subject, http.User.FindFirstValue("email"))
-            : null;
-    }
+    public static CustomerIdentity? GetCustomer(this HttpContext http) =>
+        GetCustomer(http, http.RequestServices.GetRequiredService<CustomerAuthOptions>());
 
     /// <summary>
     /// A bearer token was sent but yields no customer: invalid, expired, or valid without the subject claim (a provider
     /// misconfiguration). The caller should sign in again rather than continue as a guest. Always false when customer
     /// auth is off (the header is ignored).
     /// </summary>
-    public static bool HasRejectedToken(this HttpContext http) =>
-        !string.IsNullOrWhiteSpace(http.RequestServices.GetRequiredService<CustomerAuthOptions>().Authority)
-        && http.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-        && http.GetCustomer() is null;
+    public static bool HasRejectedToken(this HttpContext http)
+    {
+        var options = http.RequestServices.GetRequiredService<CustomerAuthOptions>();
+        return options.Enabled
+            && http.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            && GetCustomer(http, options) is null;
+    }
+
+    private static CustomerIdentity? GetCustomer(HttpContext http, CustomerAuthOptions options) =>
+        http.User.Identity?.IsAuthenticated == true && http.User.FindFirstValue(options.SubjectClaim) is { Length: > 0 } subject
+            ? new CustomerIdentity(subject, http.User.FindFirstValue("email"))
+            : null;
 }
 
 public sealed class CustomerAuthOptions
@@ -71,4 +74,6 @@ public sealed class CustomerAuthOptions
 
     /// <summary>Claim that identifies the customer. <c>sub</c>; <c>oid</c> in Entra ID, whose <c>sub</c> differs per app.</summary>
     public string SubjectClaim { get; set; } = "sub";
+
+    public bool Enabled => !string.IsNullOrWhiteSpace(Authority);
 }

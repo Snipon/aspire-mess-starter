@@ -59,7 +59,9 @@ public sealed class BackOfficeOidcOptions
 /// Optional backoffice sign-in through any OpenID Connect provider (Keycloak locally, Entra ID by configuration),
 /// registered only when <c>BackOfficeOidc</c> is configured. Users are auto-linked by email (an enabled local user with
 /// the same, verified email is linked, otherwise one is created), and on every sign-in their managed Umbraco groups are
-/// set from the role claim; a user without a mapped role is refused.
+/// set from the role claim; a user without a mapped role is refused. Refusing does not save the user, so revoking
+/// every role at the provider leaves the user's groups (and any local password) in place: disable the backoffice user
+/// in Umbraco as well.
 /// </summary>
 public sealed class BackOfficeOidcComposer : IComposer
 {

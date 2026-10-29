@@ -1,5 +1,6 @@
-/** App roles (the identity provider's "roles" claim) that staff features know. */
-export type StaffRole = 'admin' | 'editor';
+/** App roles (the identity provider's "roles" claim) that staff features know; other values are ignored. */
+export const STAFF_ROLES = ['admin', 'editor'] as const;
+export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export interface Shortcut {
   label: string;

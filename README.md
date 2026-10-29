@@ -22,6 +22,8 @@ flowchart LR
         umbraco[("<b>umbraco</b><br/>database")]
         meilisearch[("<b>meilisearch</b><br/>container<br/>docker.io/getmeili/meilisearch:v1.54.0")]
         seq[("<b>seq</b><br/>container<br/>docker.io/datalust/seq:2025.2")]
+        keycloak["<b>keycloak</b><br/>container<br/>quay.io/keycloak/keycloak:26.6"]
+        seq_proxy["<b>seq-proxy</b><br/>container<br/>quay.io/oauth2-proxy/oauth2-proxy:v7.15.5"]
         commerce_postgres[("<b>commerce-postgres</b><br/>container<br/>docker.io/library/postgres:18.3")]
         commercedb[("<b>commercedb</b><br/>database")]
         cms["<b>cms</b><br/>.NET project<br/>src/Cms/Cms.csproj"]
@@ -31,6 +33,7 @@ flowchart LR
         web_cache["<b>web-cache</b><br/>container<br/>nginx:1.29-alpine"]
     end
 
+    browser -.-> seq_proxy
     browser -.-> cms
     browser -.-> api
     browser -.-> commerce
@@ -48,7 +51,11 @@ flowchart LR
     api -- "WebCache:PurgeUrl" --> web_cache
     commerce -- "connection string: commercedb" --> commercedb
     web -- "API_URL" --> api
+    web -- "CMS_BACKOFFICE_URL" --> cms
+    web -- "COMMERCE_ADMIN_URL" --> commerce
+    web -- "LOGS_URL" --> seq_proxy
     web -- "connection string: seq" --> seq
+    web -- "SITE_URL" --> web_cache
     web_cache -- "WEB_UPSTREAM" --> web
 ```
 
@@ -399,7 +406,8 @@ secret parameter `cms-oidc-secret`). Code flow with PKCE, callback `/umbraco-sig
   claim as its name. Manual linking is off.
 - **Groups**: on every sign-in the groups named in `BackOfficeOidc:RoleGroups` are set from the `roles` claim (default
   `admin` → `admin,sensitiveData`, `editor` → `editor`; values are comma-separated aliases, unknown roles are ignored)
-  and the name is updated. Groups not named in the map stay as they are. Without a mapped role the sign-in is refused.
+  and the name is updated. Groups not named in the map stay as they are. Without a mapped role the sign-in is refused,
+  but the user's groups (and any local password) stay: when revoking access, also disable the backoffice user in Umbraco.
 - **Local login** stays available unless `BackOfficeOidc:DenyLocalLogin=true` (then the login page redirects straight
   to the provider). Turn it on only once an admin can sign in through the provider.
 - **Entra ID**: Authority `https://login.microsoftonline.com/<tenant>/v2.0`, app roles `admin`/`editor` (they arrive as

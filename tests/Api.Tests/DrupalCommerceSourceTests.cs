@@ -145,6 +145,14 @@ public sealed class DrupalCommerceSourceTests
         Assert.Equal("/shop/juniper-nomad-14-dg00001", Assert.Single(order.Items).Path);
     }
 
+    [Theory]
+    [InlineData("completed", "completed")]
+    [InlineData("canceled", "canceled")]
+    [InlineData("fulfillment", "processing")]
+    [InlineData("validation", "processing")]
+    public void Order_states_map_to_the_contracts_statuses(string state, string expected) =>
+        Assert.Equal(expected, DrupalCommerceSource.ToOrderStatus(state));
+
     [Fact]
     public async Task Server_errors_throw()
     {

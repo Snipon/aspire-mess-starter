@@ -33,7 +33,7 @@ const pageHref = (n: number) => (n === 1 ? tagHref(tag) : `${tagHref(tag)}?page=
   result && articles.length ? (
     <Layout title={`Articles tagged “${tag}”`} description={`${result.total} articles about ${tag}.`}>
       <header class="border-b border-ink pb-6">
-        <a href="/articles" class="font-narrow inline-flex min-h-10 items-center text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <a href="/articles" class="font-narrow back-link">
           All articles
         </a>
         <p class="mt-8 text-lg font-semibold text-primary">Topic</p>

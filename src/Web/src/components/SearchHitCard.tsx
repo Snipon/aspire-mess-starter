@@ -1,9 +1,8 @@
-import { contentTypeLabel } from '@/components/content-types';
 import TagList from '@/components/TagList';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { SearchHit } from '@/lib/api/client';
-import { formatDate } from '@/lib/format';
+import { contentTypeLabel, formatDate } from '@/lib/format';
 
 interface Props {
   hit: SearchHit;

@@ -4,9 +4,9 @@
 # these app registrations reproduce what the realms promise: a "roles" claim with admin/editor for staff, and customer
 # access tokens for the API's audience.
 #
-# Staff: Microsoft Entra ID, the tenant Terraform runs in. One app registration per client (cms backoffice, Seq proxy)
-# with the app roles admin and editor; only assigned users may sign in. Drupal Commerce is not deployed to Azure yet,
-# so it has no app registration (see docs/deployment.md).
+# Staff: Microsoft Entra ID, the tenant Terraform runs in. One app registration per client (cms backoffice, Seq proxy,
+# the website's staff bar) with the app roles admin and editor; only assigned users may sign in. Drupal Commerce is not
+# deployed to Azure yet, so it has no app registration (see docs/deployment.md).
 #
 # Customers: Microsoft Entra External ID (CIAM), a separate tenant that Terraform cannot create. Off unless
 # customer_tenant_id is set: then the web runs without customer sign-in and the API treats everyone as a guest.
@@ -18,14 +18,16 @@ locals {
   staff_apps = {
     cms = ["${local.cms_url}/umbraco-signin-oidc"]
     seq = ["${local.seq_url}/oauth2/callback"]
+    web = ["${local.web_url}/auth/staff/callback", "${local.web_url}/"] # staff bar; the home page is the post-logout URI
   }
   staff_roles = {
-    admin  = "Administrators: full access (Umbraco admin, Seq)."
-    editor = "Editors: Umbraco content editing."
+    admin  = "Administrators: full access (Umbraco admin, Seq, all staff bar shortcuts)."
+    editor = "Editors: Umbraco content editing and the staff bar's content shortcuts."
   }
+  # Seq admits admins only, so editors are not assigned to it (Entra stops them at sign-in instead of the proxy).
   staff_role_assignments = merge(
     { for p in setproduct(keys(local.staff_apps), var.staff_admin_object_ids) : "${p[0]}/admin/${p[1]}" => { app = p[0], role = "admin", principal = p[1] } },
-    { for p in setproduct(keys(local.staff_apps), var.staff_editor_object_ids) : "${p[0]}/editor/${p[1]}" => { app = p[0], role = "editor", principal = p[1] } },
+    { for p in setproduct([for app in keys(local.staff_apps) : app if app != "seq"], var.staff_editor_object_ids) : "${p[0]}/editor/${p[1]}" => { app = p[0], role = "editor", principal = p[1] } },
   )
 
   customer_auth      = var.customer_tenant_id != ""
@@ -168,6 +170,11 @@ resource "azuread_application" "shop_api" {
     access_token {
       name = "email"
     }
+  }
+
+  # Set by azuread_application_identifier_uri.shop_api: the URI names the client id, which the app cannot refer to.
+  lifecycle {
+    ignore_changes = [identifier_uris]
   }
 }
 

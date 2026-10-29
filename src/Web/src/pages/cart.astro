@@ -47,7 +47,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
 ---
 
 <Layout title="Cart">
-  <h1 class="font-wide border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl">Cart</h1>
+  <h1 class="font-wide page-title">Cart</h1>
 
   {
     message && (
@@ -133,7 +133,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
               <dd class="font-wide text-2xl font-extrabold tabular-nums">{formatMoney(cart.total)}</dd>
             </div>
           </dl>
-          <a href="/checkout" class={cn(buttonVariants({ size: 'lg' }), 'mt-6 w-full bg-primary text-primary-foreground hover:bg-foreground hover:text-background')}>
+          <a href="/checkout" class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'mt-6 w-full')}>
             Checkout
           </a>
         </aside>

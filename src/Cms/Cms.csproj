@@ -13,7 +13,7 @@
     <PackageReference Include="Umbraco.StorageProviders.AzureBlob.ImageSharp" Version="18.0.0" />
     <PackageReference Include="uSync" Version="18.2.0" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.14" />
   </ItemGroup>
 
   <PropertyGroup>

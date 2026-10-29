@@ -1,5 +1,6 @@
 import type { AstroCookies } from 'astro';
-import { cookieOptions, expiresAt, OidcClient, textClaim } from './oidc';
+import { expiresAt, OidcClient, textClaim } from './oidc';
+import { cookieOptions } from './site';
 import { seal, unseal } from './sealed-cookie';
 import { log } from './log';
 

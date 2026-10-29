@@ -1,5 +1,6 @@
 import type { AstroCookies } from 'astro';
 import { api, type Cart } from './api/client';
+import { cookieOptions } from './site';
 
 const COOKIE = 'cart';
 const MAX_AGE = 60 * 60 * 24 * 30;
@@ -38,13 +39,7 @@ export async function ensureCart(cookies: AstroCookies, url: URL): Promise<CartR
   if (existing) return existing.ref;
   const { data } = await api().POST('/api/carts');
   if (!data) throw new Error('Could not create a cart');
-  cookies.set(COOKIE, `${data.cart.id}.${data.token}`, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: url.protocol === 'https:',
-    maxAge: MAX_AGE,
-  });
+  cookies.set(COOKIE, `${data.cart.id}.${data.token}`, cookieOptions(url, '/', MAX_AGE));
   return { id: data.cart.id, token: data.token };
 }
 

@@ -5,6 +5,8 @@
  * Staff sign-in through the identity provider (openid_connect, see Schema::staffSignIn()).
  */
 
+use Drupal\headless_commerce\Schema;
+
 /**
  * Implements hook_openid_connect_userinfo_alter().
  *
@@ -12,6 +14,10 @@
  * like Entra ID app roles. Values without a mapping are ignored.
  */
 function headless_commerce_openid_connect_userinfo_alter(array &$userinfo, array $context): void {
+  if ($context['plugin_id'] !== Schema::OIDC_CLIENT) {
+    return;
+  }
+
   $userinfo['groups'] = array_values(array_unique(array_merge((array) ($userinfo['groups'] ?? []), (array) ($userinfo['roles'] ?? []))));
 }
 
@@ -23,7 +29,7 @@ function headless_commerce_openid_connect_userinfo_alter(array &$userinfo, array
  * endpoint such as Entra's /organizations is configured), our client (OIDC_CLIENT_ID) and must not be expired.
  */
 function headless_commerce_openid_connect_pre_authorize($account, array $context): bool {
-  if ($context['plugin_id'] !== 'sso') {
+  if ($context['plugin_id'] !== Schema::OIDC_CLIENT) {
     return TRUE;
   }
 

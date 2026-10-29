@@ -3,11 +3,12 @@
 # Idempotent: entities are matched by title, so re-running converges them to the definitions below.
 #
 # Signals use the message templates and OpenTelemetry attributes the apps actually emit (see
-# docs/deployment.md, "Alerts"). seqcli runs in a container; alerts have no seqcli command, so
-# they go through Seq's HTTP API with curl + jq.
+# docs/deployment.md, "Alerts"). seqcli runs in a container unless it is installed (as in the Seq
+# image); alerts have no seqcli command, so they go through Seq's HTTP API with curl + jq.
 #
 # Required:
-#   SEQ_URL                 the seq_url Terraform output, or locally a tunnel to Seq's API (README, Observability)
+#   SEQ_URL                 Seq's API, not seq-proxy: in Azure the seq_internal_url Terraform output (from inside the
+#                           environment, docs/deployment.md), locally a tunnel to Seq's API (README, Observability)
 #   SEQ_API_KEY             Seq API key with Read, Write, Project, Organization and System permissions
 #                           (any value for a local Seq without authentication)
 # Notifications (both optional; without either, alerts are only shown in the Seq UI):
@@ -30,17 +31,19 @@ ERROR_SPIKE_THRESHOLD="${ERROR_SPIKE_THRESHOLD:-10}"
 SEQCLI_IMAGE="${SEQCLI_IMAGE:-docker.io/datalust/seqcli:2025.2}"
 CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-$(command -v podman >/dev/null && echo podman || echo docker)}"
 
-for tool in curl jq "$CONTAINER_RUNTIME"; do
+for tool in curl jq "$(command -v seqcli >/dev/null && echo seqcli || echo "$CONTAINER_RUNTIME")"; do
   command -v "$tool" >/dev/null || { echo "error: $tool is required" >&2; exit 1; }
 done
 
 # seqcli reads the connection from SEQCLI_CONNECTION_* so the key never appears on a command line.
-seqcli() {
-  "$CONTAINER_RUNTIME" run --rm -i --network host \
-    -e SEQCLI_CONNECTION_SERVERURL="$SEQ_URL" -e SEQCLI_CONNECTION_APIKEY \
-    "$SEQCLI_IMAGE" "$@"
-}
-export SEQCLI_CONNECTION_APIKEY="$SEQ_API_KEY"
+export SEQCLI_CONNECTION_SERVERURL="$SEQ_URL" SEQCLI_CONNECTION_APIKEY="$SEQ_API_KEY"
+if ! command -v seqcli >/dev/null; then
+  seqcli() {
+    "$CONTAINER_RUNTIME" run --rm -i --network host \
+      -e SEQCLI_CONNECTION_SERVERURL -e SEQCLI_CONNECTION_APIKEY \
+      "$SEQCLI_IMAGE" "$@"
+  }
+fi
 
 seq_api() { # method path [json-body]
   curl -fsS -X "$1" -H "X-Seq-ApiKey: $SEQ_API_KEY" -H "Content-Type: application/json" \

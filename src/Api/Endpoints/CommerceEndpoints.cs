@@ -178,8 +178,7 @@ public static partial class CommerceEndpoints
         // order would be missing from their history): the caller refreshes the token or signs in again.
         if (http.HasRejectedToken())
         {
-            return TypedResults.Problem("The customer's access token is invalid or expired.", statusCode: StatusCodes.Status401Unauthorized,
-                extensions: new Dictionary<string, object?> { ["code"] = "invalid_token" });
+            return InvalidToken();
         }
 
         var result = await commerce.CheckoutAsync(cartId, token!, request, http.GetCustomer(), ct);
@@ -200,12 +199,12 @@ public static partial class CommerceEndpoints
         return ToResult(result);
     }
 
-    private static async Task<Results<Ok<OrderPage>, BadRequest<ProblemDetails>, UnauthorizedHttpResult>> GetMyOrders(
+    private static async Task<Results<Ok<OrderPage>, BadRequest<ProblemDetails>, ProblemHttpResult>> GetMyOrders(
         ICommerceSource commerce, HttpContext http, CancellationToken ct, int page = 1, int pageSize = 10)
     {
         if (http.GetCustomer() is not { } customer)
         {
-            return TypedResults.Unauthorized();
+            return InvalidToken();
         }
 
         if (!RequestValidation.IsValidPaging(page, pageSize))
@@ -249,6 +248,10 @@ public static partial class CommerceEndpoints
 
     private static ProblemHttpResult Invalid(string detail) =>
         TypedResults.Problem(detail, statusCode: StatusCodes.Status400BadRequest, extensions: new Dictionary<string, object?> { ["code"] = "invalid_request" });
+
+    private static ProblemHttpResult InvalidToken() =>
+        TypedResults.Problem("Sign-in required: the access token is missing, invalid or expired.", statusCode: StatusCodes.Status401Unauthorized,
+            extensions: new Dictionary<string, object?> { ["code"] = "invalid_token" });
 
     private static bool IsValidCart(string cartId, string? token) =>
         Guid.TryParse(cartId, out _) && token is { Length: > 0 and <= 128 } && token.All(char.IsAsciiLetterOrDigit);

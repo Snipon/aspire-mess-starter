@@ -29,7 +29,7 @@ const Heading = first ? 'h1' : 'h2';
     {block.subheading && <p class="mt-8 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{block.subheading}</p>}
     {
       block.cta && (
-        <a {...linkAttrs(block.cta)} class={cn(buttonVariants({ size: 'lg' }), 'mt-10 bg-primary text-primary-foreground hover:bg-foreground hover:text-background')}>
+        <a {...linkAttrs(block.cta)} class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'mt-10')}>
           {block.cta.title ?? 'Read more'}
         </a>
       )

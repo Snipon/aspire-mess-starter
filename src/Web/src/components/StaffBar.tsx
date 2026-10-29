@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import type { Shortcut } from '@/lib/staff-shortcuts';
+import { useVisitorJson } from '@/lib/use-visitor-json';
 
 interface Bar {
   name: string;
@@ -12,16 +12,11 @@ interface Bar {
  * per visitor (/api/staff, no-store) and renders nothing for everyone else.
  */
 export default function StaffBar() {
-  const [bar, setBar] = useState<Bar | null>(null);
-
-  useEffect(() => {
+  const bar = useVisitorJson<Bar>(() => {
     const { cmsId, sku } = document.body.dataset;
     const query = new URLSearchParams(Object.entries({ cmsId, sku }).filter((e): e is [string, string] => Boolean(e[1])));
-    fetch(`/api/staff?${query}`)
-      .then((r) => (r.ok ? (r.json() as Promise<Bar | null>) : null))
-      .catch(() => null)
-      .then(setBar);
-  }, []);
+    return `/api/staff?${query}`;
+  });
 
   if (!bar) return null;
 

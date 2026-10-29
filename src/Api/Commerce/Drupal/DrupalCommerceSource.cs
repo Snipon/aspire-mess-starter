@@ -73,7 +73,7 @@ public sealed class DrupalCommerceSource(HttpClient http, IOptions<DrupalOptions
     public Task<CommerceResult<OrderReceipt>> CheckoutAsync(
         string cartId, string token, CheckoutRequest request, CustomerIdentity? customer, CancellationToken ct) =>
         SendAsync<DrupalReceipt, OrderReceipt>(HttpMethod.Post, $"{CartUri(cartId)}/checkout", token,
-            new DrupalCheckout(request.Email, request.Name, request.Address, request.Card, customer), ToReceipt, ct);
+            new { request.Email, request.Name, request.Address, request.Card, customer }, ToReceipt, ct);
 
     public async Task<OrderPage> GetOrdersAsync(CustomerIdentity customer, int page, int pageSize, CancellationToken ct)
     {
@@ -156,7 +156,14 @@ public sealed class DrupalCommerceSource(HttpClient http, IOptions<DrupalOptions
         new(r.OrderNumber, r.PlacedAt, r.Email, r.PaymentReference, r.CardLast4, [.. r.Items.Select(ToCartItem)], r.ItemCount, ToMoney(r.Total));
 
     private Order ToOrder(DrupalOrder o) =>
-        new(o.OrderNumber, o.PlacedAt, o.State, o.Email, [.. o.Items.Select(ToCartItem)], o.ItemCount, ToMoney(o.Total));
+        new(o.OrderNumber, o.PlacedAt, ToOrderStatus(o.State), o.Email, [.. o.Items.Select(ToCartItem)], o.ItemCount, ToMoney(o.Total));
+
+    // The contract's closed set; Commerce's in-between workflow states (validation, fulfillment, ...) are all "processing".
+    internal static string ToOrderStatus(string state) => state switch
+    {
+        "completed" or "canceled" => state,
+        _ => "processing",
+    };
 
     private CartItem ToCartItem(DrupalCartItem i) => new(
         i.Id, i.Sku ?? string.Empty, i.Slug is null ? null : ProductPath(i.Slug), i.Title, ToImage(i.Image), ToMoney(i.UnitPrice), i.Quantity, ToMoney(i.Total), i.Stock);

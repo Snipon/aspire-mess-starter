@@ -458,7 +458,7 @@ resource "azurerm_container_app" "web" {
   }
 
   dynamic "secret" {
-    for_each = toset(concat(["seq-ingestion-api-key"], local.customer_auth ? local.customer_secrets : []))
+    for_each = toset(concat(["seq-ingestion-api-key", "web-staff-oidc-secret", "web-session-secret"], local.customer_auth ? local.customer_secrets : []))
     content {
       name                = secret.value
       identity            = azurerm_user_assigned_identity.apps.id
@@ -499,6 +499,37 @@ resource "azurerm_container_app" "web" {
         name  = "API_URL"
         value = local.api_url
       }
+      # Sign-in redirect URIs (both clients) and the sealed session cookies.
+      env {
+        name  = "SITE_URL"
+        value = local.web_url
+      }
+      env {
+        name        = "SESSION_SECRET"
+        secret_name = "web-session-secret"
+      }
+      # Staff bar (src/Web/src/lib/staff.ts): staff sign-in with Entra ID and the back offices it links to. Drupal
+      # Commerce is not deployed (no shop admin shortcut).
+      env {
+        name  = "STAFF_OIDC_AUTHORITY"
+        value = local.staff_authority
+      }
+      env {
+        name  = "STAFF_OIDC_CLIENT_ID"
+        value = azuread_application.staff["web"].client_id
+      }
+      env {
+        name        = "STAFF_OIDC_CLIENT_SECRET"
+        secret_name = "web-staff-oidc-secret"
+      }
+      env {
+        name  = "CMS_BACKOFFICE_URL"
+        value = "${local.cms_url}/umbraco"
+      }
+      env {
+        name  = "LOGS_URL"
+        value = local.seq_url
+      }
       # Customer sign-in (src/Web/src/lib/auth.ts), only with an Entra External ID tenant (identity.tf). The scope adds
       # a refresh token and an access token for the API.
       dynamic "env" {
@@ -506,7 +537,6 @@ resource "azurerm_container_app" "web" {
           OIDC_AUTHORITY = local.customer_authority
           OIDC_CLIENT_ID = local.customer_web_id
           OIDC_SCOPE     = "openid profile email offline_access api://${local.customer_api_id}/access"
-          SITE_URL       = local.web_url
         } : {}
         content {
           name  = env.key
@@ -516,7 +546,6 @@ resource "azurerm_container_app" "web" {
       dynamic "env" {
         for_each = local.customer_auth ? {
           OIDC_CLIENT_SECRET = "web-oidc-secret"
-          SESSION_SECRET     = "web-session-secret"
         } : {}
         content {
           name        = env.key

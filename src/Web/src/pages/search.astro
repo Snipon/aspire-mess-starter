@@ -1,7 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { XIcon } from 'lucide-react';
-import { contentTypeLabel } from '@/components/content-types';
 import FacetFilters, { type FacetGroup } from '@/components/FacetFilters';
 import Pager from '@/components/Pager';
 import SearchHitCard from '@/components/SearchHitCard';
@@ -11,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { api, type SearchResult } from '../lib/api/client';
-import { tagHref } from '../lib/format';
+import { contentTypeLabel, tagHref } from '../lib/format';
 import { log } from '../lib/log';
 
 const PAGE_SIZE = 10;
@@ -77,7 +76,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 
 <Layout title={q ? `Search: ${q}` : 'Search'}>
   <div class="max-w-3xl">
-    <h1 class="font-wide border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl">Search</h1>
+    <h1 class="font-wide page-title">Search</h1>
 
     <form action="/search" method="get" role="search" class="mt-8 flex flex-col gap-2 sm:flex-row">
       <label for="q" class="sr-only">Search terms</label>
