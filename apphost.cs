@@ -104,6 +104,11 @@ var cms = builder.AddProject<Projects.Cms>("cms")
     .WithEnvironment("Umbraco__CMS__Imaging__HMACSecretKey", hmacSecret)
     .WithEnvironment("ContentWebhook__Secret", webhookSecret)
     .WithEnvironment("DemoContent__Enabled", "true") // demo articles, blog posts and images; remove for a real project
+    // Backoffice sign-in through the staff realm (button next to the local login). No WaitFor(keycloak): only sign-in
+    // needs it, and the OIDC handler fetches discovery lazily.
+    .WithEnvironment("BackOfficeOidc__Authority", $"{KeycloakUrl}/realms/staff")
+    .WithEnvironment("BackOfficeOidc__ClientId", "cms")
+    .WithEnvironment("BackOfficeOidc__ClientSecret", cmsOidcSecret)
     .WithExternalHttpEndpoints();
 
 // Typed API (content + search adapters, Scalar docs at /scalar).

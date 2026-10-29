@@ -184,7 +184,7 @@ aspire start
 | Website | shown on the `web-cache` resource in the dashboard (random port; the reverse proxy cache, see below). The `web` resource's own URL bypasses the cache |
 | Umbraco backoffice | `https://localhost:44350/umbraco` (or `http://localhost:28048/umbraco`) |
 | Drupal admin | `<commerce url>/user/login` (the `commerce` resource in the dashboard), user `admin`, password = `Parameters:commerce-admin-password` |
-| Backoffice login | user `admin@example.com` (parameter `umbraco-admin-email`), password = `Parameters:umbraco-admin-password` from the user secrets |
+| Backoffice login | user `admin@example.com` (parameter `umbraco-admin-email`), password = `Parameters:umbraco-admin-password` from the user secrets; or "Single sign-on" with Keycloak user `admin`, password = `Parameters:idp-admin-password` (see [Backoffice sign-in](#backoffice-sign-in-oidc)) |
 | API reference (Scalar) | `http://localhost:5194/scalar` |
 | OpenAPI document | `http://localhost:5194/openapi/v1.json` |
 | Delivery API (needs `Api-Key` header) | `http://localhost:28048/umbraco/delivery/api/v2/content/item/articles` |
@@ -368,6 +368,25 @@ How the API exposes it (`src/Api/Contracts`):
 3. Other machines and new environments get the schema on a fresh database automatically. For an existing
    database, import it in the backoffice: Settings > uSync > Import (or reset the local database, see
    [Start from a clean database](#start-from-a-clean-database)).
+
+### Backoffice sign-in (OIDC)
+
+`src/Cms/Security/BackOfficeOidc.cs` adds a sign-in button to the backoffice login for any OpenID Connect provider
+(Keycloak realm `staff` locally, Entra ID in Azure). It is off unless `BackOfficeOidc:Authority`, `:ClientId` and
+`:ClientSecret` are set; the AppHost sets them (client `cms`, secret parameter `cms-oidc-secret`). Code flow with
+PKCE, callback `/umbraco-signin-oidc`, scopes `openid profile email`.
+
+- **Linking**: by the `email` claim. A backoffice user with the same email is linked (the unattended admin links to
+  the realm's `admin` user), otherwise a user is created with the `name` claim as its name. Manual linking is off.
+- **Groups**: on every sign-in the user's groups are replaced by the values of the `roles` claim mapped through
+  `BackOfficeOidc:RoleGroups` (default `admin` → `admin`, `editor` → `editor`; other values are ignored), and the
+  name is updated. Without a mapped role the sign-in is refused, so groups are managed in the identity provider.
+- **Local login** stays available unless `BackOfficeOidc:DenyLocalLogin=true` (then the login page redirects straight
+  to the provider). Turn it on only once an admin can sign in through the provider.
+- **Entra ID**: Authority `https://login.microsoftonline.com/<tenant>/v2.0`, app roles `admin`/`editor` (they arrive as
+  `roles`), redirect URI `https://<cms host>/umbraco-signin-oidc`. Entra does not send `email` by default: add it as an
+  optional ID token claim. `preferred_username` is deliberately not used as a fallback: it is not a verified email,
+  so it could link a sign-in to the wrong existing user.
 
 ## Commerce (Drupal)
 
