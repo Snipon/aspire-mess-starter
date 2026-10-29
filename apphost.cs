@@ -46,6 +46,8 @@ var seqOidcSecret = builder.AddParameter("seq-oidc-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 var webOidcSecret = builder.AddParameter("web-oidc-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var seqProxyCookieSecret = builder.AddParameter("seq-proxy-cookie-secret", // oauth2-proxy: 16, 24 or 32 bytes
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 
 // Infrastructure containers (persistent so data and startup time survive AppHost restarts).
 var sql = builder.AddSqlServer("sql")
@@ -57,11 +59,23 @@ var meilisearch = builder.AddMeilisearch("meilisearch")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume();
 
-// Log search (http://localhost:5341, no authentication locally). Apps get ConnectionStrings__seq and ship their
-// OpenTelemetry logs and traces to it in addition to the Aspire dashboard (ServiceDefaults AddSeqEndpoint).
-var seq = builder.AddSeq("seq", port: 5341)
+// Log search. Apps get ConnectionStrings__seq and ship their OpenTelemetry logs and traces to Seq in addition to the
+// Aspire dashboard (ServiceDefaults AddSeqEndpoint). The host port (http://localhost:5342) is Seq's ingestion-only
+// port: no UI or API there. The UI and API (container port 80) are not published; people use them through seq-proxy
+// below (http://localhost:5341, staff login).
+var seq = builder.AddSeq("seq", port: 5342)
     .WithLifetime(ContainerLifetime.Persistent)
-    .WithDataVolume();
+    .WithDataVolume()
+    .WithEnvironment("SEQ_API_INGESTIONPORT", "5341")
+    .WithEndpoint("http", endpoint => endpoint.TargetPort = 5341)
+    .WithUrlForEndpoint("http", url =>
+    {
+        url.DisplayText = "Seq ingestion (no UI)";
+        url.DisplayLocation = UrlDisplayLocation.DetailsOnly;
+    });
+// AddSeq's /health check would hit the ingestion port (404); seq-proxy's health check covers Seq instead.
+foreach (var check in seq.Resource.Annotations.OfType<HealthCheckAnnotation>().ToList())
+    seq.Resource.Annotations.Remove(check);
 
 // Identity provider (local stand-in for Entra ID): realm "staff" signs in admins and editors (Umbraco backoffice,
 // Drupal admin, Seq), realm "shop" signs in customers (self-registration). Realms, clients and the staff admin user
@@ -81,6 +95,45 @@ var keycloak = builder.AddKeycloak("keycloak", port: 8080)
     .WithEnvironment("COMMERCE_OIDC_SECRET", commerceOidcSecret)
     .WithEnvironment("SEQ_OIDC_SECRET", seqOidcSecret)
     .WithEnvironment("WEB_OIDC_SECRET", webOidcSecret);
+
+// Seq UI behind a staff login (oauth2-proxy, generic OIDC): only the "admin" value of the "roles" claim gets in; the
+// session is refreshed (roles re-checked) every 5 minutes and sign-out also ends the IdP session. The browser signs in
+// at https://localhost:8080 while the container redeems and refreshes tokens, fetches keys and logs out over the
+// container network (keycloak.dev.internal, trusted through Aspire's SSL_CERT_DIR), so discovery is skipped and the
+// endpoints are explicit. Host port fixed: the IdP redirect URI (infra/keycloak) names it.
+const string StaffOidcPath = "/realms/staff/protocol/openid-connect";
+const string KeycloakInternalUrl = "https://keycloak.dev.internal:8443";
+builder.AddContainer("seq-proxy", "quay.io/oauth2-proxy/oauth2-proxy", "v7.15.5")
+    .WithArgs(
+        "--http-address=0.0.0.0:4180",
+        $"--upstream=http://{seq.Resource.Name}:80", // Seq's UI port by container network alias (unpublished)
+        "--provider=oidc",
+        "--client-id=seq",
+        $"--oidc-issuer-url={KeycloakUrl}/realms/staff",
+        "--skip-oidc-discovery",
+        $"--login-url={KeycloakUrl}{StaffOidcPath}/auth",
+        $"--redeem-url={KeycloakInternalUrl}{StaffOidcPath}/token",
+        $"--oidc-jwks-url={KeycloakInternalUrl}{StaffOidcPath}/certs",
+        "--scope=openid email profile", // the default adds "groups" (invalid_scope)
+        "--code-challenge-method=S256",
+        "--redirect-url=http://localhost:5341/oauth2/callback",
+        "--oidc-groups-claim=roles",
+        "--allowed-group=admin",
+        "--email-domain=*",
+        "--skip-provider-button",
+        "--cookie-name=_seq_proxy", // cookies ignore ports: keep it apart from other localhost apps
+        "--cookie-secure=false", // plain http locally
+        "--cookie-expire=8h",
+        "--cookie-refresh=5m",
+        $"--backend-logout-url={KeycloakInternalUrl}{StaffOidcPath}/logout?id_token_hint={{id_token}}",
+        "--skip-auth-route=GET=^/health$") // Seq's health status only, for the health check below
+    .WithEnvironment("OAUTH2_PROXY_CLIENT_SECRET", seqOidcSecret)
+    .WithEnvironment("OAUTH2_PROXY_COOKIE_SECRET", seqProxyCookieSecret)
+    .WithHttpEndpoint(port: 5341, targetPort: 4180)
+    .WithUrlForEndpoint("http", url => url.DisplayText = "Seq")
+    .WithHttpHealthCheck("/health")
+    .WithExternalHttpEndpoints()
+    .WaitFor(seq);
 
 // Commerce database (Drupal on PostgreSQL), persistent like the CMS database.
 var commerceDb = builder.AddPostgres("commerce-postgres")

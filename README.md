@@ -140,15 +140,18 @@ aspire secret list                             # or: aspire secret get Parameter
 | `hmac-secret` | base64 of 64 random bytes |
 | `commerce-admin-password` | 32 random alphanumeric characters (Drupal user `admin`) |
 | `commerce-api-key`, `commerce-hash-salt` | 32 random alphanumeric characters (the API's key for Drupal; Drupal's hash salt) |
+| `seq-proxy-cookie-secret` | 32 random alphanumeric characters (oauth2-proxy's cookie key for the Seq login) |
 | `sql-password`, `meilisearch-masterKey`, `commerce-postgres-password` | 32 random alphanumeric characters (Aspire's own parameters for `sql`, `meilisearch` and `commerce-postgres`) |
 
 The script is idempotent and never changes an existing value: the persistent containers depend on them. It uses
-`openssl rand`, `jq` and the Aspire CLI (`aspire secret`). Local Seq runs without authentication, so it has no password.
+`openssl rand`, `jq` and the Aspire CLI (`aspire secret`). Local Seq itself runs without authentication (its UI is
+reachable only through the staff login, see [Observability](#observability-local)), so it has no password.
 
 Rotating (`--rotate <name>`, then restart the AppHost):
 
 - `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`, `cache-purge-secret`: just restart; the cms reconciles the
   webhook's secret header on start and the api re-signs image URLs.
+- `seq-proxy-cookie-secret`: just restart; Seq users sign in again.
 - `umbraco-admin-email`/`-password`: only used by the unattended install, so change the user in the backoffice too.
 - `sql-password`, `meilisearch-masterKey`: fixed when the persistent container and its volume are first created.
   The script asks for confirmation and prints the `podman rm`/`podman volume rm` commands; running them deletes the
@@ -180,7 +183,7 @@ aspire start
 | What | URL |
 | --- | --- |
 | Aspire dashboard | `https://localhost:17039` (the login link with token is printed by `aspire run` / `aspire start`) |
-| Seq (log search) | `http://localhost:5341` (no login locally) |
+| Seq (log search) | `http://localhost:5341` (staff login, role `admin`); `http://localhost:5342` is log ingestion only |
 | Website | shown on the `web-cache` resource in the dashboard (random port; the reverse proxy cache, see below). The `web` resource's own URL bypasses the cache |
 | Umbraco backoffice | `https://localhost:44350/umbraco` (or `http://localhost:28048/umbraco`) |
 | Drupal admin | `http://localhost:8081/user/login`: "Log in with Staff sign-in" (Keycloak realm `staff`, user `admin`, password = `Parameters:idp-admin-password`). Break-glass: `drush uli` in the `commerce` container (user `admin`) |
@@ -269,9 +272,13 @@ The Azure deployment (`infra/terraform`) has no cache in front of the web yet.
 ## Observability (local)
 
 - **Aspire dashboard** – traces, metrics, structured logs and console output of every resource.
-- **Seq** (`http://localhost:5341`) – searchable log and trace store that survives restarts (persistent container
-  + data volume). `WithReference(seq)` gives cms, api and web a `ConnectionStrings__seq`; `AddServiceDefaults()`
-  then ships OpenTelemetry logs and traces to Seq *in addition to* the dashboard (`AddSeqEndpoint`, Aspire.Seq).
+- **Seq** – searchable log and trace store that survives restarts (persistent container + data volume). The UI is
+  `http://localhost:5341`: `seq-proxy` (oauth2-proxy, generic OIDC) signs you in through the IdP's staff realm and
+  lets only the `admin` value of the `roles` claim through; it refreshes the session every 5 minutes (a removed role
+  or ended IdP session locks you out), sessions last 8 hours and signing out ends the IdP session too. Seq itself
+  runs without authentication, but its UI and API (container port 80) are not published to the host: only Seq's
+  ingestion-only port is (`http://localhost:5342`, no UI or API), which is where the apps ship their logs (ingestion
+  never goes through the login). `WithReference(seq)` gives cms, api and web a `ConnectionStrings__seq`; `AddServiceDefaults()` then ships OpenTelemetry logs and traces to Seq *in addition to* the dashboard (`AddSeqEndpoint`, Aspire.Seq).
   Seq's health check is disabled there so a stopped Seq never marks an app unhealthy. Umbraco logs through
   Serilog, which bypasses that pipeline, so `src/Cms/Program.cs` adds two Serilog OpenTelemetry sinks (dashboard
   and Seq). The Node web app preloads `src/Web/otel.mjs` (`node --import`, in
@@ -283,10 +290,16 @@ The Azure deployment (`infra/terraform`) has no cache in front of the web yet.
   shows the first-boot import and `@MessageTemplate like 'Reindex%'` the api's index sync.
 - `/health` (all checks, status text only) and `/alive` (liveness) are mapped in every environment.
 - Seq signals and alerts (error spike, webhook secret rejections, reindex/Meilisearch failures, Delivery API
-  failures) are created by `infra/seq/alerts.sh`; try them locally (authentication is off, so any key works):
+  failures) are created by `infra/seq/alerts.sh`. To try them locally, open a temporary tunnel to Seq's API on the
+  container network (authentication is off, so any key works):
 
   ```sh
-  SEQ_URL=http://localhost:5341 SEQ_API_KEY=local infra/seq/alerts.sh   # needs podman or docker, curl, jq
+  seq=$(podman ps -qf 'name=^seq-[0-9a-f]+$')
+  net=$(podman inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$seq")
+  podman run -d --rm --name seq-api-tunnel --network "$net" -p 127.0.0.1:5343:5343 \
+    docker.io/alpine/socat:1.8.0.3 tcp-listen:5343,fork,reuseaddr tcp:seq:80
+  SEQ_URL=http://localhost:5343 SEQ_API_KEY=local infra/seq/alerts.sh   # needs podman or docker, curl, jq
+  podman stop seq-api-tunnel
   ```
 
 Seq is free for a single user; see [docs/deployment.md](docs/deployment.md#seq) for licensing and the Azure setup.
