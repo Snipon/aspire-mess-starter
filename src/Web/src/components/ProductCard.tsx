@@ -6,31 +6,31 @@ import { formatMoney, formatNumber } from '@/lib/format';
 
 export default function ProductCard({ product }: { product: ProductSummary }) {
   return (
-    <Card className="group relative w-full pt-0 transition hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+    <Card className="group relative w-full pt-0 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
       <div className="aspect-[4/3] overflow-hidden bg-muted">
         {product.image && (
           <ResponsiveImage
             image={{ ...product.image, alt: null }}
             sizes="(min-width: 1024px) 240px, (min-width: 640px) 33vw, 50vw"
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03] motion-reduce:transition-none"
+            className="h-full w-full object-cover"
           />
         )}
       </div>
       <CardHeader>
-        <CardDescription>
-          {product.brand} · {product.category}
+        <CardDescription className="font-narrow">
+          <span className="font-semibold text-foreground">{product.brand}</span> {product.category}
         </CardDescription>
-        <CardTitle className="text-base font-semibold text-balance">
+        <CardTitle className="text-base leading-snug font-bold text-balance">
           <h3>
-            <a href={product.path} className="after:absolute after:inset-0 focus-visible:outline-none group-hover:text-primary">
+            <a href={product.path} className="decoration-primary decoration-2 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
               {product.title}
             </a>
           </h3>
         </CardTitle>
       </CardHeader>
       <CardContent className="mt-auto flex flex-wrap items-center justify-between gap-2">
-        <span className="text-lg font-semibold tabular-nums">{formatMoney(product.price)}</span>
-        <span className="text-sm text-muted-foreground">
+        <span className="font-wide text-xl font-extrabold tabular-nums">{formatMoney(product.price)}</span>
+        <span className="font-narrow text-sm text-muted-foreground">
           <span aria-hidden="true">★</span> {product.rating.toFixed(1)}
           <span className="sr-only"> out of 5</span> ({formatNumber(product.reviewCount)})
         </span>

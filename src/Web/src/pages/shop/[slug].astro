@@ -1,5 +1,4 @@
 ---
-import { ArrowLeftIcon } from 'lucide-react';
 import Layout from '../../layouts/Layout.astro';
 import NotFound from '../../components/NotFound.astro';
 import ResponsiveImage from '@/components/ResponsiveImage';
@@ -38,77 +37,84 @@ const stats = product
   product ? (
     <Layout title={`${product.title} – Shop`} description={product.summary}>
       <nav aria-label="Breadcrumb">
-        <a href="/shop" class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2.5 text-muted-foreground')}>
-          <ArrowLeftIcon aria-hidden="true" /> Shop
+        <a href="/shop" class="font-narrow inline-flex min-h-10 items-center text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          Shop
         </a>
       </nav>
 
-      <div class="mt-4 grid gap-8 lg:grid-cols-2 lg:gap-12">
-        <figure class="self-start overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10">
+      <div class="mt-6 grid gap-8 lg:grid-cols-2 lg:gap-12">
+        <figure class="chamfer self-start overflow-hidden bg-card [--cut:2.5rem]">
           {product.image && (
-            <ResponsiveImage image={product.image} loading="eager" sizes="(min-width: 1024px) 480px, 100vw" className="aspect-[4/3] w-full object-cover" />
+            <ResponsiveImage image={product.image} loading="eager" sizes="(min-width: 1024px) 540px, 100vw" className="aspect-[4/3] w-full object-cover" />
           )}
         </figure>
 
         <div>
-          <p class="text-sm text-muted-foreground">
-            <a href={`/shop?brand=${encodeURIComponent(product.brand)}`} class="hover:text-foreground hover:underline">{product.brand}</a>
-            {' · '}
-            <a href={`/shop?category=${encodeURIComponent(product.category)}`} class="hover:text-foreground hover:underline">{product.category}</a>
-            {' · '}SKU {product.sku}
+          <p class="font-narrow flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <a href={`/shop?brand=${encodeURIComponent(product.brand)}`} class="font-semibold text-foreground underline decoration-transparent decoration-2 underline-offset-4 hover:decoration-primary">{product.brand}</a>
+            <a href={`/shop?category=${encodeURIComponent(product.category)}`} class="underline decoration-transparent decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary">{product.category}</a>
+            <span>SKU {product.sku}</span>
           </p>
-          <h1 class="mt-2 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{product.title}</h1>
-          <p class="mt-3 text-sm text-muted-foreground">
-            <span aria-hidden="true">★</span> {product.stats.rating.toFixed(1)}<span class="sr-only"> out of 5</span> · {formatNumber(product.stats.reviewCount)} reviews · {formatNumber(product.stats.unitsSold)} sold
-          </p>
-          <p class="mt-6 text-3xl font-semibold tabular-nums">{formatMoney(product.price)}</p>
-          <p class="mt-2">
-            {product.stock > 0 ? (
-              <Badge variant="secondary">{product.stock < 10 ? `Only ${product.stock} left` : 'In stock'}</Badge>
-            ) : (
-              <Badge variant="destructive">Out of stock</Badge>
-            )}
+          <h1 class="font-wide mt-3 text-3xl leading-[1.05] font-extrabold text-balance sm:text-4xl">{product.title}</h1>
+          <p class="font-narrow mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span>
+              <span aria-hidden="true">★</span> <span class="font-semibold text-foreground">{product.stats.rating.toFixed(1)}</span><span class="sr-only"> out of 5</span>
+            </span>
+            <span>{formatNumber(product.stats.reviewCount)} reviews</span>
+            <span>{formatNumber(product.stats.unitsSold)} sold</span>
           </p>
 
-          <form method="post" action="/cart" class="mt-6 flex items-end gap-3">
-            <input type="hidden" name="action" value="add" />
-            <input type="hidden" name="sku" value={product.sku} />
-            <label class="grid gap-1.5 text-sm font-medium">
-              Quantity
-              <select
-                name="quantity"
-                disabled={maxQuantity === 0}
-                class="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                {Array.from({ length: Math.max(maxQuantity, 1) }, (_, i) => (
-                  <option value={i + 1}>{i + 1}</option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" disabled={maxQuantity === 0} class={cn(buttonVariants({ size: 'lg' }))}>
-              Add to cart
-            </button>
-          </form>
+          {/* The buy panel reads as the head of a spec sheet: price and action on top, key figures ruled below. */}
+          <div class="chamfer chamfer-edge mt-8 border border-border bg-card [--cut:1.5rem]">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
+              <p class="font-wide text-4xl font-extrabold tabular-nums sm:text-5xl">{formatMoney(product.price)}</p>
+              {product.stock > 0 ? (
+                <Badge variant="secondary">{product.stock < 10 ? `Only ${product.stock} left` : 'In stock'}</Badge>
+              ) : (
+                <Badge variant="destructive">Out of stock</Badge>
+              )}
+            </div>
 
-          <dl class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {stats.map(([label, value]) => (
-              <div class="rounded-lg border bg-background p-3">
-                <dt class="text-xs text-muted-foreground">{label}</dt>
-                <dd class="mt-1 font-semibold tabular-nums">{value}</dd>
-              </div>
-            ))}
-          </dl>
+            <form method="post" action="/cart" class="flex items-end gap-3 px-5 pt-5 pb-5">
+              <input type="hidden" name="action" value="add" />
+              <input type="hidden" name="sku" value={product.sku} />
+              <label class="grid gap-1.5 text-sm font-semibold">
+                Quantity
+                <select
+                  name="quantity"
+                  disabled={maxQuantity === 0}
+                  class="h-12 min-w-20 rounded-sm border border-muted-foreground bg-card px-3 text-base tabular-nums hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
+                >
+                  {Array.from({ length: Math.max(maxQuantity, 1) }, (_, i) => (
+                    <option value={i + 1}>{i + 1}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit" disabled={maxQuantity === 0} class={cn(buttonVariants({ size: 'lg' }), 'flex-1 sm:flex-none sm:px-10')}>
+                Add to cart
+              </button>
+            </form>
+
+            <dl class="grid grid-cols-2 gap-px border-t border-ink bg-border sm:grid-cols-4">
+              {stats.map(([label, value]) => (
+                <div class="bg-card px-5 py-3">
+                  <dt class="font-narrow text-xs text-muted-foreground">{label}</dt>
+                  <dd class="mt-0.5 font-bold tabular-nums">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
       </div>
 
-      <div class="mt-12 grid gap-10 lg:grid-cols-2 lg:gap-12">
+      <div class="mt-16 grid gap-12 lg:grid-cols-2">
         <section aria-labelledby="specs">
-          <h2 id="specs" class="text-xl font-bold tracking-tight">Specifications</h2>
-          <dl class="mt-4 divide-y rounded-xl border bg-background">
+          <h2 id="specs" class="font-wide text-2xl font-extrabold">Specifications</h2>
+          <dl class="mt-4 border-t-2 border-ink">
             {product.specs.map((spec) => (
-              <div class="grid grid-cols-2 gap-4 px-4 py-2.5 text-sm">
+              <div class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 border-b border-border py-2.5 text-sm">
                 <dt class="text-muted-foreground">{spec.label}</dt>
-                <dd class="font-medium">
+                <dd class="font-semibold tabular-nums">
                   {spec.value}
                   {spec.unit && ` ${spec.unit}`}
                 </dd>
@@ -117,8 +123,8 @@ const stats = product
           </dl>
         </section>
         <section aria-labelledby="about">
-          <h2 id="about" class="text-xl font-bold tracking-tight">About this product</h2>
-          <div class="prose prose-neutral dark:prose-invert mt-4 max-w-none prose-headings:text-base prose-headings:tracking-tight" set:html={product.descriptionHtml} />
+          <h2 id="about" class="font-wide text-2xl font-extrabold">About this product</h2>
+          <div class="prose mt-4 max-w-none border-t-2 border-ink pt-4 prose-headings:text-base" set:html={product.descriptionHtml} />
         </section>
       </div>
     </Layout>

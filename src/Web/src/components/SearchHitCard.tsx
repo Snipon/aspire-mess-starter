@@ -1,3 +1,4 @@
+import { contentTypeLabel } from '@/components/content-types';
 import TagList from '@/components/TagList';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,27 +12,22 @@ interface Props {
 
 export default function SearchHitCard({ hit, tagHref }: Props) {
   return (
-    <Card className="relative flex-row gap-5 px-5 transition hover:shadow-md focus-within:ring-2 focus-within:ring-ring">
+    <Card className="group relative flex-row gap-5 px-5 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
       <div className="min-w-0 flex-1 space-y-2">
         <CardHeader className="px-0">
-          <CardTitle className="flex items-baseline justify-between gap-4 text-lg font-semibold">
+          <CardTitle className="flex items-baseline justify-between gap-4 text-lg leading-snug font-bold">
             <h2>
-              <a href={hit.path} className="after:absolute after:inset-0 focus-visible:outline-none">
+              <a href={hit.path} className="decoration-primary decoration-2 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
                 {hit.title}
               </a>
             </h2>
             <Badge variant="outline" className="shrink-0">
-              {hit.contentType}
+              {contentTypeLabel(hit.contentType)}
             </Badge>
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="font-narrow flex flex-wrap gap-x-3">
             <span className="text-primary">{hit.path}</span>
-            {hit.publishDate && (
-              <>
-                <span aria-hidden="true"> · </span>
-                <time dateTime={hit.publishDate}>{formatDate(hit.publishDate)}</time>
-              </>
-            )}
+            {hit.publishDate && <time dateTime={hit.publishDate}>{formatDate(hit.publishDate)}</time>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 px-0 text-base text-muted-foreground">
@@ -52,7 +48,7 @@ export default function SearchHitCard({ hit, tagHref }: Props) {
           height={96}
           loading="lazy"
           decoding="async"
-          className="hidden size-24 shrink-0 self-center rounded-lg bg-muted object-cover sm:block"
+          className="chamfer hidden size-24 shrink-0 self-center bg-muted object-cover [--cut:0.75rem] sm:block"
         />
       )}
     </Card>

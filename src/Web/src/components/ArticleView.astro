@@ -1,12 +1,9 @@
 ---
-import { ArrowLeftIcon } from 'lucide-react';
 import ArticleCard from '@/components/ArticleCard';
 import ProductCard from '@/components/ProductCard';
 import ResponsiveImage from '@/components/ResponsiveImage';
 import TagList from '@/components/TagList';
-import { buttonVariants } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import type { Article, BlogPost, Page } from '../lib/api/client';
 import { formatDate } from '../lib/format';
 
@@ -27,22 +24,23 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
 <article>
   <header class="mx-auto max-w-3xl">
     <nav aria-label="Breadcrumb">
-      <a href={parentPath} class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2.5 text-muted-foreground')}>
-        <ArrowLeftIcon aria-hidden="true" /> {page.contentType === 'blogPost' ? 'All blog posts' : 'All articles'}
+      <a href={parentPath} class="font-narrow inline-flex min-h-10 items-center text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        {page.contentType === 'blogPost' ? 'All blog posts' : 'All articles'}
       </a>
     </nav>
-    <h1 class="mt-4 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{page.title}</h1>
-    <p class="mt-6 flex h-5 items-center gap-3 text-sm text-muted-foreground">
+    <h1 class="font-wide mt-6 text-4xl leading-[1.02] font-extrabold text-balance sm:text-5xl lg:text-6xl">{page.title}</h1>
+    {/* A div, not a p: the separator renders a div, which would close a p early. */}
+    <div class="font-narrow mt-8 flex items-center gap-3 border-t border-ink pt-3 text-sm text-muted-foreground">
       <time datetime={article.publishDate}>{formatDate(article.publishDate)}</time>
-      <Separator orientation="vertical" />
+      <Separator orientation="vertical" className="h-4 self-center!" />
       <span>{article.readingTimeMinutes} min read</span>
-    </p>
+    </div>
     <TagList tags={tags} className="mt-4" />
   </header>
 
   {
     page.image && (
-      <figure class="mx-auto mt-10 max-w-4xl overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10">
+      <figure class="chamfer mx-auto mt-10 max-w-4xl overflow-hidden bg-muted [--cut:2.5rem]">
         <ResponsiveImage
           image={page.image}
           loading="eager"
@@ -54,15 +52,15 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
   }
 
   <div
-    class="prose prose-lg prose-neutral dark:prose-invert mx-auto mt-10 max-w-3xl prose-headings:tracking-tight prose-a:text-primary prose-a:decoration-primary/40 prose-a:underline-offset-2 prose-a:hover:decoration-primary prose-pre:rounded-xl prose-pre:bg-neutral-900 prose-img:rounded-lg"
+    class="prose prose-lg mx-auto mt-12 max-w-3xl"
     set:html={article.bodyHtml}
   />
 
   {
     product && (
       <aside aria-labelledby="featured-product" class="mx-auto mt-14 max-w-3xl">
-        <h2 id="featured-product" class="text-xl font-bold tracking-tight">Featured product</h2>
-        <div class="mt-4 flex max-w-xs">
+        <h2 id="featured-product" class="font-wide border-t border-ink pt-3 text-2xl font-extrabold">Featured product</h2>
+        <div class="mt-6 flex max-w-xs">
           <ProductCard product={product} />
         </div>
       </aside>
@@ -72,8 +70,8 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
   {
     related && (
       <aside aria-labelledby="related-article" class="mx-auto mt-14 max-w-3xl">
-        <h2 id="related-article" class="text-xl font-bold tracking-tight">Read the full article</h2>
-        <div class="mt-4 max-w-sm">
+        <h2 id="related-article" class="font-wide border-t border-ink pt-3 text-2xl font-extrabold">Read the full article</h2>
+        <div class="mt-6 flex max-w-sm">
           <ArticleCard article={related} />
         </div>
       </aside>

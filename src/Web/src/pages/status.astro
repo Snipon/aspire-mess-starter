@@ -33,12 +33,12 @@ const checkedAt = report ? new Date(report.checkedAt) : renderedAt;
 ---
 
 <Layout title="System status" description="Current health of the website and the services behind it.">
-  <div class="mx-auto max-w-3xl">
-    <h1 class="text-3xl font-bold tracking-tight">System status</h1>
+  <div class="max-w-3xl">
+    <h1 class="font-wide border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl">System status</h1>
 
     <StatusPanel overall={overall} rows={rows} />
 
-    <p class="mt-4 text-sm text-muted-foreground">
+    <p class="font-narrow mt-4 text-sm text-muted-foreground">
       Last checked <time datetime={checkedAt.toISOString()}>{timeFormat.format(checkedAt)} UTC</time>.
       <a href="/status" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-1')}>Refresh</a>
     </p>

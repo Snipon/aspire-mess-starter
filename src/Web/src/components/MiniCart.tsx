@@ -36,14 +36,14 @@ export default function MiniCart({ active }: { active: boolean }) {
       <a
         href="/cart"
         aria-current={active ? 'page' : undefined}
-        className={cn(buttonVariants({ variant: active ? 'secondary' : 'ghost', size: 'icon' }), 'relative')}
+        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'relative', active && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground')}
       >
         <ShoppingCartIcon aria-hidden="true" />
         <span className="sr-only">{count > 0 ? `Cart, ${count} ${count === 1 ? 'item' : 'items'}` : 'Cart'}</span>
         {count > 0 && (
           <span
             aria-hidden="true"
-            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground tabular-nums"
+            className="font-narrow absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-sm bg-primary px-1 text-xs font-bold text-primary-foreground tabular-nums ring-2 ring-background"
           >
             {count > 99 ? '99+' : count}
           </span>
@@ -51,7 +51,7 @@ export default function MiniCart({ active }: { active: boolean }) {
       </a>
       {cart !== undefined && !active && (
         <div className="invisible absolute top-full right-0 z-20 w-80 pt-2 opacity-0 transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100 motion-reduce:transition-none">
-          <div className="rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg">
+          <div className="border border-border bg-popover p-4 text-popover-foreground">
             {!cart || cart.items.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">Your cart is empty.</p>
             ) : (
@@ -59,14 +59,14 @@ export default function MiniCart({ active }: { active: boolean }) {
                 <ul className="divide-y">
                   {cart.items.slice(0, MAX_ITEMS).map((item) => (
                     <li key={item.id} className="flex gap-3 py-2 first:pt-0">
-                      <div className="size-12 shrink-0 overflow-hidden rounded-md bg-muted">
+                      <div className="size-12 shrink-0 overflow-hidden bg-muted">
                         {item.image && <ResponsiveImage image={{ ...item.image, alt: null }} sizes="48px" className="h-full w-full object-cover" />}
                       </div>
                       <div className="min-w-0 flex-1 text-sm">
-                        <a href={item.path ?? '/shop'} className="line-clamp-2 font-medium hover:underline">
+                        <a href={item.path ?? '/shop'} className="line-clamp-2 font-semibold decoration-primary decoration-2 underline-offset-4 hover:underline">
                           {item.title}
                         </a>
-                        <p className="text-muted-foreground tabular-nums">
+                        <p className="font-narrow text-muted-foreground tabular-nums">
                           {item.quantity} × {formatMoney(item.unitPrice)}
                         </p>
                       </div>
@@ -78,10 +78,10 @@ export default function MiniCart({ active }: { active: boolean }) {
                 )}
                 <div className="mt-3 flex items-center justify-between border-t pt-3 text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-semibold tabular-nums">{formatMoney(cart.subtotal)}</span>
+                  <span className="font-wide text-base font-extrabold tabular-nums">{formatMoney(cart.subtotal)}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <a href="/cart" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+                  <a href="/cart" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
                     View cart
                   </a>
                   <a href="/checkout" className={buttonVariants({ size: 'sm' })}>

@@ -34,12 +34,13 @@ const listId = `${id}-suggestions`;
     role="listbox"
     aria-label="Suggestions"
     hidden
-    class="absolute top-full right-0 z-20 mt-1 w-full min-w-72 overflow-hidden rounded-md border bg-popover p-1 text-sm text-popover-foreground shadow-md"
+    class="absolute top-full right-0 z-20 mt-1 w-full min-w-72 overflow-hidden rounded-none border border-ink bg-popover text-sm text-popover-foreground"
   >
   </ul>
 </div>
 
 <script>
+  import { contentTypeLabel } from '@/components/content-types';
   import type { Suggestion } from '../pages/api/suggest';
 
   const DEBOUNCE_MS = 150;
@@ -60,13 +61,13 @@ const listId = `${id}-suggestions`;
           option.role = 'option';
           option.ariaSelected = String(i === active);
           option.className =
-            'flex cursor-pointer items-baseline justify-between gap-3 rounded-sm px-2 py-1.5 hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground';
+            'group flex cursor-pointer items-baseline justify-between gap-3 px-3 py-2 font-medium hover:bg-muted aria-selected:bg-primary aria-selected:text-primary-foreground';
           const title = document.createElement('span');
           title.className = 'min-w-0 truncate';
           title.textContent = item.title;
           const type = document.createElement('span');
-          type.className = 'shrink-0 text-xs text-muted-foreground';
-          type.textContent = item.contentType;
+          type.className = 'font-narrow shrink-0 text-xs text-muted-foreground group-hover:text-foreground group-aria-selected:text-primary-foreground';
+          type.textContent = contentTypeLabel(item.contentType);
           option.append(title, type);
           // mousedown, not click: fires before the input's blur closes the list.
           option.addEventListener('mousedown', (event) => {
