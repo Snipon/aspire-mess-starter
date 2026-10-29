@@ -1,0 +1,16 @@
+<?php
+
+/**
+ * @file
+ * Staff sign-in through the identity provider (openid_connect, see Schema::staffSignIn()).
+ */
+
+/**
+ * Implements hook_openid_connect_userinfo_alter().
+ *
+ * openid_connect maps Drupal roles from a "groups" claim only; staff carry their app roles (admin, editor) in "roles",
+ * like Entra ID app roles. Values without a mapping are ignored.
+ */
+function headless_commerce_openid_connect_userinfo_alter(array &$userinfo, array $context): void {
+  $userinfo['groups'] = array_values(array_unique(array_merge((array) ($userinfo['groups'] ?? []), (array) ($userinfo['roles'] ?? []))));
+}

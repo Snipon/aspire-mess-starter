@@ -183,7 +183,7 @@ aspire start
 | Seq (log search) | `http://localhost:5341` (no login locally) |
 | Website | shown on the `web-cache` resource in the dashboard (random port; the reverse proxy cache, see below). The `web` resource's own URL bypasses the cache |
 | Umbraco backoffice | `https://localhost:44350/umbraco` (or `http://localhost:28048/umbraco`) |
-| Drupal admin | `<commerce url>/user/login` (the `commerce` resource in the dashboard), user `admin`, password = `Parameters:commerce-admin-password` |
+| Drupal admin | `http://localhost:8081/user/login`: "Log in with Staff sign-in" (Keycloak realm `staff`, user `admin`, password = `Parameters:idp-admin-password`). Break-glass: `drush uli` in the `commerce` container (user `admin`) |
 | Backoffice login | user `admin@example.com` (parameter `umbraco-admin-email`), password = `Parameters:umbraco-admin-password` from the user secrets |
 | API reference (Scalar) | `http://localhost:5194/scalar` |
 | OpenAPI document | `http://localhost:5194/openapi/v1.json` |
@@ -391,6 +391,18 @@ Commerce). Nothing about it is configured by hand or exported as YAML:
   `COMMERCE_API_KEY`): `GET /headless/products?offset=&limit=`, `GET /headless/products/{sku}`, and carts as Commerce
   draft orders addressed by UUID plus a random token (stored hashed; wrong tokens look like unknown carts).
   Responses are `no-store` and bypass Drupal's page cache.
+- **Staff sign-in** (`drupal/openid_connect` 3.x, generic client `sso`; every 3.x release is still alpha). `Schema.php`
+  creates the client, the `administrator` role and the module settings; `settings.php` fills in the environment:
+  `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_AUTHORIZATION_ENDPOINT` and `OIDC_END_SESSION_ENDPOINT`
+  (browser-facing), `OIDC_TOKEN_ENDPOINT` (called from the container; locally `https://keycloak.dev.internal:8443`).
+  Endpoints are not discovered. Without `OIDC_CLIENT_ID` the client is off and the password form stays. With it, the
+  login form is only the IdP button, the password reset form and JSON login are closed, and accounts are created on
+  first sign-in (redirect URI `<commerce url>/openid-connect/sso`). Claims come from the ID token (no userinfo call);
+  the `roles` claim (Keycloak realm roles, Entra ID app roles) maps `admin` to `administrator` on every sign-in, other
+  staff get a plain account. Existing accounts are never connected by email, so `entrypoint.sh` moves the local admin
+  (uid 1, kept for `drush uli`) to `admin@localhost`. The module takes the ID token from the token endpoint over TLS
+  without checking its signature. `entrypoint.sh` also adds Aspire's dev CA (`SSL_CERT_DIR`) to the system bundle,
+  because PHP's curl reads only that. Behind the Azure ingress set `DRUPAL_REVERSE_PROXY=true` (https redirect URI).
 
 **Fake payment.** Checkout validates the card like a form would (Luhn, expiry not in the past, 3–4 digit CVC) and then
 decides by number: `4242 4242 4242 4242` (and any other valid number) is approved, `4000 0000 0000 0002` is declined,

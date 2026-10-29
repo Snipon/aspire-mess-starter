@@ -9,25 +9,31 @@ use Drupal\commerce_payment\Entity\PaymentGateway;
 use Drupal\commerce_price\CurrencyImporterInterface;
 use Drupal\commerce_price\Entity\Currency;
 use Drupal\commerce_store\Entity\Store;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityDisplayRepositoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\openid_connect\Entity\OpenIDConnectClientEntity;
 use Drupal\taxonomy\Entity\Vocabulary;
+use Drupal\user\Entity\Role;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * The commerce schema in code instead of exported config: a USD store, the product and variation fields, the category
- * and brand vocabularies and the fake card payment gateway. ensure() only creates what is missing, so it runs from
- * hook_install() and can run again from update hooks when fields are added.
+ * and brand vocabularies, the fake card payment gateway and the staff sign-in through the identity provider. ensure()
+ * only creates what is missing, so it runs from hook_install() and can run again from update hooks when fields are added.
  */
 final class Schema {
 
   public const GATEWAY = 'fake_card';
 
+  public const OIDC_CLIENT = 'sso';
+
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly EntityDisplayRepositoryInterface $displayRepository,
+    private readonly ConfigFactoryInterface $configFactory,
     #[Autowire(service: 'commerce_price.currency_importer')]
     private readonly CurrencyImporterInterface $currencyImporter,
   ) {}
@@ -91,6 +97,59 @@ final class Schema {
           'instructions' => ['value' => 'Demo payment: card details are checked by fixed test rules and never stored.', 'format' => 'plain_text'],
         ],
       ])->save();
+    }
+
+    $this->staffSignIn();
+  }
+
+  /**
+   * The OpenID Connect client for staff and its settings. Environment-specific values (client ID and secret, endpoints)
+   * and whether it is enabled come from settings.php; an IdP user with the "admin" role becomes a Drupal administrator.
+   */
+  private function staffSignIn(): void {
+    // The minimal install profile has no administrator role.
+    if (!Role::load('administrator')) {
+      Role::create(['id' => 'administrator', 'label' => 'Administrator', 'is_admin' => TRUE])->save();
+    }
+
+    if (!OpenIDConnectClientEntity::load(self::OIDC_CLIENT)) {
+      OpenIDConnectClientEntity::create([
+        'id' => self::OIDC_CLIENT, // the redirect URI is /openid-connect/sso
+        'label' => 'Staff sign-in',
+        'status' => FALSE,
+        'plugin' => 'generic',
+        'settings' => [
+          'client_id' => '',
+          'client_secret' => '',
+          'provider_slug' => '',
+          'iss_allowed_domains' => '', // no IdP-initiated sign-in
+          'prompt' => [],
+          'issuer_url' => '',
+          'authorization_endpoint' => '',
+          'token_endpoint' => '',
+          'userinfo_endpoint' => '', // claims (including roles) come from the ID token
+          'end_session_endpoint' => '',
+          'scopes' => ['openid', 'email', 'profile'],
+        ],
+      ])->save();
+    }
+
+    // Our settings once, over the module's defaults (role_mappings is empty until then).
+    $settings = $this->configFactory->getEditable('openid_connect.settings');
+    if (!$settings->get('role_mappings')) {
+      $settings
+        // Never attach an IdP identity to an existing account by email (account takeover).
+        ->set('connect_existing_users', FALSE)
+        // Staff accounts are created on first sign-in although visitors cannot register.
+        ->set('override_registration_settings', TRUE)
+        ->set('end_session_enabled', TRUE)
+        ->set('redirect_login', 'user')
+        ->set('redirect_logout', 'user/login')
+        // The IdP's "roles" claim, merged into "groups" by headless_commerce_openid_connect_userinfo_alter(), is the
+        // source of truth: roles are added and removed on every sign-in.
+        ->set('role_mappings', ['administrator' => ['admin']])
+        ->set('force_reset_role_mappings', TRUE)
+        ->save();
     }
   }
 

@@ -124,7 +124,10 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithExternalHttpEndpoints();
 
 // Drupal Commerce (src/Commerce): catalog, carts, orders and the fake card payment, behind the API. The image installs
-// Drupal into the empty database on first start and seeds 2000 demo products (DEMO_CONTENT); admin UI at /user/login.
+// Drupal into the empty database on first start and seeds 2000 demo products (DEMO_CONTENT); admin UI at /user/login,
+// signed in through the staff realm (OIDC_*; without OIDC_CLIENT_ID the password form stays). The browser is sent to
+// the authorization and logout endpoints on localhost; Drupal calls the token endpoint from inside its container.
+const string KeycloakInternalUrl = "https://keycloak.dev.internal:8443"; // container-to-container, trusted dev certificate
 var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
     .WithReference(commerceDb) // COMMERCEDB_HOST/_PORT/_USERNAME/_PASSWORD/_DATABASENAME, read by settings.php
     .WaitFor(commerceDb)
@@ -134,6 +137,11 @@ var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
     .WithEnvironment("DRUPAL_ADMIN_PASSWORD", commerceAdminPassword)
     .WithEnvironment("COMMERCE_API_KEY", commerceApiKey)
     .WithEnvironment("DEMO_CONTENT", "true") // 2000 demo products; remove for a real project
+    .WithEnvironment("OIDC_CLIENT_ID", "commerce")
+    .WithEnvironment("OIDC_CLIENT_SECRET", commerceOidcSecret)
+    .WithEnvironment("OIDC_AUTHORIZATION_ENDPOINT", $"{KeycloakUrl}/realms/staff/protocol/openid-connect/auth")
+    .WithEnvironment("OIDC_TOKEN_ENDPOINT", $"{KeycloakInternalUrl}/realms/staff/protocol/openid-connect/token")
+    .WithEnvironment("OIDC_END_SESSION_ENDPOINT", $"{KeycloakUrl}/realms/staff/protocol/openid-connect/logout")
     .WithHttpEndpoint(port: 8081, targetPort: 80) // fixed: the IdP redirect URI (infra/keycloak) names it
     .WithHttpHealthCheck("/headless/health")
     .WithExternalHttpEndpoints();
