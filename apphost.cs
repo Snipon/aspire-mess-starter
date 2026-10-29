@@ -1,5 +1,6 @@
 #:sdk Aspire.AppHost.Sdk@13.6.4
 #:property AspireUseCliBundle=true
+#:property UserSecretsId=aspire-test-apphost
 #:package Aspire.Hosting.SqlServer@13.6.4
 #:package Aspire.Hosting.JavaScript@13.6.4
 #:package Aspire.Hosting.Seq@13.6.4
@@ -12,8 +13,9 @@ using Aspire.Hosting.Publishing;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Parameters. Secrets are generated on first run and persisted to the AppHost user secrets,
-// override them with `aspire config`/user secrets (Parameters:<name>) if needed.
+// Parameters. Missing secrets are generated on first run and persisted to the AppHost user secrets (UserSecretsId
+// above, so the store does not depend on the checkout path); scripts/init-secrets.sh creates them up front, and
+// `aspire secret set Parameters:<name> <value>` overrides one.
 var adminEmail = builder.AddParameter("umbraco-admin-email", "admin@example.com", publishValueAsDefault: true);
 var adminPassword = builder.AddParameter("umbraco-admin-password",
     new GenerateParameterDefault { MinLength = 16, Special = false }, secret: true, persist: true);
@@ -85,6 +87,7 @@ builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithHttpEndpoint(env: "PORT")
     .WithExternalHttpEndpoints()
     .WithEnvironment("API_URL", api.GetEndpoint("http"))
+    .WithEnvironment("ASTRO_TELEMETRY_DISABLED", "1") // Astro CLI usage pings would otherwise show up as fetch spans
     .WithReference(seq)
     .WaitFor(api);
 

@@ -76,15 +76,44 @@ What happens on start:
 3. `api` waits for Meilisearch, then reindexes in the background once the CMS returns content.
 4. `web` runs `npm install` + `npm run dev` (Astro dev server on Aspire's `PORT`) once the api is healthy.
 
-Secrets (`umbraco-admin-password`, `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`, plus Aspire's own
-`sql-password` and `meilisearch-masterKey`) are generated on first run and stored in the AppHost user secrets:
+### Local secrets
+
+All secrets are Aspire parameters stored in the AppHost **user secrets** (`Parameters:<name>`), never in
+`appsettings*.json` or `.env` files (`appsettings.Local.json` and `.env*` are git-ignored). `apphost.cs` sets a fixed
+`UserSecretsId` (`aspire-test-apphost`), so the store is `~/.microsoft/usersecrets/aspire-test-apphost/secrets.json`
+(`aspire secret path`) no matter where the repository is checked out.
+
+Create them once before the first `aspire run` (the AppHost would also generate missing ones on start):
 
 ```sh
-dotnet user-secrets list --project apphost.cs
+scripts/init-secrets.sh                        # sets only missing keys, prints the backoffice login
+scripts/init-secrets.sh --rotate reindex-secret
+aspire secret list                             # or: aspire secret get Parameters:umbraco-admin-password
 ```
 
-Keep them stable: the persistent SQL volume was initialised with `sql-password`. If you reset the user secrets,
-also remove the `sql` container and its volume.
+| Parameter | Value |
+| --- | --- |
+| `umbraco-admin-email` | `admin@example.com` |
+| `umbraco-admin-password`, `delivery-api-key`, `webhook-secret`, `reindex-secret` | 32 random alphanumeric characters |
+| `hmac-secret` | base64 of 64 random bytes |
+| `sql-password`, `meilisearch-masterKey` | 32 random alphanumeric characters (Aspire's own parameters for `sql` and `meilisearch`) |
+
+The script is idempotent and never changes an existing value: the persistent containers depend on them. It uses
+`openssl rand`, `jq` and the Aspire CLI (`aspire secret`). Local Seq runs without authentication, so it has no password.
+
+Rotating (`--rotate <name>`, then restart the AppHost):
+
+- `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`: just restart; the cms reconciles the
+  webhook's secret header on start and the api re-signs image URLs.
+- `umbraco-admin-email`/`-password`: only used by the unattended install, so change the user in the backoffice too.
+- `sql-password`, `meilisearch-masterKey`: fixed when the persistent container and its volume are first created.
+  The script asks for confirmation and prints the `podman rm`/`podman volume rm` commands; running them deletes the
+  data (see [Start from a clean database](#start-from-a-clean-database)).
+
+Before the fixed `UserSecretsId`, the SDK derived the ID from the AppHost path (`apphost-<sha256>`). The first run of
+`scripts/init-secrets.sh` copies the keys of such an existing store that the new ID lacks, so run it after pulling this
+change and before `aspire run`; otherwise the AppHost generates a new `sql-password` that no longer matches the
+existing `sql` volume. The script then warns and prints the command that restores the old value.
 
 ### Start from a clean database
 
@@ -128,6 +157,14 @@ Scalar and the OpenAPI document are mapped in every environment on purpose for t
 | GET | `/api/search?q=&page=1&pageSize=10&contentType=&tag=` | `SearchResult`, highlights wrapped in `<mark>`; hits carry tags, date, thumbnail |
 | POST | `/api/search/reindex` | full reindex; header `X-Reindex-Secret` (parameter `reindex-secret`) |
 | POST | `/api/webhooks/content` | Umbraco webhook (`{"id": ...}` or `[{"id": ...}]`); header `X-Webhook-Secret` |
+| GET | `/api/status` | `StatusReport` (`status` + `components[]` of `{name, displayName, status, durationMs}`), always 200; see below |
+
+`/api/status` runs the health checks tagged `dependency`. Each adapter registers its own inside its `AddXxx` method
+(Umbraco: `content`, one Delivery API query with the key, `Degraded` on failure; Meilisearch: `search`, its
+`/health`, `Unhealthy` on failure), so a new adapter does the same and the endpoint stays adapter-neutral. Each
+check has a 2 s timeout and the report is cached for 10 s (concurrent callers share one evaluation), so the page
+never hammers the dependencies and `checkedAt` can be up to 10 s old. The status is in the body and the response is
+always 200; only names, statuses and durations are returned, never exception messages, URLs or keys.
 
 Trigger a reindex by hand:
 
@@ -139,7 +176,9 @@ The webhook secret is deliberately not accepted there: it is stored on the Umbra
 with Settings access can read it.
 
 Website routes: `/` and `/articles` (block pages), `/articles/<slug>` (article), `/tags/<tag>` (paged listing),
-`/search?q=&tag=`.
+`/search?q=&tag=`, `/status` (system status: Web, API round trip and each `/api/status` component; `no-store`, a
+Refresh link instead of auto-reload, and still renders with "API Down / Dependencies Unknown" when the API fails or
+takes longer than 3 s). `/status` is a web route, so a CMS page at that path is hidden behind it.
 
 ## Observability (local)
 
@@ -149,9 +188,12 @@ Website routes: `/` and `/articles` (block pages), `/articles/<slug>` (article),
   then ships OpenTelemetry logs and traces to Seq *in addition to* the dashboard (`AddSeqEndpoint`, Aspire.Seq).
   Seq's health check is disabled there so a stopped Seq never marks an app unhealthy. Umbraco logs through
   Serilog, which bypasses that pipeline, so `src/Cms/Program.cs` adds two Serilog OpenTelemetry sinks (dashboard
-  and Seq). The Node web app is not instrumented: it shows up only through the api requests it makes, and its
-  console output stays in the dashboard.
-  Filter by app in Seq with `@Resource.service.name = 'cms'` (or `api`); for example `@Message like '%uSync%'`
+  and Seq). The Node web app preloads `src/Web/otel.mjs` (`node --import`, in
+  `npm run dev`/`start` and the Dockerfile): http server and fetch (undici) spans plus log records go to the
+  dashboard when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (grpc or http/protobuf) and to `<seq>/ingest/otlp`
+  (http/protobuf, `X-Seq-ApiKey` from `Aspire__Seq__ApiKey`) when `ConnectionStrings__seq` is set; with neither it
+  does nothing. Server logs go through `src/lib/log.ts`, one record per request from `src/middleware.ts`.
+  Filter by app in Seq with `@Resource.service.name = 'cms'` (or `api`, `web`); for example `@Message like '%uSync%'`
   shows the first-boot import and `@MessageTemplate like 'Reindex%'` the api's index sync.
 - `/health` (all checks, status text only) and `/alive` (liveness) are mapped in every environment.
 - Seq signals and alerts (error spike, webhook secret rejections, reindex/Meilisearch failures, Delivery API
@@ -261,9 +303,31 @@ npm run build        # astro check + astro build
 
 ```sh
 dotnet build AspireTest.slnx
-dotnet test tests/Api.Tests     # HMAC signing vs real ImageSharp.Web middleware, Delivery API mapping (fixtures
-                                # captured from the running CMS), Markdown safety, polymorphic JSON, provider selection
+dotnet test AspireTest.slnx     # HMAC signing vs real ImageSharp.Web middleware, Delivery API mapping (fixtures
+                                # captured from the running CMS), Markdown safety, polymorphic JSON, provider selection,
+                                # /api/status (caching, no leaked error details, adapter health checks)
 ```
+
+## CI
+
+`.github/workflows/ci.yml` runs on pull requests and pushes to `main`, as four parallel jobs:
+
+| Job | Steps |
+| --- | --- |
+| `dotnet` | restore, `dotnet build AspireTest.slnx -c Release`, `dotnet build apphost.cs`, `dotnet test AspireTest.slnx` (TRX uploaded), fails if the build changed `src/Api/openapi/Api.json` |
+| `web` | Node from `src/Web/.nvmrc`, `npm ci`, `npm run gen:api` and fail on `schema.d.ts` drift, `astro check`, `astro build` |
+| `terraform` | `terraform fmt -check`, `terraform init -backend=false -lockfile=readonly`, `terraform validate` |
+| `images` | builds the `cms`, `api` and `web` images (no push) with the same context/Dockerfile as [docs/deployment.md](docs/deployment.md) |
+
+Keep these green locally:
+
+- After changing an endpoint or contract: `dotnet build src/Api`, then `npm run gen:api` in `src/Web`, and commit
+  both `Api.json` and `schema.d.ts`.
+- After changing Terraform providers, update the lock file for every platform the team and CI use:
+  `terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 -platform=windows_amd64`.
+- The Node major is set in `src/Web/.nvmrc`; keep it in line with the `src/Web/Dockerfile` base image.
+- The AppHost build (`AspireUseCliBundle=true`) needs no Aspire CLI on the runner: without one it fetches the
+  matching CLI bundle with `dotnet dnx`.
 
 ## Deployment
 

@@ -46,12 +46,15 @@ jobs:
       - name: Build solution
         run: dotnet build AspireTest.slnx -c Release --no-restore
 
+      # AspireUseCliBundle=true: without an `aspire` CLI on PATH the build fetches the matching CLI bundle itself
+      # (`dnx aspire.cli@<sdk version> -- setup`, into ~/.aspire), so no separate install step is needed. That
+      # fallback looks for `dnx` on PATH, i.e. the dotnet install dir that setup-dotnet adds.
       - name: Build AppHost (file-based)
         run: dotnet build apphost.cs -c Release
 
       - name: Test
         run: >-
-          dotnet test tests/Api.Tests/Api.Tests.csproj -c Release --no-build
+          dotnet test AspireTest.slnx -c Release --no-build
           --logger trx --results-directory TestResults
 
       - name: Upload test results
@@ -81,7 +84,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: src/Web/.nvmrc # same major as the src/Web/Dockerfile base image
           cache: npm
           cache-dependency-path: src/Web/package-lock.json
 

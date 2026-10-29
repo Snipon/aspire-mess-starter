@@ -8,7 +8,7 @@ namespace Api.Content.Umbraco;
 /// <summary><see cref="IContentSource"/> backed by the Umbraco Delivery API v2.</summary>
 public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapper) : IContentSource
 {
-    private const string ContentApi = "umbraco/delivery/api/v2/content";
+    internal const string ContentApi = "umbraco/delivery/api/v2/content";
     private const int PageSize = 100;
 
     public Task<Page?> GetByPathAsync(string path, string? culture, CancellationToken ct)

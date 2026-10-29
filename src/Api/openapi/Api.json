@@ -70,6 +70,28 @@
         }
       }
     },
+    "/api/status": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "summary": "Get the status of the API's dependencies",
+        "description": "Overall and per-component status (`healthy`, `degraded` or `unhealthy`) for the status page. Always 200: the status is in the body. The dependencies are checked at most every 10 seconds; in between the last report is returned. Probes should use `/health`.",
+        "operationId": "GetStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/content": {
       "get": {
         "tags": [
@@ -681,6 +703,30 @@
           }
         }
       },
+      "ComponentStatus": {
+        "required": [
+          "name",
+          "displayName",
+          "status",
+          "durationMs"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HealthState"
+          },
+          "durationMs": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "ContentSyncResult": {
         "required": [
           "id",
@@ -729,6 +775,13 @@
             "format": "double"
           }
         }
+      },
+      "HealthState": {
+        "enum": [
+          "healthy",
+          "degraded",
+          "unhealthy"
+        ]
       },
       "Image": {
         "required": [
@@ -1098,6 +1151,29 @@
           }
         }
       },
+      "StatusReport": {
+        "required": [
+          "status",
+          "checkedAt",
+          "components"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/HealthState"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComponentStatus"
+            }
+          }
+        }
+      },
       "TagCount": {
         "required": [
           "tag",
@@ -1119,6 +1195,9 @@
   "tags": [
     {
       "name": "Webhooks"
+    },
+    {
+      "name": "Status"
     },
     {
       "name": "Content"

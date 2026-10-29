@@ -3,8 +3,10 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
-# dotenv files
-.env
+# dotenv files and local config overrides: secrets live in the AppHost user secrets (scripts/init-secrets.sh)
+.env*
+!.env.example
+appsettings.Local.json
 
 # User-specific files
 *.rsuser

@@ -12,7 +12,8 @@ WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-COPY package.json ./
+COPY package.json otel.mjs ./
 USER node
 EXPOSE 8080
-CMD ["node", "./dist/server/entry.mjs"]
+# otel.mjs: OpenTelemetry to OTEL_EXPORTER_OTLP_ENDPOINT and/or ConnectionStrings__seq; a no-op without either.
+CMD ["node", "--import", "./otel.mjs", "./dist/server/entry.mjs"]

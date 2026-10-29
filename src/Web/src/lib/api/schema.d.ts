@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the status of the API's dependencies
+         * @description Overall and per-component status (`healthy`, `degraded` or `unhealthy`) for the status page. Always 200: the status is in the body. The dependencies are checked at most every 10 seconds; in between the last report is returned. Probes should use `/health`.
+         */
+        get: operations["GetStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/content": {
         parameters: {
             query?: never;
@@ -216,6 +236,13 @@ export interface components {
             tag: null | string;
             articles: components["schemas"]["ArticleSummary"][];
         };
+        ComponentStatus: {
+            name: string;
+            displayName: string;
+            status: components["schemas"]["HealthState"];
+            /** Format: int64 */
+            durationMs: number;
+        };
         ContentSyncResult: {
             id: string;
             action: string;
@@ -231,6 +258,8 @@ export interface components {
             /** Format: double */
             top: number;
         };
+        /** @enum {unknown} */
+        HealthState: "healthy" | "degraded" | "unhealthy";
         Image: {
             url: string;
             alt: null | string;
@@ -317,6 +346,12 @@ export interface components {
             total: number;
             hits: components["schemas"]["SearchHit"][];
         };
+        StatusReport: {
+            status: components["schemas"]["HealthState"];
+            /** Format: date-time */
+            checkedAt: string;
+            components: components["schemas"]["ComponentStatus"][];
+        };
         TagCount: {
             tag: string;
             /** Format: int32 */
@@ -371,6 +406,26 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusReport"];
                 };
             };
         };

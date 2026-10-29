@@ -3,16 +3,28 @@
   "type": "module",
   "version": "0.0.1",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "dev": "astro dev --host --ignore-lock",
+    "dev": "node --import ./otel.mjs ./node_modules/astro/bin/astro.mjs dev --host --ignore-lock",
     "build": "astro check && astro build",
     "preview": "astro preview",
-    "start": "node ./dist/server/entry.mjs",
+    "start": "node --import ./otel.mjs ./dist/server/entry.mjs",
     "check": "astro check",
     "gen:api": "openapi-typescript ../Api/openapi/Api.json -o src/lib/api/schema.d.ts"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.9",
+    "@opentelemetry/api": "~1.9.1",
+    "@opentelemetry/api-logs": "^0.223.0",
+    "@opentelemetry/exporter-logs-otlp-grpc": "^0.223.0",
+    "@opentelemetry/exporter-logs-otlp-proto": "^0.223.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.223.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.223.0",
+    "@opentelemetry/instrumentation-http": "^0.223.0",
+    "@opentelemetry/instrumentation-undici": "^0.33.0",
+    "@opentelemetry/sdk-node": "^0.223.0",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.4.4",

@@ -4,6 +4,7 @@ import Pagination from '../components/Pagination.astro';
 import TagList from '../components/TagList.astro';
 import { api, getTags, type SearchResult } from '../lib/api/client';
 import { formatDate, tagHref } from '../lib/format';
+import { log } from '../lib/log';
 
 const PAGE_SIZE = 10;
 const params = Astro.url.searchParams;
@@ -33,7 +34,10 @@ if (search) {
     Astro.response.status = 400;
     error = problem?.detail ?? problem?.title ?? 'Invalid search request.';
   } else {
-    throw new Error(`Search API returned ${response.status}`);
+    // Search backend down: keep the page usable instead of the 500 page.
+    log.error('Search API failed', undefined, { status: response.status });
+    Astro.response.status = 503;
+    error = 'Search is temporarily unavailable. Please try again shortly.';
   }
 }
 

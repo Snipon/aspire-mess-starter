@@ -262,7 +262,7 @@ Notes per secret:
 - **umbraco-admin-password** only matters for a fresh install; change the live password in the
   backoffice.
 - **seq-ingestion-api-key**: after replacing it, register the new token in Seq (see
-  [Seq bootstrap](#seq)) and remove the old key there, then restart cms and api. With
+  [Seq bootstrap](#seq)) and remove the old key there, then restart cms, api and web. With
   `RequireApiKeyForWritingEvents` on, logs are rejected until the new key is registered.
 - **seq-admin-password** only matters for a fresh (empty) Seq data share.
 
@@ -316,7 +316,8 @@ Seq is the log search and alerting tool, both locally (AppHost resource `seq`) a
 places: `ConnectionStrings__seq` makes `AddServiceDefaults()` call `AddSeqEndpoint("seq")`
 (Aspire.Seq), which adds OTLP exporters to `<seq>/ingest/otlp` next to the dashboard exporter.
 Umbraco logs through Serilog, which bypasses the OpenTelemetry logger provider, so the cms adds
-Serilog OpenTelemetry sinks for the dashboard and Seq. The Node web app is not instrumented.
+Serilog OpenTelemetry sinks for the dashboard and Seq. The Node web app preloads `otel.mjs`
+(`node --import`), which sends its traces and logs to `<seq>/ingest/otlp` with the same two settings.
 
 **Hosting and storage trade-off.** Seq is a database. Datalust recommends only Azure Disks or
 **Premium** Azure Files for its storage (standard Azure Files leads to corruption) and lists VMs,
@@ -338,7 +339,7 @@ for Meilisearch) would avoid the overlap problem but loses all logs on every res
 
 **Ingestion.** The apps reach Seq through its FQDN `https://seq.<default domain>`. Calls between
 apps of the same environment stay inside the environment. The same ingress also serves the UI, so
-`/ingest` is reachable from the internet. cms and api send `X-Seq-ApiKey` (Key Vault
+`/ingest` is reachable from the internet. cms, api and web send `X-Seq-ApiKey` (Key Vault
 `seq-ingestion-api-key`, `Aspire:Seq:ApiKey`), and the bootstrap below makes Seq reject events
 without a known key (`RequireApiKeyForWritingEvents`). Until then Seq accepts events with or
 without a key, so logging works from the first start.
@@ -411,7 +412,8 @@ Update `alerts.sh` when you change them.
 
 ### Health endpoints
 
-ServiceDefaults maps `/health` (all registered checks, which on the api includes Meilisearch) and
+ServiceDefaults maps `/health` (all registered checks, which on the api includes Meilisearch and the
+CMS Delivery API) and
 `/alive` (only the `live`-tagged self check) in **every** environment. The response body is only
 the aggregate status (`Healthy`, `Degraded` or `Unhealthy`, with HTTP 503 when unhealthy). No
 check names, descriptions or exceptions are returned, so the endpoints are safe to expose on the
@@ -419,7 +421,11 @@ public ingress. Both are excluded from tracing. The Seq exporter registers no he
 Seq outage never makes an app unhealthy.
 
 - The availability tests call `api /health` and `cms /health`, so the api test also fails when
-  Meilisearch is down.
+  Meilisearch is down. The api's CMS check reports `Degraded`, so `api /health` stays 200 (body
+  `Degraded`) while the CMS is down or still booting.
+- `GET /api/status` (api) and `/status` (web) are the human-readable view of the same checks: only
+  the `dependency`-tagged checks, always HTTP 200 with the status in the body, cached for 10 s,
+  2 s timeout per check, no error details. Probes and availability tests should keep using `/health`.
 - The api has an HTTP `liveness_probe` on `/alive`, so a hung process is restarted, but a
   Meilisearch or CMS outage never is. There is deliberately no readiness probe on `/health`, which
   would take every api replica out of rotation when Meilisearch is down. cms keeps its TCP startup

@@ -1,11 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { log } from '../lib/log';
 
 interface Props {
   error: unknown;
 }
 
-console.error(Astro.props.error);
+log.error('Unhandled error while rendering a page', Astro.props.error);
 ---
 
 <Layout title="Something went wrong">

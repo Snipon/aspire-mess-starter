@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Api.Content;
 using Api.Endpoints;
 using Api.Search;
+using Api.Status;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
@@ -14,6 +15,8 @@ builder.AddContentSource();
 builder.AddSearchIndex();
 
 builder.Services.AddProblemDetails();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<StatusReporter>();
 
 // Strict number handling keeps numbers typed as `integer` (not `integer | string`) in the OpenAPI document.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
@@ -73,6 +76,7 @@ app.MapScalarApiReference(); // /scalar
 
 app.MapContentEndpoints();
 app.MapSearchEndpoints();
+app.MapStatusEndpoints();
 app.MapDefaultEndpoints();
 
 app.Run();

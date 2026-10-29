@@ -406,6 +406,12 @@ resource "azurerm_container_app" "web" {
     identity = azurerm_user_assigned_identity.apps.id
   }
 
+  secret {
+    name                = "seq-ingestion-api-key"
+    identity            = azurerm_user_assigned_identity.apps.id
+    key_vault_secret_id = local.kv_secret_ids["seq-ingestion-api-key"]
+  }
+
   ingress {
     external_enabled = true
     target_port      = 8080
@@ -438,6 +444,15 @@ resource "azurerm_container_app" "web" {
       env {
         name  = "API_URL"
         value = local.api_url
+      }
+      # Logs/traces to Seq (otel.mjs), same keys Aspire injects locally.
+      env {
+        name  = "ConnectionStrings__seq"
+        value = local.seq_url
+      }
+      env {
+        name        = "Aspire__Seq__ApiKey"
+        secret_name = "seq-ingestion-api-key"
       }
     }
   }
