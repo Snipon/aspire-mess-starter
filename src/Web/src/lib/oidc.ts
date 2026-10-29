@@ -2,6 +2,7 @@ import type { AstroCookies } from 'astro';
 import * as oidc from 'openid-client';
 import { safeReturnTo } from './return-to';
 import { seal, unseal } from './sealed-cookie';
+import { cookieOptions, siteUrl } from './site';
 import { log } from './log';
 
 const FLOW_COOKIE_PATH = '/auth';
@@ -20,17 +21,6 @@ export interface SignIn {
   tokens: oidc.TokenEndpointResponse;
   returnTo: string;
 }
-
-/** Public origin for redirect URIs (the reverse proxy in front of the web), falling back to the request's. */
-export const siteUrl = (url: URL) => (process.env.SITE_URL || url.origin).replace(/\/+$/, '');
-
-export const cookieOptions = (url: URL, path: string, maxAge: number) => ({
-  path,
-  maxAge,
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  secure: siteUrl(url).startsWith('https:'),
-});
 
 /**
  * One OpenID Connect provider, used as a confidential client with the authorization code flow and PKCE. Configured

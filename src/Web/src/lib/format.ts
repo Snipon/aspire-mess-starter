@@ -24,3 +24,8 @@ export const linkAttrs = (link: Link) => ({
   target: link.target ?? undefined,
   rel: link.target === '_blank' ? 'noopener noreferrer' : undefined,
 });
+
+/** Display labels for the CMS content type aliases the API returns (facet values and URLs keep the alias). */
+const contentTypeLabels: Record<string, string> = { article: 'Article', blogPost: 'Blog post', site: 'Page', page: 'Page' };
+
+export const contentTypeLabel = (type: string) => contentTypeLabels[type] ?? type;

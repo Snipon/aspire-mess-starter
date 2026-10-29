@@ -142,8 +142,6 @@ final class Schema {
         ->set('connect_existing_users', FALSE)
         // Staff accounts are created on first sign-in although visitors cannot register.
         ->set('override_registration_settings', TRUE)
-        ->set('end_session_enabled', TRUE)
-        ->set('redirect_login', 'user')
         ->set('redirect_logout', 'user/login')
         // The IdP's "roles" claim, merged into "groups" by headless_commerce_openid_connect_userinfo_alter(), is the
         // source of truth: roles are added and removed on every sign-in.

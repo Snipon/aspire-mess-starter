@@ -102,11 +102,16 @@ resource "random_password" "seq_proxy_cookie" {
   special = false
 }
 
-# Encrypts the web's customer session cookie (only with customer sign-in).
+# Seals the web's session cookies (staff bar, and customers with customer sign-in).
 resource "random_password" "web_session" {
-  count   = local.customer_auth ? 1 : 0
   length  = 48
   special = false
+}
+
+# It was customer-only (count); keep the existing value so nobody is signed out.
+moved {
+  from = random_password.web_session[0]
+  to   = random_password.web_session
 }
 
 locals {
@@ -123,14 +128,16 @@ locals {
     "media-storage-connection-string" = azurerm_storage_account.this.primary_connection_string
     "seq-admin-password"              = random_password.seq_admin.result
     "seq-ingestion-api-key"           = random_password.seq_ingestion_api_key.result
-    # OIDC client secrets come from the app registrations (identity.tf); the web's only with customer sign-in.
+    # OIDC client secrets come from the app registrations (identity.tf); the web's customer one only with customer
+    # sign-in.
     "cms-oidc-secret"         = azuread_application_password.staff["cms"].value
     "seq-oidc-secret"         = azuread_application_password.staff["seq"].value
     "seq-proxy-cookie-secret" = random_password.seq_proxy_cookie.result
+    "web-staff-oidc-secret"   = azuread_application_password.staff["web"].value
+    "web-session-secret"      = random_password.web_session.result
     "web-oidc-secret"         = one(azuread_application_password.web[*].value)
-    "web-session-secret"      = one(random_password.web_session[*].result)
   }
-  customer_secrets = ["web-oidc-secret", "web-session-secret"]
+  customer_secrets = ["web-oidc-secret"]
 }
 
 resource "azurerm_key_vault_secret" "this" {

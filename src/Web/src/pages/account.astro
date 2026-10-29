@@ -30,7 +30,10 @@ if (authEnabled()) {
     // so end the session and offer it.
     endSession(Astro.cookies);
     rejected = true;
-  } else if (!data && response.status !== 400) {
+  } else if (response.status === 400) {
+    // The page number is out of range (a hand-edited ?page=).
+    return Astro.redirect('/account', 302);
+  } else if (!data) {
     throw new Error(`Orders API returned ${response.status}`);
   }
   orders = data;
@@ -46,19 +49,17 @@ const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
       <NotFound />
     ) : (
       <>
-        <div class="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 class="text-4xl font-bold tracking-tight">{session.name ?? 'Your account'}</h1>
-            {session.email && <p class="mt-2 text-muted-foreground">{session.email}</p>}
-          </div>
-          <form method="post" action="/auth/logout">
+        <h1 class="font-wide page-title">{session.name ?? 'Your account'}</h1>
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
+          {session.email && <p class="text-muted-foreground">{session.email}</p>}
+          <form method="post" action="/auth/logout" class="ml-auto">
             <button type="submit" class={buttonVariants({ variant: 'outline' })}>
               Sign out
             </button>
           </form>
         </div>
 
-        <h2 class="mt-12 text-2xl font-semibold tracking-tight">Orders</h2>
+        <h2 class="font-wide mt-12 text-2xl font-extrabold">Orders</h2>
         {rejected ? (
           <p class="mt-4 text-muted-foreground">
             Your sign-in could not be verified.{' '}
@@ -76,7 +77,7 @@ const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
         ) : (
           <ul class="mt-4 grid gap-4">
             {orders.items.map((order) => (
-              <li class="rounded-xl border bg-background p-5">
+              <li class="border border-border bg-card p-5">
                 <div class="flex flex-wrap items-baseline justify-between gap-2">
                   <h3 class="font-semibold">Order {order.orderNumber}</h3>
                   <span class="text-sm text-muted-foreground">

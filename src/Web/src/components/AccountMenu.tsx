@@ -1,6 +1,8 @@
 import { UserRoundIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { buttonVariants } from '@/components/ui/button';
+import { useVisitorJson } from '@/lib/use-visitor-json';
+import { cn } from '@/lib/utils';
 
 interface Me {
   name: string;
@@ -13,22 +15,10 @@ interface Me {
  */
 export default function AccountMenu({ active }: { active: boolean }) {
   // undefined while loading, null when signed out (or when the session could not be read).
-  const [me, setMe] = useState<Me | null>();
+  const me = useVisitorJson<Me>('/api/me');
   const [returnTo, setReturnTo] = useState('/');
 
-  useEffect(() => {
-    const load = () =>
-      fetch('/api/me')
-        .then((r) => (r.ok ? (r.json() as Promise<Me | null>) : null))
-        .catch(() => null)
-        .then(setMe);
-    // Back/forward navigation restores the page as it was; the visitor may have signed in or out since.
-    const onPageShow = (e: PageTransitionEvent) => e.persisted && load();
-    setReturnTo(location.pathname + location.search);
-    load();
-    window.addEventListener('pageshow', onPageShow);
-    return () => window.removeEventListener('pageshow', onPageShow);
-  }, []);
+  useEffect(() => setReturnTo(location.pathname + location.search), []);
 
   if (me === undefined) return <span className="size-9" aria-hidden="true" />;
   if (!me) {
@@ -44,7 +34,7 @@ export default function AccountMenu({ active }: { active: boolean }) {
       href="/account"
       title={me.email ?? me.name}
       aria-current={active ? 'page' : undefined}
-      className={buttonVariants({ variant: active ? 'secondary' : 'ghost', size: 'icon' })}
+      className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), active && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground')}
     >
       <UserRoundIcon aria-hidden="true" />
       <span className="sr-only">Account ({me.name})</span>

@@ -18,7 +18,7 @@ db() {
 aspire_cas=(/usr/lib/ssl/aspire/certs/*.pem)
 if [[ -f ${aspire_cas[0]} ]]; then
   for pem in "${aspire_cas[@]}"; do cp "$pem" "/usr/local/share/ca-certificates/aspire-$(basename "$pem" .pem).crt"; done
-  update-ca-certificates >/dev/null 2>&1
+  update-ca-certificates >/dev/null
 fi
 
 for _ in $(seq 1 60); do db 2>/dev/null && break; sleep 2; done

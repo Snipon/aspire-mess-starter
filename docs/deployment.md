@@ -41,7 +41,7 @@ and wires the same configuration keys the AppHost injects locally.
 | Aspire dashboard (`dotNetComponents/aspire-dashboard`) | `observability.tf` | Built-in Container Apps component (azapi). Contributor role for `aspire_dashboard_user_object_ids`. |
 | Container App `seq` + Premium Files share | `seq.tf` | Log search. **Internal** ingress only (the apps ingest there), 1 replica, data on a Premium Azure Files share. |
 | Container App `seq-proxy` | `seq.tf` | oauth2-proxy in front of the Seq UI: external ingress, Entra ID sign-in with app role `admin`. |
-| Entra ID app registrations `<name>-cms`, `<name>-seq`; optional `<name>-web`, `<name>-shop-api` in an External ID tenant | `identity.tf` | Staff and customer sign-in, see [Sign-in](#sign-in-entra-id-and-external-id). Client secrets go to Key Vault. |
+| Entra ID app registrations `<name>-cms`, `<name>-seq`, `<name>-web`; optional `<name>-web`, `<name>-shop-api` in an External ID tenant | `identity.tf` | Staff and customer sign-in, see [Sign-in](#sign-in-entra-id-and-external-id). Client secrets go to Key Vault. |
 | Application Insights, availability tests, action group, metric alerts | `observability.tf` | Synthetic tests of web `/`, api `/health`, cms `/health`; alerts on availability, Container Apps and SQL metrics. |
 
 App URLs are `https://<app>.<environment default domain>` (internal apps:
@@ -74,9 +74,11 @@ The keys are the same ones the AppHost sets locally; only the values differ.
 | cms | `BackOfficeOidc__Authority` / `ClientId` / `ClientSecret` | `https://login.microsoftonline.com/<tenant>/v2.0` / app `<name>-cms` / Key Vault `cms-oidc-secret` |
 | cms | `BackOfficeOidc__EmailVerifiedClaim` / `DenyLocalLogin` | `xms_edov` (Entra optional claim; locally the default `email_verified`) / `var.cms_deny_local_login` |
 | api | `CustomerAuth__Authority` / `Audience` / `SubjectClaim` | customer issuer / client id of `<name>-shop-api` / `oid` (Entra's `sub` differs per app). Only with `customer_tenant_id` |
-| web | `OIDC_AUTHORITY` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | customer issuer / client id of `<name>-web` / Key Vault `web-oidc-secret`. Only with `customer_tenant_id` |
-| web | `OIDC_SCOPE` / `SESSION_SECRET` / `SITE_URL` | `openid profile email offline_access api://<shop-api id>/access` / Key Vault `web-session-secret` / web public URL |
-| seq-proxy | oauth2-proxy flags (`args`) + `OAUTH2_PROXY_CLIENT_SECRET` / `OAUTH2_PROXY_COOKIE_SECRET` | as the AppHost's `seq-proxy`, but with OIDC discovery against Entra ID / Key Vault `seq-oidc-secret` / `seq-proxy-cookie-secret` |
+| web | `OIDC_AUTHORITY` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` / `OIDC_SCOPE` | customer issuer / client id of `<name>-web` in the External ID tenant / Key Vault `web-oidc-secret` / `openid profile email offline_access api://<shop-api id>/access`. Only with `customer_tenant_id` |
+| web | `SESSION_SECRET` / `SITE_URL` | Key Vault `web-session-secret` / web public URL |
+| web | `STAFF_OIDC_AUTHORITY` / `STAFF_OIDC_CLIENT_ID` / `STAFF_OIDC_CLIENT_SECRET` | `https://login.microsoftonline.com/<tenant>/v2.0` / staff app `<name>-web` / Key Vault `web-staff-oidc-secret` |
+| web | `CMS_BACKOFFICE_URL` / `LOGS_URL` | `<cms url>/umbraco` / `seq_url` (staff bar shortcuts; no `COMMERCE_ADMIN_URL` or `IDP_ADMIN_URL` in Azure) |
+| seq-proxy | oauth2-proxy flags (`args`) + `OAUTH2_PROXY_CLIENT_SECRET` / `OAUTH2_PROXY_COOKIE_SECRET` | as the AppHost's `seq-proxy`, with the differences listed in `seq.tf` / Key Vault `seq-oidc-secret` / `seq-proxy-cookie-secret` |
 | web | `API_URL` | api public URL |
 | web | `HOST` / `PORT` | `0.0.0.0` / `8080` |
 | all .NET | `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_HTTP_PORTS`, `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | `Production`, `8080`, `true` (TLS is terminated at the ingress) |
@@ -210,14 +212,16 @@ Locally, Keycloak stands in for both identity providers (`infra/keycloak`); `ide
 the production app registrations with the same contract, so the apps differ only in configuration.
 
 **Staff (Entra ID, the tenant Terraform runs in).** One app registration per client: `<name>-cms`
-(redirect `<cms url>/umbraco-signin-oidc`) and `<name>-seq` (redirect `<seq url>/oauth2/callback`).
-Both define the app roles `admin` and `editor`, which arrive in the tokens' `roles` claim like the
+(redirect `<cms url>/umbraco-signin-oidc`), `<name>-seq` (redirect `<seq url>/oauth2/callback`)
+and `<name>-web` (the website's staff bar: redirect `<web url>/auth/staff/callback`, post-logout
+`<web url>/`). All define the app roles `admin` and `editor`, which arrive in the tokens' `roles` claim like the
 Keycloak realm roles, and the optional ID token claims `email` and `xms_edov`. Terraform grants
 admin consent for `openid profile email offline_access` and requires an app role assignment, so
 only assigned users can sign in.
 
 - Assign roles with `staff_admin_object_ids` / `staff_editor_object_ids` (users, or groups with
-  Entra ID P1), or later in *Enterprise applications > `<name>-cms` > Users and groups*. Put
+  Entra ID P1), or later in *Enterprise applications > `<name>-cms` > Users and groups*. Editors
+  are assigned to cms and web only, admins to every staff app. Put
   yourself in `staff_admin_object_ids` (`az ad signed-in-user show --query id -o tsv`). A service
   principal running Terraform in CI cannot sign in interactively, so it is not assigned.
 - **cms**: the backoffice login shows a *Single sign-on* button next to the local login (the
@@ -226,6 +230,9 @@ only assigned users can sign in.
   new user is created. Users need a `mail` attribute. Once an Entra admin can sign in, set
   `cms_deny_local_login = true` to send everyone to Entra ID.
 - **Seq**: see [Seq](#seq). Only `admin` gets in.
+- **web (staff bar)**: staff sign in at `<web url>/auth/staff/login`; editors get the content
+  shortcuts, admins also the logs and the system status. There is no shop admin shortcut until
+  Drupal Commerce is deployed; set `IDP_ADMIN_URL` (e.g. the Entra admin center) for a users link.
 - **Commerce (Drupal)** is not deployed to Azure yet, so it has no app registration. When it is,
   add a `commerce` entry to `local.staff_apps` (redirect `<commerce url>/openid-connect/sso`) and set
   `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER` (= `local.staff_authority`),
@@ -245,7 +252,7 @@ terraform apply -var customer_tenant_id=<external tenant id>
 Terraform creates `<name>-shop-api` (identifier URI `api://<client id>`, scope `access`, v2
 access tokens whose `aud` is its client id) and `<name>-web` (confidential client, redirect
 `<web url>/auth/callback`, post-logout `<web url>/`, consent granted for the sign-in scopes and
-the API scope), and wires the web (`OIDC_*`, `SESSION_SECRET`, `SITE_URL`) and the api
+the API scope), and wires the web (`OIDC_*`) and the api
 (`CustomerAuth__*`). Two portal steps remain: create a *sign-up and sign-in* user flow (email with
 password) and add the `<name>-web` application to it. The issuer defaults to
 `https://<tenant id>.ciamlogin.com/<tenant id>/v2.0`; it must equal the `issuer` in
@@ -287,9 +294,10 @@ always resolve the latest version.
 | `media-storage-connection-string` | cms | storage account primary key |
 | `seq-admin-password` | seq (first start only) | `random_password.seq_admin` |
 | `seq-ingestion-api-key` | cms, api (`Aspire:Seq:ApiKey`); registered in Seq once | `random_password.seq_ingestion_api_key` |
-| `cms-oidc-secret`, `seq-oidc-secret` | cms (`BackOfficeOidc:ClientSecret`), seq-proxy | `azuread_application_password.staff["cms"]`, `["seq"]` (2-year client secrets) |
+| `cms-oidc-secret`, `seq-oidc-secret`, `web-staff-oidc-secret` | cms (`BackOfficeOidc:ClientSecret`), seq-proxy, web (`STAFF_OIDC_CLIENT_SECRET`) | `azuread_application_password.staff["cms"]`, `["seq"]`, `["web"]` (2-year client secrets) |
 | `seq-proxy-cookie-secret` | seq-proxy (cookie encryption) | `random_password.seq_proxy_cookie` |
-| `web-oidc-secret`, `web-session-secret` | web (only with `customer_tenant_id`) | `azuread_application_password.web[0]`, `random_password.web_session[0]` |
+| `web-session-secret` | web (`SESSION_SECRET`: staff and customer session cookies) | `random_password.web_session` |
+| `web-oidc-secret` | web (only with `customer_tenant_id`) | `azuread_application_password.web[0]` |
 
 **Rotate a generated secret** by replacing its generator; derived secrets follow automatically:
 
@@ -335,7 +343,7 @@ Notes per secret:
   [Seq bootstrap](#seq)) and remove the old key there, then restart cms, api and web. With
   `RequireApiKeyForWritingEvents` on, logs are rejected until the new key is registered.
 - **seq-admin-password** only matters for a fresh (empty) Seq data share.
-- **cms-oidc-secret**, **seq-oidc-secret**, **web-oidc-secret**: Entra client secrets expire after
+- **cms-oidc-secret**, **seq-oidc-secret**, **web-staff-oidc-secret**, **web-oidc-secret**: Entra client secrets expire after
   two years. Replace the `azuread_application_password` and restart the app (cms, seq-proxy, web).
   Sessions survive; only sign-ins between the apply and the restart fail.
 - **seq-proxy-cookie-secret**, **web-session-secret**: restart the app; everyone signs in again.
@@ -415,9 +423,10 @@ for Meilisearch) would avoid the overlap problem but loses all logs on every res
 **Access.** Seq's own ingress is internal. People use `seq-proxy` (`seq_url`, oauth2-proxy with
 the Entra ID app `<name>-seq`): only users with the app role `admin` get through, the session is
 refreshed every 5 minutes (a removed role locks the user out) and lasts 8 hours. Seq's own login
-stays on behind it (the free plan has one user, `admin`). The proxy passes Seq's HTTP API (`/api/`)
-through without the Entra sign-in, because seqcli and `alerts.sh` cannot sign in interactively; it is
-still protected by Seq itself (API key or Seq login), as it was before the proxy. Signing out of the
+stays on behind it (the free plan has one user, `admin`). Seq's HTTP API (`/api/`, which includes
+the Seq login) is behind the Entra sign-in too, so the internet cannot reach the password login.
+Tools that cannot sign in interactively (seqcli, `alerts.sh`) run inside the environment against
+Seq itself (`seq_internal_url`, or `http://localhost` in the Seq container). Signing out of the
 proxy (`/oauth2/sign_out`) does not end the Entra session.
 
 **Ingestion.** The apps send to Seq's internal URL `https://seq.internal.<default domain>`, which
@@ -431,28 +440,43 @@ without a key, so logging works from the first start.
 ```sh
 SEQ_URL=$(terraform output -raw seq_url)
 KV=$(terraform output -raw key_vault_name)
-seqcli() { podman run --rm -i docker.io/datalust/seqcli:2025.2 "$@"; }   # or docker
+RG=$(terraform output -raw resource_group_name)
 
 # 1. Open $SEQ_URL, sign in with Entra ID (app role admin), then log in to Seq as "admin" with the
 #    first-run password, which Seq makes you change:
 az keyvault secret show --vault-name "$KV" -n seq-admin-password --query value -o tsv
 
+# 2. and 3. run in the Seq container, which has bash, curl and seqcli and reaches Seq on
+#    http://localhost (its API is not reachable from outside the environment). Have these ready:
+az keyvault secret show --vault-name "$KV" -n seq-ingestion-api-key --query value -o tsv
+terraform output -raw seq_retention
+base64 -w0 ../seq/alerts.sh; echo      # the script, to paste into the container
+az containerapp exec -g "$RG" -n seq --command bash
+```
+
+In the container shell:
+
+```sh
 # 2. API keys can only be created by a logged-in user (an API key cannot create keys):
 read -rs SEQ_ADMIN_PASSWORD   # the new admin password
-INGEST_KEY=$(az keyvault secret show --vault-name "$KV" -n seq-ingestion-api-key --query value -o tsv)
-echo "$SEQ_ADMIN_PASSWORD" | seqcli apikey create -s "$SEQ_URL" -t apps --token "$INGEST_KEY" \
+read -rs INGEST_KEY           # the seq-ingestion-api-key secret
+echo "$SEQ_ADMIN_PASSWORD" | seqcli apikey create -s http://localhost -t apps --token "$INGEST_KEY" \
   --connect-username admin --connect-password-stdin
-SEQ_API_KEY=$(echo "$SEQ_ADMIN_PASSWORD" | seqcli apikey create -s "$SEQ_URL" -t automation \
+SEQ_API_KEY=$(echo "$SEQ_ADMIN_PASSWORD" | seqcli apikey create -s http://localhost -t automation \
   --permissions Read,Write,Project,Organization,System --connect-username admin --connect-password-stdin)
-# Keep $SEQ_API_KEY somewhere safe (e.g. as a secret in your pipeline); it is the alerts.sh credential.
+echo "$SEQ_API_KEY"   # keep it somewhere safe (e.g. a pipeline secret); it is the alerts.sh credential
 
-# 3. Signals, alerts, notifications, retention, ingestion lock-down:
-SEQ_URL="$SEQ_URL" SEQ_API_KEY="$SEQ_API_KEY" SEQ_RETENTION="$(terraform output -raw seq_retention)" \
+# 3. Signals, alerts, notifications, retention, ingestion lock-down. jq is installed for this session
+#    only (the container is replaced on the next revision or restart):
+apt-get update -qq && apt-get install -y -qq jq >/dev/null
+read -r ALERTS_SH && echo "$ALERTS_SH" | base64 -d > /tmp/alerts.sh   # paste the base64 from above
+read -rs SMTP_PASSWORD
+SEQ_URL=http://localhost SEQ_API_KEY="$SEQ_API_KEY" SEQ_RETENTION=<seq_retention output> \
 SEQ_REQUIRE_INGEST_API_KEY=true \
 ALERT_EMAILS="ops@example.com" SMTP_HOST=smtp.example.com SMTP_PORT=587 \
-SMTP_USERNAME=... SMTP_PASSWORD=... SMTP_FROM=seq@example.com \
+SMTP_USERNAME=... SMTP_PASSWORD="$SMTP_PASSWORD" SMTP_FROM=seq@example.com \
 ALERT_WEBHOOK_URL="https://..." \
-../seq/alerts.sh
+bash /tmp/alerts.sh
 ```
 
 ### Alerts
@@ -475,8 +499,8 @@ Application Insights (workspace-based, on the existing Log Analytics workspace) 
 the availability tests. The apps do not send telemetry to it.
 
 **Seq** (`infra/seq/alerts.sh`) covers what only the logs know. The script is idempotent:
-signals, app instances and alerts are matched by title and updated in place. It runs seqcli in a
-container (podman or docker) and uses curl + jq for alerts, because seqcli has no alert command.
+signals, app instances and alerts are matched by title and updated in place. It uses an installed
+seqcli (as in the Seq container) or runs it in a container (podman or docker), and curl + jq for alerts, because seqcli has no alert command.
 Notifications use the Seq apps `Seq.App.Mail.Smtp` (any SMTP server, e.g. Azure Communication
 Services, Microsoft 365, SendGrid; `SMTP_SECURITY` defaults to `RequireTls`) and
 `Seq.App.HttpRequest`, which posts `{"text": "<alert message>"}` to `ALERT_WEBHOOK_URL`. A Slack

@@ -18,40 +18,28 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Parameters. Missing secrets are generated on first run and persisted to the AppHost user secrets (UserSecretsId
 // above, so the store does not depend on the checkout path); scripts/init-secrets.sh creates them up front, and
 // `aspire secret set Parameters:<name> <value>` overrides one.
+IResourceBuilder<ParameterResource> GeneratedSecret(string name, int minLength = 32) =>
+    builder.AddParameter(name, new GenerateParameterDefault { MinLength = minLength, Special = false }, secret: true,
+        persist: true);
+
 var adminEmail = builder.AddParameter("umbraco-admin-email", "admin@example.com", publishValueAsDefault: true);
-var adminPassword = builder.AddParameter("umbraco-admin-password",
-    new GenerateParameterDefault { MinLength = 16, Special = false }, secret: true, persist: true);
-var deliveryApiKey = builder.AddParameter("delivery-api-key",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var adminPassword = GeneratedSecret("umbraco-admin-password", 16);
+var deliveryApiKey = GeneratedSecret("delivery-api-key");
 var hmacSecret = builder.AddParameter("hmac-secret", new Base64SecretDefault(64), secret: true, persist: true);
-var webhookSecret = builder.AddParameter("webhook-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var reindexSecret = builder.AddParameter("reindex-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var cachePurgeSecret = builder.AddParameter("cache-purge-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var commerceAdminPassword = builder.AddParameter("commerce-admin-password",
-    new GenerateParameterDefault { MinLength = 16, Special = false }, secret: true, persist: true);
-var commerceApiKey = builder.AddParameter("commerce-api-key",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var commerceHashSalt = builder.AddParameter("commerce-hash-salt",
-    new GenerateParameterDefault { MinLength = 64, Special = false }, secret: true, persist: true);
-var idpAdminPassword = builder.AddParameter("idp-admin-password",
-    new GenerateParameterDefault { MinLength = 16, Special = false }, secret: true, persist: true);
-var cmsOidcSecret = builder.AddParameter("cms-oidc-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var commerceOidcSecret = builder.AddParameter("commerce-oidc-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var seqOidcSecret = builder.AddParameter("seq-oidc-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var webOidcSecret = builder.AddParameter("web-oidc-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var webStaffOidcSecret = builder.AddParameter("web-staff-oidc-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var seqProxyCookieSecret = builder.AddParameter("seq-proxy-cookie-secret", // oauth2-proxy: 16, 24 or 32 bytes
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
-var webSessionSecret = builder.AddParameter("web-session-secret",
-    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var webhookSecret = GeneratedSecret("webhook-secret");
+var reindexSecret = GeneratedSecret("reindex-secret");
+var cachePurgeSecret = GeneratedSecret("cache-purge-secret");
+var commerceAdminPassword = GeneratedSecret("commerce-admin-password", 16);
+var commerceApiKey = GeneratedSecret("commerce-api-key");
+var commerceHashSalt = GeneratedSecret("commerce-hash-salt", 64);
+var idpAdminPassword = GeneratedSecret("idp-admin-password", 16);
+var cmsOidcSecret = GeneratedSecret("cms-oidc-secret");
+var commerceOidcSecret = GeneratedSecret("commerce-oidc-secret");
+var seqOidcSecret = GeneratedSecret("seq-oidc-secret");
+var webOidcSecret = GeneratedSecret("web-oidc-secret");
+var webStaffOidcSecret = GeneratedSecret("web-staff-oidc-secret");
+var seqProxyCookieSecret = GeneratedSecret("seq-proxy-cookie-secret"); // oauth2-proxy: 16, 24 or 32 bytes
+var webSessionSecret = GeneratedSecret("web-session-secret");
 
 // Infrastructure containers (persistent so data and startup time survive AppHost restarts).
 var sql = builder.AddSqlServer("sql")
@@ -88,6 +76,8 @@ foreach (var check in seq.Resource.Annotations.OfType<HealthCheckAnnotation>().T
 // console: https://localhost:8080 (user admin, password keycloak-password).
 const string KeycloakUrl = "https://localhost:8080"; // the integration serves HTTPS (dev certificate) on 8080
 const string KeycloakInternalUrl = "https://keycloak.dev.internal:8443"; // container-to-container, trusted dev certificate
+const string StaffIssuer = KeycloakUrl + "/realms/staff";
+const string ShopIssuer = KeycloakUrl + "/realms/shop";
 const string StaffOidcPath = "/realms/staff/protocol/openid-connect";
 var keycloak = builder.AddKeycloak("keycloak", port: 8080)
     .WithLifetime(ContainerLifetime.Persistent)
@@ -108,13 +98,13 @@ var keycloak = builder.AddKeycloak("keycloak", port: 8080)
 // at https://localhost:8080 while the container redeems and refreshes tokens, fetches keys and logs out over the
 // container network (keycloak.dev.internal, trusted through Aspire's SSL_CERT_DIR), so discovery is skipped and the
 // endpoints are explicit. Host port fixed: the IdP redirect URI (infra/keycloak) names it.
-builder.AddContainer("seq-proxy", "quay.io/oauth2-proxy/oauth2-proxy", "v7.15.5")
+var seqProxy = builder.AddContainer("seq-proxy", "quay.io/oauth2-proxy/oauth2-proxy", "v7.15.5")
     .WithArgs(
         "--http-address=0.0.0.0:4180",
         $"--upstream=http://{seq.Resource.Name}:80", // Seq's UI port by container network alias (unpublished)
         "--provider=oidc",
         "--client-id=seq",
-        $"--oidc-issuer-url={KeycloakUrl}/realms/staff",
+        $"--oidc-issuer-url={StaffIssuer}",
         "--skip-oidc-discovery",
         $"--login-url={KeycloakUrl}{StaffOidcPath}/auth",
         $"--redeem-url={KeycloakInternalUrl}{StaffOidcPath}/token",
@@ -164,7 +154,7 @@ var cms = builder.AddProject<Projects.Cms>("cms")
     .WithEnvironment("DemoContent__Enabled", "true") // demo articles, blog posts and images; remove for a real project
     // Backoffice sign-in through the staff realm (button next to the local login). No WaitFor(keycloak): only sign-in
     // needs it, and the OIDC handler fetches discovery lazily.
-    .WithEnvironment("BackOfficeOidc__Authority", $"{KeycloakUrl}/realms/staff")
+    .WithEnvironment("BackOfficeOidc__Authority", StaffIssuer)
     .WithEnvironment("BackOfficeOidc__ClientId", "cms")
     .WithEnvironment("BackOfficeOidc__ClientSecret", cmsOidcSecret)
     .WithExternalHttpEndpoints();
@@ -183,7 +173,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithEnvironment("Umbraco__HmacSecretKey", hmacSecret)
     .WithEnvironment("Webhooks__Secret", webhookSecret)
     .WithEnvironment("Search__ReindexSecret", reindexSecret)
-    .WithEnvironment("CustomerAuth__Authority", $"{KeycloakUrl}/realms/shop") // customer access tokens from the web
+    .WithEnvironment("CustomerAuth__Authority", ShopIssuer) // customer access tokens from the web
     .WithEnvironment("CustomerAuth__Audience", "shop-api")
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
@@ -203,7 +193,7 @@ var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
     .WithEnvironment("DEMO_CONTENT", "true") // 2000 demo products; remove for a real project
     .WithEnvironment("OIDC_CLIENT_ID", "commerce")
     .WithEnvironment("OIDC_CLIENT_SECRET", commerceOidcSecret)
-    .WithEnvironment("OIDC_ISSUER", $"{KeycloakUrl}/realms/staff") // the ID token's iss, checked on sign-in
+    .WithEnvironment("OIDC_ISSUER", StaffIssuer) // the ID token's iss, checked on sign-in
     .WithEnvironment("OIDC_AUTHORIZATION_ENDPOINT", $"{KeycloakUrl}{StaffOidcPath}/auth")
     .WithEnvironment("OIDC_TOKEN_ENDPOINT", $"{KeycloakInternalUrl}{StaffOidcPath}/token")
     .WithEnvironment("OIDC_END_SESSION_ENDPOINT", $"{KeycloakUrl}{StaffOidcPath}/logout")
@@ -230,16 +220,16 @@ var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithHttpEndpoint(env: "PORT")
     .WithExternalHttpEndpoints()
     .WithEnvironment("API_URL", api.GetEndpoint("http"))
-    .WithEnvironment("OIDC_AUTHORITY", $"{KeycloakUrl}/realms/shop")
+    .WithEnvironment("OIDC_AUTHORITY", ShopIssuer)
     .WithEnvironment("OIDC_CLIENT_ID", "web")
     .WithEnvironment("OIDC_CLIENT_SECRET", webOidcSecret)
     .WithEnvironment("SESSION_SECRET", webSessionSecret)
-    .WithEnvironment("STAFF_OIDC_AUTHORITY", $"{KeycloakUrl}/realms/staff")
+    .WithEnvironment("STAFF_OIDC_AUTHORITY", StaffIssuer)
     .WithEnvironment("STAFF_OIDC_CLIENT_ID", "web-staff")
     .WithEnvironment("STAFF_OIDC_CLIENT_SECRET", webStaffOidcSecret)
     .WithEnvironment("CMS_BACKOFFICE_URL", ReferenceExpression.Create($"{cms.GetEndpoint("https")}/umbraco"))
     .WithEnvironment("COMMERCE_ADMIN_URL", commerce.GetEndpoint("http"))
-    .WithEnvironment("LOGS_URL", "http://localhost:5341") // seq-proxy (staff sign-in in front of Seq)
+    .WithEnvironment("LOGS_URL", seqProxy.GetEndpoint("http"))
     .WithEnvironment("IDP_ADMIN_URL", $"{KeycloakUrl}/admin/staff/console/")
     .WithEnvironment("ASTRO_TELEMETRY_DISABLED", "1") // Astro CLI usage pings would otherwise show up as fetch spans
     .WithReference(seq)

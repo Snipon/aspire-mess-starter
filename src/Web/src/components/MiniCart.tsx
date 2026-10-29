@@ -1,9 +1,9 @@
 import { ShoppingCartIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import ResponsiveImage from '@/components/ResponsiveImage';
 import { buttonVariants } from '@/components/ui/button';
 import type { Cart } from '@/lib/api/client';
 import { formatMoney } from '@/lib/format';
+import { useVisitorJson } from '@/lib/use-visitor-json';
 import { cn } from '@/lib/utils';
 
 const MAX_ITEMS = 4;
@@ -14,20 +14,7 @@ const MAX_ITEMS = 4;
  */
 export default function MiniCart({ active }: { active: boolean }) {
   // undefined while loading, null for no cart (or when the cart could not be loaded).
-  const [cart, setCart] = useState<Cart | null>();
-
-  useEffect(() => {
-    const load = () =>
-      fetch('/api/cart')
-        .then((r) => (r.ok ? (r.json() as Promise<Cart | null>) : null))
-        .catch(() => null)
-        .then(setCart);
-    // Back/forward navigation restores the page as it was; the cart may have changed since.
-    const onPageShow = (e: PageTransitionEvent) => e.persisted && load();
-    load();
-    window.addEventListener('pageshow', onPageShow);
-    return () => window.removeEventListener('pageshow', onPageShow);
-  }, []);
+  const cart = useVisitorJson<Cart>('/api/cart');
 
   const count = cart?.itemCount ?? 0;
 
@@ -81,7 +68,7 @@ export default function MiniCart({ active }: { active: boolean }) {
                   <span className="font-wide text-base font-extrabold tabular-nums">{formatMoney(cart.subtotal)}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <a href="/cart" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                  <a href="/cart" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
                     View cart
                   </a>
                   <a href="/checkout" className={buttonVariants({ size: 'sm' })}>

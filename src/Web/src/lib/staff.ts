@@ -1,7 +1,8 @@
 import type { AstroCookies } from 'astro';
-import { cookieOptions, OidcClient, textClaim } from './oidc';
+import { OidcClient, textClaim } from './oidc';
 import { seal, unseal } from './sealed-cookie';
-import type { StaffRole } from './staff-shortcuts';
+import { cookieOptions } from './site';
+import { STAFF_ROLES, type StaffRole } from './staff-shortcuts';
 
 /**
  * Staff sign-in on the website (STAFF_OIDC_AUTHORITY, _CLIENT_ID, _CLIENT_SECRET; the staff realm locally, Entra ID in
@@ -12,9 +13,6 @@ import type { StaffRole } from './staff-shortcuts';
 const staff = new OidcClient('STAFF_OIDC', '/auth/staff/callback');
 const SESSION_COOKIE = 'staff_session';
 const SESSION_MAX_AGE = 60 * 60 * 8;
-
-/** App roles (the "roles" claim) that the shortcuts know; other values are ignored. */
-const ROLES: readonly StaffRole[] = ['admin', 'editor'];
 
 export interface StaffSession {
   sub: string;
@@ -33,8 +31,8 @@ export const beginStaffSignIn = (cookies: AstroCookies, url: URL, returnTo: stri
 export async function completeStaffSignIn(cookies: AstroCookies, url: URL): Promise<string> {
   const { claims, returnTo } = await staff.completeSignIn(cookies, url);
   const claimed = Array.isArray(claims.roles) ? claims.roles : [];
-  const roles = ROLES.filter((role) => claimed.includes(role));
-  if (roles.length === 0) throw new Error(`Staff sign-in refused for ${claims.sub}: no admin or editor role`);
+  const roles = STAFF_ROLES.filter((role) => claimed.includes(role));
+  if (roles.length === 0) throw new Error(`Staff sign-in refused for ${claims.sub}: no ${STAFF_ROLES.join(' or ')} role`);
   const session: StaffSession = { sub: claims.sub, name: textClaim(claims.name) ?? textClaim(claims.email) ?? 'Staff', roles };
   cookies.set(SESSION_COOKIE, seal(SESSION_COOKIE, session), cookieOptions(url, '/', SESSION_MAX_AGE));
   return returnTo;

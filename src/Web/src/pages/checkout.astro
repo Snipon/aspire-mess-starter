@@ -6,7 +6,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { api, type OrderReceipt } from '../lib/api/client';
-import { accessToken, getSession } from '../lib/auth';
+import { accessToken, endSession, getSession } from '../lib/auth';
 import { cartHeaders, clearCart, loadCart } from '../lib/cart';
 import { formatMoney } from '../lib/format';
 
@@ -22,9 +22,9 @@ const values: Record<string, string> = {
   ...(session?.givenName && { given: session.givenName }),
   ...(session?.familyName && { family: session.familyName }),
 };
-const signInAgain = () => Astro.redirect('/auth/login?returnTo=/checkout', 303);
 let fieldErrors: Record<string, string> = {};
 let paymentError: string | undefined;
+let signInRejected = false;
 let receipt: OrderReceipt | undefined;
 
 if (Astro.request.method === 'POST' && loaded) {
@@ -37,7 +37,7 @@ if (Astro.request.method === 'POST' && loaded) {
   const [expMonth, expYear] = String(form.get('expiry') ?? '').split('/').map((part) => Number.parseInt(part.trim(), 10));
   // An expired sign-in must not turn the order into a guest order: sign in again (the cart stays), then pay.
   const token = session ? await accessToken(Astro.cookies, Astro.url) : undefined;
-  if (session && !token) return signInAgain();
+  if (session && !token) return Astro.redirect('/auth/login?returnTo=/checkout', 303);
   const { data, error, response } = await api().POST('/api/carts/{cartId}/checkout', {
     params: cartHeaders(loaded.ref),
     headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -70,7 +70,10 @@ if (Astro.request.method === 'POST' && loaded) {
   } else if (response.status === 402) {
     paymentError = problem?.detail ?? 'The card was declined.';
   } else if (response.status === 401) {
-    return signInAgain();
+    // The API does not accept the token (e.g. it lacks the customer claim). Signing in again by redirect would loop
+    // through single sign-on, so end the session and say so, as /account does.
+    endSession(Astro.cookies);
+    signInRejected = true;
   } else if (response.status === 409 || response.status === 404) {
     return Astro.redirect(`/cart?error=${encodeURIComponent(problem?.code ?? 'cart_not_found')}`, 303);
   } else {
@@ -112,7 +115,12 @@ const expiryError = fieldErrors.expiry;
     ) : (
       cart && (
         <>
-          <h1 class="font-wide border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl">Checkout</h1>
+          <h1 class="font-wide page-title">Checkout</h1>
+          {signInRejected && (
+            <Alert variant="destructive" className="mt-6">
+              <AlertDescription>Your sign-in could not be verified. Sign in again or check out as a guest.</AlertDescription>
+            </Alert>
+          )}
           {paymentError && (
             <Alert variant="destructive" className="mt-6">
               <AlertDescription>{paymentError} Try another card.</AlertDescription>
@@ -189,7 +197,7 @@ const expiryError = fieldErrors.expiry;
                 </label>
               </fieldset>
 
-              <button type="submit" class={cn(buttonVariants({ size: 'lg' }), 'w-full bg-primary text-primary-foreground hover:bg-foreground hover:text-background sm:w-auto sm:justify-self-start')}>
+              <button type="submit" class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'w-full sm:w-auto sm:justify-self-start')}>
                 Pay {formatMoney(cart.total)}
               </button>
             </form>

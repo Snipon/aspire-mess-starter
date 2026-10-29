@@ -104,7 +104,7 @@ public sealed record OrderReceipt(
     Money Total);
 
 /// <summary>A placed order in the customer's order history.</summary>
-/// <param name="Status">The commerce backend's order state, e.g. <c>completed</c> or <c>canceled</c>.</param>
+/// <param name="Status"><c>processing</c>, <c>completed</c> or <c>canceled</c>.</param>
 public sealed record Order(
     string OrderNumber,
     DateTimeOffset PlacedAt,

@@ -53,6 +53,11 @@ output "seq_url" {
   value       = local.seq_url
 }
 
+output "seq_internal_url" {
+  description = "Seq's own URL (UI and API, no Entra sign-in), reachable only from inside the Container Apps environment: for seqcli and infra/seq/alerts.sh."
+  value       = local.seq_ingest_url
+}
+
 output "staff_app_client_ids" {
   description = "Client IDs of the staff app registrations in Entra ID (assign app roles admin/editor in Enterprise applications)."
   value       = { for k, app in azuread_application.staff : k => app.client_id }

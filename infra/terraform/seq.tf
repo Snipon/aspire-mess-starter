@@ -106,11 +106,13 @@ resource "azurerm_container_app" "seq" {
 
 # --- seq-proxy (staff sign-in in front of the Seq UI, external) -----------------------------------
 #
-# oauth2-proxy with generic OIDC against Entra ID (app registration "seq" in identity.tf), the same flags as the
-# AppHost's seq-proxy except that discovery works here (one host for browser and server). Only the "admin" value of
+# oauth2-proxy with generic OIDC against Entra ID (app registration "seq" in identity.tf). It mirrors the AppHost's
+# seq-proxy, except: discovery works here (one host for browser and server); no --backend-logout-url (Entra has no
+# back-channel GET logout, so sign-out keeps the Entra session); offline_access for --cookie-refresh;
+# --reverse-proxy/--pass-host-header=false for the Container Apps ingress; secure cookies. Only the "admin" value of
 # the "roles" claim gets in; the session is refreshed (roles re-checked) every 5 minutes and lasts 8 hours. Seq keeps
-# its own login behind it. Its HTTP API (/api/) skips the proxy and stays protected by Seq itself (API keys, Seq
-# login), so seqcli and infra/seq/alerts.sh keep working from outside the environment.
+# its own login behind it. Seq's HTTP API (/api/, also the Seq login) is behind the sign-in too; seqcli and
+# infra/seq/alerts.sh run inside the environment against seq_internal_url (docs/deployment.md).
 
 resource "azurerm_container_app" "seq_proxy" {
   name                         = "seq-proxy"
@@ -173,7 +175,6 @@ resource "azurerm_container_app" "seq_proxy" {
         "--cookie-expire=8h",
         "--cookie-refresh=5m",
         "--skip-auth-route=GET=^/health$",
-        "--skip-auth-route=^/api/", # Seq's API authenticates itself (API key or Seq login)
       ]
 
       env {

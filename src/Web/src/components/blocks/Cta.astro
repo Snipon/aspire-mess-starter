@@ -33,12 +33,12 @@ const primary = block.style === 'primary';
         )}
       >
         {block.link.title ?? 'Learn more'}
-        {block.link.target === '_blank' ? (
+        {block.link.target === '_blank' && (
           <>
             <span aria-hidden="true">↗</span>
             <span class="sr-only">(opens in a new tab)</span>
           </>
-        ) : null}
+        )}
       </a>
     )
   }

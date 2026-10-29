@@ -22,6 +22,16 @@
     font-stretch: 87.5%;
   }
 
+  /* Page heading over an ink rule. Pair with .font-wide (@apply takes utilities only, not these classes). */
+  .page-title {
+    @apply border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl;
+  }
+
+  /* Back link above a page heading. Pair with .font-narrow. */
+  .back-link {
+    @apply inline-flex min-h-10 items-center text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
+  }
+
   /* The machined top-right corner: the site's one signature shape. */
   .chamfer {
     clip-path: polygon(0 0, calc(100% - var(--cut, 1.25rem)) 0, 100% var(--cut, 1.25rem), 100% 100%, 0 100%);
@@ -68,10 +78,9 @@
     --tw-prose-th-borders: var(--ink);
     --tw-prose-td-borders: var(--border);
 
+    /* Wide like every h1-h3 (base layer). */
     :is(h1, h2, h3) {
       font-weight: 800;
-      font-stretch: 125%;
-      letter-spacing: -0.02em;
     }
     h4 {
       font-weight: 700;
