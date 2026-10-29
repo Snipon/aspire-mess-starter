@@ -153,6 +153,9 @@ jobs:
       - name: Astro check
         run: npm run check
 
+      - name: Unit tests
+        run: npm test
+
       # `npm run build` is `astro check && astro build`; check already ran above, so only build here.
       - name: Astro build
         run: npx astro build

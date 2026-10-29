@@ -12,23 +12,23 @@ interface Props {
 
 export default function ArticleCard({ article, headingLevel: Heading = 'h3' }: Props) {
   return (
-    <Card className="group relative w-full pt-0 transition hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+    <Card className="group relative w-full pt-0 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
       <div className="aspect-[16/10] overflow-hidden bg-muted">
         {article.image && (
           <ResponsiveImage
             image={{ ...article.image, alt: null }}
             sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03] motion-reduce:transition-none"
+            className="h-full w-full object-cover"
           />
         )}
       </div>
       <CardHeader>
-        <CardDescription>
+        <CardDescription className="font-narrow">
           <time dateTime={article.publishDate}>{formatDate(article.publishDate)}</time>
         </CardDescription>
-        <CardTitle className="text-lg font-semibold text-balance">
+        <CardTitle className="text-lg leading-snug font-bold text-balance">
           <Heading>
-            <a href={article.path} className="after:absolute after:inset-0 focus-visible:outline-none group-hover:text-primary">
+            <a href={article.path} className="decoration-primary decoration-2 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
               {article.title}
             </a>
           </Heading>
@@ -36,7 +36,7 @@ export default function ArticleCard({ article, headingLevel: Heading = 'h3' }: P
       </CardHeader>
       {article.summary && (
         <CardContent className="flex-1">
-          <p className="line-clamp-3 text-base text-muted-foreground">{article.summary}</p>
+          <p className="line-clamp-3 text-[0.95rem] leading-relaxed text-muted-foreground">{article.summary}</p>
         </CardContent>
       )}
       {'tags' in article && article.tags.length > 0 && (

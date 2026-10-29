@@ -1,0 +1,21 @@
+---
+import SignInFailed from '@/components/SignInFailed.astro';
+import { authEnabled, completeSignIn } from '../../lib/auth';
+import { log } from '../../lib/log';
+
+// The identity provider redirects here with the authorization code. Per visitor: never cached.
+Astro.response.headers.set('Cache-Control', 'no-store');
+if (!authEnabled()) return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+
+let returnTo: string | undefined;
+try {
+  returnTo = await completeSignIn(Astro.cookies, Astro.url);
+} catch (error) {
+  // Cancelled at the provider, an expired or replayed callback, or a token that failed validation.
+  log.warn('Sign-in failed', error);
+  Astro.response.status = 400;
+}
+if (returnTo) return Astro.redirect(returnTo, 303);
+---
+
+<SignInFailed retryHref="/auth/login" detail="It was cancelled or took too long. Your cart is still there." />

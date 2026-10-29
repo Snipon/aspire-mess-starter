@@ -1,0 +1,24 @@
+---
+import SignInFailed from '@/components/SignInFailed.astro';
+import { log } from '../../../lib/log';
+import { completeStaffSignIn, staffEnabled } from '../../../lib/staff';
+
+// The identity provider redirects here with the authorization code. Per visitor: never cached.
+Astro.response.headers.set('Cache-Control', 'no-store');
+if (!staffEnabled()) return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+
+let returnTo: string | undefined;
+try {
+  returnTo = await completeStaffSignIn(Astro.cookies, Astro.url);
+} catch (error) {
+  // Cancelled, expired or replayed, a token that failed validation, or an account without a staff role.
+  log.warn('Staff sign-in failed', error);
+  Astro.response.status = 400;
+}
+if (returnTo) return Astro.redirect(returnTo, 303);
+---
+
+<SignInFailed
+  retryHref="/auth/staff/login"
+  detail="It was cancelled, took too long, or your account has no editor or admin role."
+/>

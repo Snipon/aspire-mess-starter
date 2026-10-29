@@ -7,7 +7,7 @@
 # they go through Seq's HTTP API with curl + jq.
 #
 # Required:
-#   SEQ_URL                 e.g. http://localhost:5341 (local Aspire) or the seq_url Terraform output
+#   SEQ_URL                 the seq_url Terraform output, or locally a tunnel to Seq's API (README, Observability)
 #   SEQ_API_KEY             Seq API key with Read, Write, Project, Organization and System permissions
 #                           (any value for a local Seq without authentication)
 # Notifications (both optional; without either, alerts are only shown in the Seq UI):

@@ -140,15 +140,20 @@ aspire secret list                             # or: aspire secret get Parameter
 | `hmac-secret` | base64 of 64 random bytes |
 | `commerce-admin-password` | 32 random alphanumeric characters (Drupal user `admin`) |
 | `commerce-api-key`, `commerce-hash-salt` | 32 random alphanumeric characters (the API's key for Drupal; Drupal's hash salt) |
+| `seq-proxy-cookie-secret` | 32 random alphanumeric characters (oauth2-proxy's cookie key for the Seq login) |
+| `web-staff-oidc-secret` | 32 random alphanumeric characters (client secret of `web-staff`, the website's staff sign-in) |
+| `web-session-secret` | 32 random alphanumeric characters (encrypts the web's customer session cookie; rotating it signs every customer out) |
 | `sql-password`, `meilisearch-masterKey`, `commerce-postgres-password` | 32 random alphanumeric characters (Aspire's own parameters for `sql`, `meilisearch` and `commerce-postgres`) |
 
 The script is idempotent and never changes an existing value: the persistent containers depend on them. It uses
-`openssl rand`, `jq` and the Aspire CLI (`aspire secret`). Local Seq runs without authentication, so it has no password.
+`openssl rand`, `jq` and the Aspire CLI (`aspire secret`). Local Seq itself runs without authentication (its UI is
+reachable only through the staff login, see [Observability](#observability-local)), so it has no password.
 
 Rotating (`--rotate <name>`, then restart the AppHost):
 
 - `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`, `cache-purge-secret`: just restart; the cms reconciles the
   webhook's secret header on start and the api re-signs image URLs.
+- `seq-proxy-cookie-secret`: just restart; Seq users sign in again.
 - `umbraco-admin-email`/`-password`: only used by the unattended install, so change the user in the backoffice too.
 - `sql-password`, `meilisearch-masterKey`: fixed when the persistent container and its volume are first created.
   The script asks for confirmation and prints the `podman rm`/`podman volume rm` commands; running them deletes the
@@ -180,11 +185,11 @@ aspire start
 | What | URL |
 | --- | --- |
 | Aspire dashboard | `https://localhost:17039` (the login link with token is printed by `aspire run` / `aspire start`) |
-| Seq (log search) | `http://localhost:5341` (no login locally) |
+| Seq (log search) | `http://localhost:5341` (staff login, role `admin`); `http://localhost:5342` is log ingestion only |
 | Website | shown on the `web-cache` resource in the dashboard (random port; the reverse proxy cache, see below). The `web` resource's own URL bypasses the cache |
 | Umbraco backoffice | `https://localhost:44350/umbraco` (or `http://localhost:28048/umbraco`) |
-| Drupal admin | `<commerce url>/user/login` (the `commerce` resource in the dashboard), user `admin`, password = `Parameters:commerce-admin-password` |
-| Backoffice login | user `admin@example.com` (parameter `umbraco-admin-email`), password = `Parameters:umbraco-admin-password` from the user secrets |
+| Drupal admin | `http://localhost:8081/user/login`: "Log in with Staff sign-in" (Keycloak realm `staff`, user `admin`, password = `Parameters:idp-admin-password`). Break-glass: `drush uli` in the `commerce` container (user `admin`) |
+| Backoffice login | user `admin@example.com` (parameter `umbraco-admin-email`), password = `Parameters:umbraco-admin-password` from the user secrets; or "Single sign-on" with Keycloak user `admin`, password = `Parameters:idp-admin-password` (see [Backoffice sign-in](#backoffice-sign-in-oidc)) |
 | API reference (Scalar) | `http://localhost:5194/scalar` |
 | OpenAPI document | `http://localhost:5194/openapi/v1.json` |
 | Delivery API (needs `Api-Key` header) | `http://localhost:28048/umbraco/delivery/api/v2/content/item/articles` |
@@ -209,7 +214,8 @@ Scalar and the OpenAPI document are mapped in every environment on purpose for t
 | GET | `/api/carts/{cartId}` | `Cart`; 404 for unknown carts and wrong tokens alike |
 | POST | `/api/carts/{cartId}/items` | `{sku, quantity}`; 409 `out_of_stock` with `available` |
 | PATCH / DELETE | `/api/carts/{cartId}/items/{itemId}` | `{quantity}` (0 removes) / remove |
-| POST | `/api/carts/{cartId}/checkout` | `CheckoutRequest` → `OrderReceipt`; 400 field errors, 402 declined card, 409 empty cart / stock / already checked out |
+| POST | `/api/carts/{cartId}/checkout` | `CheckoutRequest` → `OrderReceipt`; 400 field errors, 402 declined card, 409 empty cart / stock / already checked out. With a customer's `Authorization: Bearer` token the order is theirs; 401 for an invalid or expired one |
+| GET | `/api/me/orders?page=1&pageSize=10` | `OrderPage` of the customer's placed orders, newest first; needs the customer's bearer token (401 without, and always when `CustomerAuth` is off) |
 | GET | `/api/status` | `StatusReport` (`status` + `components[]` of `{name, displayName, status, durationMs}`), always 200; see below |
 
 `/api/status` runs the health checks tagged `dependency`. Each adapter registers its own inside its `AddXxx` method
@@ -230,7 +236,8 @@ with Settings access can read it.
 
 Website routes: `/`, `/articles` and `/blog` (block pages), `/articles/<slug>` (article), `/blog/<slug>` (blog post,
 with a card linking its related article), `/shop` (products with facets and sorting), `/shop/<slug>` (product with
-stats and specs), `/cart` and `/checkout` (per visitor, `no-store`), `/tags/<tag>` (paged listing),
+stats and specs), `/cart` and `/checkout` (per visitor, `no-store`), `/account` (profile and orders of the signed-in
+customer, `no-store`), `/auth/login?returnTo=`, `/auth/callback` and `/auth/logout` (customer sign-in, `no-store`), `/tags/<tag>` (paged listing),
 `/search?q=&tag=`, `/status` (system status: Web, API round trip and each `/api/status` component; `no-store`, a
 Refresh link instead of auto-reload, and still renders with "API Down / Dependencies Unknown" when the API fails or
 takes longer than 3 s). `/status` is a web route, so a CMS page at that path is hidden behind it.
@@ -241,7 +248,7 @@ takes longer than 3 s). `/status` is a web route, so a CMS page at that path is 
 cached: `src/Web/src/middleware.ts` gives every 200 GET page that sets no `Cache-Control` of its own
 `public, max-age=0, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400`, so nginx serves a page for up to
 a minute, then refreshes it in the background, and keeps serving the last good copy for a day while the web app is
-down; browsers always revalidate. `/status` and `/api/cart` send `no-store` and `/api/suggest` `max-age=60`; error responses,
+down; browsers always revalidate. `/status`, `/api/cart`, `/api/me`, `/account` and `/auth/*` send `no-store` and `/api/suggest` `max-age=60`; error responses,
 responses with `Set-Cookie` and the Vite dev assets (`no-cache`) are never cached. Concurrent misses for one URL
 are collapsed into a single upstream request (`proxy_cache_lock`).
 
@@ -269,9 +276,13 @@ The Azure deployment (`infra/terraform`) has no cache in front of the web yet.
 ## Observability (local)
 
 - **Aspire dashboard** – traces, metrics, structured logs and console output of every resource.
-- **Seq** (`http://localhost:5341`) – searchable log and trace store that survives restarts (persistent container
-  + data volume). `WithReference(seq)` gives cms, api and web a `ConnectionStrings__seq`; `AddServiceDefaults()`
-  then ships OpenTelemetry logs and traces to Seq *in addition to* the dashboard (`AddSeqEndpoint`, Aspire.Seq).
+- **Seq** – searchable log and trace store that survives restarts (persistent container + data volume). The UI is
+  `http://localhost:5341`: `seq-proxy` (oauth2-proxy, generic OIDC) signs you in through the IdP's staff realm and
+  lets only the `admin` value of the `roles` claim through; it refreshes the session every 5 minutes (a removed role
+  or ended IdP session locks you out), sessions last 8 hours and signing out ends the IdP session too. Seq itself
+  runs without authentication, but its UI and API (container port 80) are not published to the host: only Seq's
+  ingestion-only port is (`http://localhost:5342`, no UI or API), which is where the apps ship their logs (ingestion
+  never goes through the login). `WithReference(seq)` gives cms, api and web a `ConnectionStrings__seq`; `AddServiceDefaults()` then ships OpenTelemetry logs and traces to Seq *in addition to* the dashboard (`AddSeqEndpoint`, Aspire.Seq).
   Seq's health check is disabled there so a stopped Seq never marks an app unhealthy. Umbraco logs through
   Serilog, which bypasses that pipeline, so `src/Cms/Program.cs` adds two Serilog OpenTelemetry sinks (dashboard
   and Seq). The Node web app preloads `src/Web/otel.mjs` (`node --import`, in
@@ -283,10 +294,16 @@ The Azure deployment (`infra/terraform`) has no cache in front of the web yet.
   shows the first-boot import and `@MessageTemplate like 'Reindex%'` the api's index sync.
 - `/health` (all checks, status text only) and `/alive` (liveness) are mapped in every environment.
 - Seq signals and alerts (error spike, webhook secret rejections, reindex/Meilisearch failures, Delivery API
-  failures) are created by `infra/seq/alerts.sh`; try them locally (authentication is off, so any key works):
+  failures) are created by `infra/seq/alerts.sh`. To try them locally, open a temporary tunnel to Seq's API on the
+  container network (authentication is off, so any key works):
 
   ```sh
-  SEQ_URL=http://localhost:5341 SEQ_API_KEY=local infra/seq/alerts.sh   # needs podman or docker, curl, jq
+  seq=$(podman ps -qf 'name=^seq-[0-9a-f]+$')
+  net=$(podman inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$seq")
+  podman run -d --rm --name seq-api-tunnel --network "$net" -p 127.0.0.1:5343:5343 \
+    docker.io/alpine/socat:1.8.0.3 tcp-listen:5343,fork,reuseaddr tcp:seq:80
+  SEQ_URL=http://localhost:5343 SEQ_API_KEY=local infra/seq/alerts.sh   # needs podman or docker, curl, jq
+  podman stop seq-api-tunnel
   ```
 
 Seq is free for a single user; see [docs/deployment.md](docs/deployment.md#seq) for licensing and the Azure setup.
@@ -369,6 +386,33 @@ How the API exposes it (`src/Api/Contracts`):
    database, import it in the backoffice: Settings > uSync > Import (or reset the local database, see
    [Start from a clean database](#start-from-a-clean-database)).
 
+### Backoffice sign-in (OIDC)
+
+`src/Cms/Security/BackOfficeOidc.cs` adds a sign-in button to the backoffice login for any OpenID Connect provider
+(Keycloak realm `staff` locally; Entra ID in Azure, wired in `infra/terraform/identity.tf` and `containerapps.tf`). It is
+off unless `BackOfficeOidc:Authority`, `:ClientId` and `:ClientSecret` are set; the AppHost sets them (client `cms`,
+secret parameter `cms-oidc-secret`). Code flow with PKCE, callback `/umbraco-signin-oidc`, scopes `openid profile email`.
+
+- **Linking**: by the `email` claim. An existing backoffice user with the same email is linked only when the
+  `BackOfficeOidc:EmailVerifiedClaim` claim (default `email_verified`) is `true` and the user is not disabled or
+  locked out (the unattended admin links to the realm's `admin` user). Otherwise a new user is created with the `name`
+  claim as its name. Manual linking is off.
+- **Groups**: on every sign-in the groups named in `BackOfficeOidc:RoleGroups` are set from the `roles` claim (default
+  `admin` → `admin,sensitiveData`, `editor` → `editor`; values are comma-separated aliases, unknown roles are ignored)
+  and the name is updated. Groups not named in the map stay as they are. Without a mapped role the sign-in is refused.
+- **Local login** stays available unless `BackOfficeOidc:DenyLocalLogin=true` (then the login page redirects straight
+  to the provider). Turn it on only once an admin can sign in through the provider.
+- **Entra ID**: Authority `https://login.microsoftonline.com/<tenant>/v2.0`, app roles `admin`/`editor` (they arrive as
+  `roles`), redirect URI `https://<cms host>/umbraco-signin-oidc`. Entra sends neither `email` nor `email_verified` by
+  default: add the optional ID token claims `email` and `xms_edov` and set `BackOfficeOidc:EmailVerifiedClaim=xms_edov`
+  (true only for a domain verified by the tenant); otherwise sign-ins can create users but never link to existing
+  ones. `preferred_username` is deliberately not used as a fallback: it is not a verified email.
+- **Realm changes**: Aspire copies `infra/keycloak` into the container when it is created, into
+  `/opt/keycloak/data/import` inside the persistent data volume, and Keycloak skips realms that already exist. A changed
+  realm file therefore reaches an existing install only by hand: apply the change in the admin console, or copy the
+  file in (`podman cp infra/keycloak/<realm>-realm.json <keycloak container>:/opt/keycloak/data/import/`), delete the
+  realm in the admin console and restart the container. Deleting a realm deletes its users (shop customers).
+
 ## Commerce (Drupal)
 
 `src/Commerce` builds a Drupal 11 + Commerce 3 image (`Dockerfile`, Composer lock in the repo, PHP bcmath for
@@ -391,6 +435,22 @@ Commerce). Nothing about it is configured by hand or exported as YAML:
   `COMMERCE_API_KEY`): `GET /headless/products?offset=&limit=`, `GET /headless/products/{sku}`, and carts as Commerce
   draft orders addressed by UUID plus a random token (stored hashed; wrong tokens look like unknown carts).
   Responses are `no-store` and bypass Drupal's page cache.
+- **Staff sign-in** (`drupal/openid_connect` 3.x, generic client `sso`; every 3.x release is still alpha). `Schema.php`
+  creates the client, the `administrator` role and the module settings; `settings.php` fills in the environment:
+  `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER`, `OIDC_AUTHORIZATION_ENDPOINT` and `OIDC_END_SESSION_ENDPOINT`
+  (browser-facing), `OIDC_TOKEN_ENDPOINT` (called from the container; locally `https://keycloak.dev.internal:8443`).
+  Endpoints are not discovered. Without `OIDC_CLIENT_ID` the client is off and the password form stays. With it, the
+  login form is only the IdP button, the password reset form and JSON login are closed, and accounts are created on
+  first sign-in (redirect URI `<commerce url>/openid-connect/sso`). Claims come from the ID token (no userinfo call);
+  the `roles` claim (Keycloak realm roles, Entra ID app roles) maps `admin` to `administrator` at each sign-in, other
+  staff get a plain account. Existing accounts are never connected by email, so `entrypoint.sh` moves the local admin
+  (uid 1, kept for `drush uli`) to `admin@localhost`. Roles are synced at sign-in only: an admin removed in the IdP
+  keeps the role and the Drupal session (up to ~23 days) until signed out, so also run `drush user:block <name>`.
+  The module (alpha) sends no PKCE challenge or nonce and does not validate the ID token; `headless_commerce.module`
+  checks its `iss` (`OIDC_ISSUER`), `aud` and `exp` but not its signature (taken from the token endpoint over TLS).
+  The callback is protected only by the session-bound `state`, so a leaked authorization code could be redeemed by
+  someone else. `entrypoint.sh` also adds Aspire's dev CA (`SSL_CERT_DIR`) to the system bundle,
+  because PHP's curl reads only that. Behind the Azure ingress set `DRUPAL_REVERSE_PROXY=true` (https redirect URI).
 
 **Fake payment.** Checkout validates the card like a form would (Luhn, expiry not in the past, 3–4 digit CVC) and then
 decides by number: `4242 4242 4242 4242` (and any other valid number) is approved, `4000 0000 0000 0002` is declined,
@@ -410,6 +470,60 @@ focus, the cart's lines with subtotal and links to the cart and checkout.
 **Web.** The cart is an httpOnly, `SameSite=Lax` cookie with the cart id and token, set by the Astro server; adding,
 updating and removing are plain form posts to `/cart` (POST/redirect/GET), and `/checkout` posts to itself and shows
 the receipt. No JavaScript is needed; Astro's origin check rejects cross-site form posts.
+
+### Customer accounts
+
+Customers sign in at the identity provider's `shop` realm (Keycloak locally, Entra External ID in production; sign-up
+is on the provider's page). Everything is generic OpenID Connect and off when unconfigured: without `OIDC_AUTHORITY`
+the web shows no sign-in and `/account` is a 404; without `CustomerAuth:Authority` the API treats every caller as a
+guest. Turn both on or both off.
+
+- **Web** (`src/Web/src/lib/auth.ts`, [openid-client](https://github.com/panva/openid-client)): the Astro server runs
+  the authorization code flow with PKCE as the confidential client `web`. `/auth/login` keeps state, nonce and the
+  PKCE verifier in a 10-minute encrypted cookie and redirects to the provider; `/auth/callback` exchanges the code and
+  validates the ID token (JWKS signature, `iss`, `aud`, `exp`, `nonce`); `returnTo` must be a same-site path (also after normalization). The
+  session is one httpOnly, `SameSite=Lax` cookie (`Secure` when `SITE_URL` is https), deflated and encrypted with
+  AES-256-GCM (key from `SESSION_SECRET`): subject, name, email and the access and refresh tokens. The access token is
+  refreshed when it has expired; a rejected refresh ends the session. `/auth/logout` (POST) ends it here and at the
+  provider (RP-initiated logout back to the home page). Redirect URIs are built on `SITE_URL` (the `web-cache` URL).
+  Node trusts the dev certificate of `https://localhost:8080` because Aspire sets `NODE_EXTRA_CA_CERTS` for the web.
+- **Caching**: pages never contain the session. The header's `AccountMenu` island asks `/api/me` (`no-store`) in the
+  browser, like the mini cart, and shows "Sign in" or a link to `/account`.
+- **Checkout** prefills email and name for a signed-in customer and sends their access token, so the order lands in
+  their history. If the token cannot be refreshed the customer signs in again (the cart stays) instead of the order
+  silently becoming a guest order.
+- **API** (`src/Api/Auth/CustomerAuth.cs`): JWT bearer tokens from `CustomerAuth:Authority` (issuer and keys from its
+  discovery document) for audience `CustomerAuth:Audience` (`shop-api`; the realm's audience mapper adds it; required
+  when an authority is set, the API refuses to start without it). `CustomerAuth:SubjectClaim` (default `sub`, `oid`
+  for Entra ID) identifies the customer and must be in the access token (Keycloak puts `sub` there only with the
+  `basic` client scope, which the realm assigns to `web`). A token without it is treated like an invalid one (401),
+  never as a guest. The commerce port gets a neutral `CustomerIdentity` (subject, email).
+- **Drupal** (`Customers.php`): the API is trusted through `X-Api-Key` and vouches for the customer. Checkout finds or
+  creates a Drupal user named `shop-<hash of the subject>` (blocked, no roles or password, the email only as its
+  initial email because shop emails are self-asserted) and makes it the order's customer.
+  `GET /headless/orders?customer=<subject>&offset=&limit=` lists that user's placed orders, newest first.
+
+### Staff bar
+
+Signed-in staff see a bar above the site header with shortcuts into the back offices for the page they are on. Staff
+sign in on the website at the identity provider's `staff` realm (client `web-staff`; Entra ID in production) through
+the "Staff sign-in" link in the footer (`/auth/staff/login`). Off without `STAFF_OIDC_AUTHORITY`.
+
+| Role (`roles` claim) | Shortcuts |
+| --- | --- |
+| `editor` | Edit page (this page in the Umbraco backoffice), Content |
+| `admin` | the editor's, plus Edit product (on product pages), Shop admin, Logs (Seq), Users (identity provider console), System status |
+
+- **Code**: `src/Web/src/lib/oidc.ts` is the provider-neutral OIDC client shared with customer sign-in;
+  `lib/staff.ts` keeps the staff session (subject, name and known roles only, no tokens, 8 hours, so role changes apply
+  at the next sign-in; accounts without `admin` or `editor` are refused); `lib/staff-shortcuts.ts` maps roles and the
+  page to shortcuts (unit tests: `npm test`). Back-office URLs come from `CMS_BACKOFFICE_URL`, `COMMERCE_ADMIN_URL`,
+  `LOGS_URL` and `IDP_ADMIN_URL`; a shortcut without a URL is left out.
+- **Caching**: the bar is the `StaffBar` island, fed by `/api/staff` (`no-store`). Pages only carry what they show
+  (`data-cms-id`, `data-sku` on `<body>`), which is the same for every visitor.
+- **Edit product** links to `/admin/commerce/products/sku/{sku}` in Drupal (`AdminController`), which redirects to the
+  product's edit form for users allowed to administer products.
+- Hiding a shortcut is not access control: each back office checks the user's roles itself at its own sign-in.
 
 ## Adapters: how the API stays CMS/search-engine neutral
 
@@ -538,5 +652,7 @@ Keep these green locally:
 
 Azure (Container Apps, Azure SQL, Blob Storage for media, Azure Files for Meilisearch, Key Vault, ACR) is described
 in Terraform under `infra/terraform`. Drupal Commerce is local-only for now: Terraform sets
-`Providers__Commerce=None` on the API, so the shop is off there. See **[docs/deployment.md](docs/deployment.md)** for the architecture, building
-and pushing images, `terraform apply`, the first run and secret rotation.
+`Providers__Commerce=None` on the API, so the shop is off there. Staff sign in with Entra ID (Umbraco backoffice, Seq
+behind oauth2-proxy) and, optionally, customers with Entra External ID; Terraform creates the app registrations
+(`infra/terraform/identity.tf`). See **[docs/deployment.md](docs/deployment.md)** for the architecture, building
+and pushing images, `terraform apply`, sign-in, the first run and secret rotation.

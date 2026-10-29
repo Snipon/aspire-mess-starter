@@ -102,3 +102,17 @@ public sealed record OrderReceipt(
     CartItem[] Items,
     int ItemCount,
     Money Total);
+
+/// <summary>A placed order in the customer's order history.</summary>
+/// <param name="Status">The commerce backend's order state, e.g. <c>completed</c> or <c>canceled</c>.</param>
+public sealed record Order(
+    string OrderNumber,
+    DateTimeOffset PlacedAt,
+    string Status,
+    string Email,
+    CartItem[] Items,
+    int ItemCount,
+    Money Total);
+
+/// <summary>A page of the customer's orders, newest first.</summary>
+public sealed record OrderPage(int Page, int PageSize, int Total, Order[] Items);

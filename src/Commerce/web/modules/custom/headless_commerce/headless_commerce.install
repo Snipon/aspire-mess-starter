@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Creates the store, product fields and fake card gateway (see Schema; idempotent).
+ * Creates the store, product fields, fake card gateway and staff sign-in (see Schema; idempotent).
  */
 
 use Drupal\headless_commerce\Schema;
@@ -11,5 +11,13 @@ use Drupal\headless_commerce\Schema;
  * Implements hook_install().
  */
 function headless_commerce_install(): void {
+  \Drupal::service(Schema::class)->ensure();
+}
+
+/**
+ * Staff sign-in through the identity provider: installs openid_connect, adds the client, administrator role and settings.
+ */
+function headless_commerce_update_11001(): void {
+  \Drupal::service('module_installer')->install(['openid_connect']);
   \Drupal::service(Schema::class)->ensure();
 }

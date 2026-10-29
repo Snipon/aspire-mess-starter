@@ -85,8 +85,9 @@ restart. The web runs `npm run dev` and hot-reloads.
   Meilisearch; the web knows only the API contract.
 - **Caching**: the web middleware sets the shared-cache policy (`s-maxage`); pages that must not be cached send
   `Cache-Control: no-store`. The API purges web-cache after each content webhook (`WebCachePurger`). Anything per
-  visitor (cart, checkout, the cart cookie) must stay out of cached pages: the header's cart count and mini cart
-  (`MiniCart.tsx`) are fetched in the browser from `/api/cart` (`no-store`), never rendered server-side.
+  visitor (cart, checkout, the cart and session cookies, the signed-in customer) must stay out of cached pages: the
+  header's cart count and mini cart (`MiniCart.tsx`) and account menu (`AccountMenu.tsx`) are fetched in the browser
+  from `/api/cart` and `/api/me` (`no-store`), never rendered server-side.
 - **Commerce calls are not idempotent**: the Drupal client retries GETs only. Never add retries to cart or checkout
   calls.
 - **Style**: match the surrounding code (comment density, naming, file-scoped namespaces, records for contracts).

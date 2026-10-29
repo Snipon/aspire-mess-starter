@@ -39,7 +39,9 @@ and wires the same configuration keys the AppHost injects locally.
 | Container App `web` | `containerapps.tf` | External ingress, Astro Node standalone on port 8080. 1-3 replicas. |
 | Container App `meilisearch` | `containerapps.tf` | **Internal** ingress only, ephemeral `EmptyDir` data (the index is rebuilt from the CMS). 1 replica. |
 | Aspire dashboard (`dotNetComponents/aspire-dashboard`) | `observability.tf` | Built-in Container Apps component (azapi). Contributor role for `aspire_dashboard_user_object_ids`. |
-| Container App `seq` + Premium Files share | `seq.tf` | Log search UI (external ingress, login required). 1 replica, data on a Premium Azure Files share. |
+| Container App `seq` + Premium Files share | `seq.tf` | Log search. **Internal** ingress only (the apps ingest there), 1 replica, data on a Premium Azure Files share. |
+| Container App `seq-proxy` | `seq.tf` | oauth2-proxy in front of the Seq UI: external ingress, Entra ID sign-in with app role `admin`. |
+| Entra ID app registrations `<name>-cms`, `<name>-seq`; optional `<name>-web`, `<name>-shop-api` in an External ID tenant | `identity.tf` | Staff and customer sign-in, see [Sign-in](#sign-in-entra-id-and-external-id). Client secrets go to Key Vault. |
 | Application Insights, availability tests, action group, metric alerts | `observability.tf` | Synthetic tests of web `/`, api `/health`, cms `/health`; alerts on availability, Container Apps and SQL metrics. |
 
 App URLs are `https://<app>.<environment default domain>` (internal apps:
@@ -68,15 +70,22 @@ The keys are the same ones the AppHost sets locally; only the values differ.
 | api | `Umbraco__PublicBaseUrl` | cms public URL (used for media URLs the browser loads) |
 | api | `Umbraco__DeliveryApiKey` / `Umbraco__HmacSecretKey` / `Webhooks__Secret` | Key Vault `delivery-api-key` / `hmac-secret` / `webhook-secret` |
 | api | `Search__ReindexSecret` | Key Vault `reindex-secret` |
-| cms, api | `ConnectionStrings__seq` / `Aspire__Seq__ApiKey` | Seq URL (`https://seq.<default domain>`) / Key Vault `seq-ingestion-api-key` |
+| cms, api, web | `ConnectionStrings__seq` / `Aspire__Seq__ApiKey` | Seq's internal URL (`https://seq.internal.<default domain>`) / Key Vault `seq-ingestion-api-key` |
+| cms | `BackOfficeOidc__Authority` / `ClientId` / `ClientSecret` | `https://login.microsoftonline.com/<tenant>/v2.0` / app `<name>-cms` / Key Vault `cms-oidc-secret` |
+| cms | `BackOfficeOidc__EmailVerifiedClaim` / `DenyLocalLogin` | `xms_edov` (Entra optional claim; locally the default `email_verified`) / `var.cms_deny_local_login` |
+| api | `CustomerAuth__Authority` / `Audience` / `SubjectClaim` | customer issuer / client id of `<name>-shop-api` / `oid` (Entra's `sub` differs per app). Only with `customer_tenant_id` |
+| web | `OIDC_AUTHORITY` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | customer issuer / client id of `<name>-web` / Key Vault `web-oidc-secret`. Only with `customer_tenant_id` |
+| web | `OIDC_SCOPE` / `SESSION_SECRET` / `SITE_URL` | `openid profile email offline_access api://<shop-api id>/access` / Key Vault `web-session-secret` / web public URL |
+| seq-proxy | oauth2-proxy flags (`args`) + `OAUTH2_PROXY_CLIENT_SECRET` / `OAUTH2_PROXY_COOKIE_SECRET` | as the AppHost's `seq-proxy`, but with OIDC discovery against Entra ID / Key Vault `seq-oidc-secret` / `seq-proxy-cookie-secret` |
 | web | `API_URL` | api public URL |
 | web | `HOST` / `PORT` | `0.0.0.0` / `8080` |
 | all .NET | `ASPNETCORE_ENVIRONMENT`, `ASPNETCORE_HTTP_PORTS`, `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | `Production`, `8080`, `true` (TLS is terminated at the ingress) |
 
 Production-only additions compared to the AppHost: `services__cms__https__0` (Aspire injects
 this itself locally via `WithReference(cms)`), the `Umbraco__Storage__AzureBlob__Media__*` keys,
-`UmbracoApplicationUrl`, `Aspire__Seq__ApiKey` (local Seq has no authentication) and the ASP.NET Core
-hosting variables. `OTEL_*` variables are not set by Terraform; see [Aspire dashboard](#aspire-dashboard).
+`UmbracoApplicationUrl`, `Aspire__Seq__ApiKey` (local Seq has no authentication),
+`BackOfficeOidc__EmailVerifiedClaim`, `CustomerAuth__SubjectClaim`, `OIDC_SCOPE` and the ASP.NET Core
+hosting variables. The local IdP (Keycloak) needs none of these. `OTEL_*` variables are not set by Terraform; see [Aspire dashboard](#aspire-dashboard).
 
 ## Prerequisites
 
@@ -84,6 +93,10 @@ hosting variables. `OTEL_*` variables are not set by Terraform; see [Aspire dash
 - On the target subscription: permission to create resources **and role assignments**
   (Owner, or Contributor + User Access Administrator). Terraform grants its own identity
   `Key Vault Secrets Officer` so it can write the generated secrets.
+- In the Entra ID tenant: permission to create app registrations, grant admin consent for the
+  delegated sign-in scopes (`openid profile email offline_access`) and assign app roles, e.g. the
+  *Cloud Application Administrator* role. The same in the External ID tenant if customer sign-in
+  is on.
 - Resource providers registered: `Microsoft.App`, `Microsoft.OperationalInsights`,
   `Microsoft.ContainerRegistry`, `Microsoft.KeyVault`, `Microsoft.Sql`, `Microsoft.Storage`,
   `Microsoft.Insights` (Application Insights, availability tests, alerts).
@@ -94,7 +107,8 @@ cp terraform.tfvars.example terraform.tfvars   # set subscription_id, name, loca
 terraform init
 ```
 
-`terraform.tfvars` and state files are git-ignored. For team use, configure the commented
+Set `staff_admin_object_ids` to at least your own object id before the first apply, or nobody can
+sign in through Entra ID (local logins still work). `terraform.tfvars` and state files are git-ignored. For team use, configure the commented
 `azurerm` backend in `versions.tf`: the state contains every generated secret, so store it
 in a locked-down storage account.
 
@@ -190,6 +204,57 @@ from Key Vault or an image pull error, wait a minute and run `terraform apply` a
    after cms startup (Umbraco's `WebhookFiring` background job), so changes made during a cold
    start are picked up by the next full reindex.
 
+## Sign-in (Entra ID and External ID)
+
+Locally, Keycloak stands in for both identity providers (`infra/keycloak`); `identity.tf` creates
+the production app registrations with the same contract, so the apps differ only in configuration.
+
+**Staff (Entra ID, the tenant Terraform runs in).** One app registration per client: `<name>-cms`
+(redirect `<cms url>/umbraco-signin-oidc`) and `<name>-seq` (redirect `<seq url>/oauth2/callback`).
+Both define the app roles `admin` and `editor`, which arrive in the tokens' `roles` claim like the
+Keycloak realm roles, and the optional ID token claims `email` and `xms_edov`. Terraform grants
+admin consent for `openid profile email offline_access` and requires an app role assignment, so
+only assigned users can sign in.
+
+- Assign roles with `staff_admin_object_ids` / `staff_editor_object_ids` (users, or groups with
+  Entra ID P1), or later in *Enterprise applications > `<name>-cms` > Users and groups*. Put
+  yourself in `staff_admin_object_ids` (`az ad signed-in-user show --query id -o tsv`). A service
+  principal running Terraform in CI cannot sign in interactively, so it is not assigned.
+- **cms**: the backoffice login shows a *Single sign-on* button next to the local login (the
+  unattended `Admin` user still works). An Entra user is linked to an existing backoffice user with
+  the same email only when the tenant has verified the email's domain (`xms_edov`); otherwise a
+  new user is created. Users need a `mail` attribute. Once an Entra admin can sign in, set
+  `cms_deny_local_login = true` to send everyone to Entra ID.
+- **Seq**: see [Seq](#seq). Only `admin` gets in.
+- **Commerce (Drupal)** is not deployed to Azure yet, so it has no app registration. When it is,
+  add a `commerce` entry to `local.staff_apps` (redirect `<commerce url>/openid-connect/sso`) and set
+  `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER` (= `local.staff_authority`),
+  `OIDC_AUTHORIZATION_ENDPOINT`, `OIDC_TOKEN_ENDPOINT`, `OIDC_END_SESSION_ENDPOINT`
+  (`https://login.microsoftonline.com/<tenant>/oauth2/v2.0/{authorize,token,logout}`) and
+  `DRUPAL_REVERSE_PROXY=true` on its container app.
+
+**Customers (Entra External ID, optional).** Terraform cannot create the external tenant. Create
+one in the portal, then sign in to it once and set `customer_tenant_id`:
+
+```sh
+az login --tenant <external tenant id> --allow-no-subscriptions   # the azuread "customers" provider uses it
+az login --tenant <workforce tenant id>                            # back to the deploying tenant
+terraform apply -var customer_tenant_id=<external tenant id>
+```
+
+Terraform creates `<name>-shop-api` (identifier URI `api://<client id>`, scope `access`, v2
+access tokens whose `aud` is its client id) and `<name>-web` (confidential client, redirect
+`<web url>/auth/callback`, post-logout `<web url>/`, consent granted for the sign-in scopes and
+the API scope), and wires the web (`OIDC_*`, `SESSION_SECRET`, `SITE_URL`) and the api
+(`CustomerAuth__*`). Two portal steps remain: create a *sign-up and sign-in* user flow (email with
+password) and add the `<name>-web` application to it. The issuer defaults to
+`https://<tenant id>.ciamlogin.com/<tenant id>/v2.0`; it must equal the `issuer` in
+`<issuer>/.well-known/openid-configuration` and the tokens' `iss`, otherwise set
+`customer_authority`. Without `customer_tenant_id` none of this is created: the site has no
+sign-in and the api treats every request as a guest. The api's shop endpoints stay off in Azure
+until Drupal Commerce is deployed (`Providers__Commerce=None`), so signed-in customers have no
+orders yet.
+
 ## Updating the application
 
 Build and push new images with a new tag (step 2), then:
@@ -222,6 +287,9 @@ always resolve the latest version.
 | `media-storage-connection-string` | cms | storage account primary key |
 | `seq-admin-password` | seq (first start only) | `random_password.seq_admin` |
 | `seq-ingestion-api-key` | cms, api (`Aspire:Seq:ApiKey`); registered in Seq once | `random_password.seq_ingestion_api_key` |
+| `cms-oidc-secret`, `seq-oidc-secret` | cms (`BackOfficeOidc:ClientSecret`), seq-proxy | `azuread_application_password.staff["cms"]`, `["seq"]` (2-year client secrets) |
+| `seq-proxy-cookie-secret` | seq-proxy (cookie encryption) | `random_password.seq_proxy_cookie` |
+| `web-oidc-secret`, `web-session-secret` | web (only with `customer_tenant_id`) | `azuread_application_password.web[0]`, `random_password.web_session[0]` |
 
 **Rotate a generated secret** by replacing its generator; derived secrets follow automatically:
 
@@ -229,6 +297,7 @@ always resolve the latest version.
 terraform apply -replace=random_password.webhook_secret
 terraform apply -replace=random_password.sql_admin          # also updates the SQL server password
 terraform apply -replace=random_bytes.hmac_secret
+terraform apply -replace='azuread_application_password.staff["cms"]'   # before the 2-year expiry
 ```
 
 Container Apps re-read Key Vault references on a schedule, not instantly, and environment
@@ -266,6 +335,10 @@ Notes per secret:
   [Seq bootstrap](#seq)) and remove the old key there, then restart cms, api and web. With
   `RequireApiKeyForWritingEvents` on, logs are rejected until the new key is registered.
 - **seq-admin-password** only matters for a fresh (empty) Seq data share.
+- **cms-oidc-secret**, **seq-oidc-secret**, **web-oidc-secret**: Entra client secrets expire after
+  two years. Replace the `azuread_application_password` and restart the app (cms, seq-proxy, web).
+  Sessions survive; only sign-ins between the apply and the restart fail.
+- **seq-proxy-cookie-secret**, **web-session-secret**: restart the app; everyone signs in again.
 
 Do not edit Terraform-managed secrets directly in Key Vault: the next `terraform apply`
 overwrites them.
@@ -275,7 +348,7 @@ overwrites them.
 | What | Where | Answers |
 | --- | --- | --- |
 | Aspire dashboard | `terraform output -raw aspire_dashboard_url` | Live traces, metrics and structured logs (in memory, recent only). |
-| Seq | `terraform output -raw seq_url` | Searchable log/trace history, signals and log-based alerts. |
+| Seq | `terraform output -raw seq_url` (Entra ID sign-in, app role `admin`) | Searchable log/trace history, signals and log-based alerts. |
 | Azure Monitor | Application Insights `appi-<name>`, alert rules in the resource group | Is it up from outside? Platform metrics (restarts, 5xx, CPU/memory, replicas, SQL). |
 | Container Apps logs | Log Analytics `log-<unique>` / `az containerapp logs show` | Raw console and system logs. |
 
@@ -327,7 +400,8 @@ this setup uses the closest supported storage: a Premium (`FileStorage`) SMB sha
 minimum, billed by provisioned size), one replica, and never more than one Seq process per share.
 The remaining risk is the revision overlap: in single-revision mode Container Apps starts the new
 revision before stopping the old one, so a change to the `seq` app (image, environment) briefly
-gives two Seq processes the same data directory. Change the Seq app rarely. For a Seq upgrade,
+gives two Seq processes the same data directory. Change the Seq app rarely (the switch to
+`seq-proxy` changed `SEQ_API_CANONICALURI`, so deactivate the revision before that apply too). For a Seq upgrade,
 deactivate the running revision first
 (`az containerapp revision deactivate -g <rg> -n seq --revision <name>`) and then run
 `terraform apply`. If Seq becomes business-critical, move it to an Azure VM or ACI with an Azure
@@ -338,9 +412,16 @@ for Meilisearch) would avoid the overlap problem but loses all logs on every res
 (the `admin` user below), which is fine for one person. A team needs a paid Seq subscription
 (<https://datalust.co/pricing>). Apply the key under *Settings > License*.
 
-**Ingestion.** The apps reach Seq through its FQDN `https://seq.<default domain>`. Calls between
-apps of the same environment stay inside the environment. The same ingress also serves the UI, so
-`/ingest` is reachable from the internet. cms, api and web send `X-Seq-ApiKey` (Key Vault
+**Access.** Seq's own ingress is internal. People use `seq-proxy` (`seq_url`, oauth2-proxy with
+the Entra ID app `<name>-seq`): only users with the app role `admin` get through, the session is
+refreshed every 5 minutes (a removed role locks the user out) and lasts 8 hours. Seq's own login
+stays on behind it (the free plan has one user, `admin`). The proxy passes Seq's HTTP API (`/api/`)
+through without the Entra sign-in, because seqcli and `alerts.sh` cannot sign in interactively; it is
+still protected by Seq itself (API key or Seq login), as it was before the proxy. Signing out of the
+proxy (`/oauth2/sign_out`) does not end the Entra session.
+
+**Ingestion.** The apps send to Seq's internal URL `https://seq.internal.<default domain>`, which
+is not reachable from the internet. cms, api and web send `X-Seq-ApiKey` (Key Vault
 `seq-ingestion-api-key`, `Aspire:Seq:ApiKey`), and the bootstrap below makes Seq reject events
 without a known key (`RequireApiKeyForWritingEvents`). Until then Seq accepts events with or
 without a key, so logging works from the first start.
@@ -352,7 +433,8 @@ SEQ_URL=$(terraform output -raw seq_url)
 KV=$(terraform output -raw key_vault_name)
 seqcli() { podman run --rm -i docker.io/datalust/seqcli:2025.2 "$@"; }   # or docker
 
-# 1. Open $SEQ_URL and log in as "admin" with the first-run password, which Seq makes you change:
+# 1. Open $SEQ_URL, sign in with Entra ID (app role admin), then log in to Seq as "admin" with the
+#    first-run password, which Seq makes you change:
 az keyvault secret show --vault-name "$KV" -n seq-admin-password --query value -o tsv
 
 # 2. API keys can only be created by a logged-in user (an API key cannot create keys):

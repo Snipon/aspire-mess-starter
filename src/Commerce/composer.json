@@ -21,6 +21,7 @@
         "drupal/core-project-message": "^11.4",
         "drupal/core-recipe-unpack": "^11.4",
         "drupal/core-recommended": "^11.4",
+        "drupal/openid_connect": "^3.0@alpha",
         "drush/drush": "^13"
     },
     "conflict": {

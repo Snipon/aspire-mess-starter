@@ -12,6 +12,12 @@ aspire_dashboard_user_object_ids = [] # Entra user object IDs: az ad user show -
 # alert_webhook_url              = "https://..." # optional, receives the Azure Monitor common alert schema
 seq_retention = "30d"
 
+# Sign-in (see docs/deployment.md "Sign-in")
+staff_admin_object_ids  = [] # Entra users/groups with app role admin: az ad signed-in-user show --query id -o tsv
+staff_editor_object_ids = []
+cms_deny_local_login    = false
+# customer_tenant_id    = "00000000-0000-0000-0000-000000000000" # Entra External ID tenant; omit for no customer sign-in
+
 tags = {
   project = "aspire-test"
 }

@@ -493,3 +493,4 @@ dist/
 *.tfvars
 !*.tfvars.example
 graft/
+.claude/worktrees/

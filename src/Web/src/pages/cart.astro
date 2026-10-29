@@ -47,7 +47,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
 ---
 
 <Layout title="Cart">
-  <h1 class="text-4xl font-bold tracking-tight">Cart</h1>
+  <h1 class="font-wide border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl">Cart</h1>
 
   {
     message && (
@@ -59,26 +59,27 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
 
   {
     !cart || cart.items.length === 0 ? (
-      <div class="mt-8 rounded-xl border border-dashed px-6 py-12 text-center">
-        <p class="text-muted-foreground">Your cart is empty.</p>
-        <a href="/shop" class={cn(buttonVariants(), 'mt-4')}>
+      <div class="mt-10 border border-dashed border-input px-6 py-14 text-center">
+        <p class="text-lg text-muted-foreground">Your cart is empty.</p>
+        <a href="/shop" class={cn(buttonVariants({ size: 'lg' }), 'mt-6')}>
           Browse the shop
         </a>
       </div>
     ) : (
-      <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_18rem]">
-        <ul class="h-fit divide-y rounded-xl border bg-background">
+      <div class="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <ul class="h-fit divide-y border border-border bg-card">
           {cart.items.map((item) => (
-            <li class="flex gap-4 p-4">
-              <div class="size-20 shrink-0 overflow-hidden rounded-md bg-muted">
+            <li class="flex gap-3 p-4 sm:gap-4 sm:p-5">
+              <div class="size-16 shrink-0 overflow-hidden bg-muted sm:size-20">
                 {item.image && <ResponsiveImage image={{ ...item.image, alt: null }} sizes="80px" className="h-full w-full object-cover" />}
               </div>
               <div class="min-w-0 flex-1">
-                <a href={item.path ?? '/shop'} class="font-medium hover:underline">
+                <a href={item.path ?? '/shop'} class="font-bold decoration-primary decoration-2 underline-offset-4 hover:underline">
                   {item.title}
                 </a>
-                <p class="text-sm text-muted-foreground">
-                  {formatMoney(item.unitPrice)} each · SKU {item.sku}
+                <p class="font-narrow mt-0.5 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+                  <span class="tabular-nums">{formatMoney(item.unitPrice)} each</span>
+                  <span>SKU {item.sku}</span>
                 </p>
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   <form method="post" class="flex items-center gap-2">
@@ -90,7 +91,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
                     <select
                       id={`qty-${item.id}`}
                       name="quantity"
-                      class="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                      class="h-10 rounded-sm border border-muted-foreground bg-card sm:h-8 px-2 text-sm tabular-nums hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                       {Array.from({ length: Math.max(Math.min(item.stock, 10), item.quantity) }, (_, i) => (
                         <option value={i + 1} selected={i + 1 === item.quantity}>
@@ -98,40 +99,41 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
                         </option>
                       ))}
                     </select>
-                    <button type="submit" class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                    <button type="submit" class={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-10 sm:h-8')}>
                       Update
                     </button>
                   </form>
                   <form method="post">
                     <input type="hidden" name="action" value="remove" />
                     <input type="hidden" name="item" value={item.id} />
-                    <button type="submit" class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'text-muted-foreground')}>
+                    <button type="submit" class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-10 text-muted-foreground sm:h-8')}>
                       Remove
                     </button>
                   </form>
                 </div>
               </div>
-              <p class="font-semibold tabular-nums">{formatMoney(item.total)}</p>
+              <p class="font-wide text-base font-extrabold tabular-nums sm:text-lg">{formatMoney(item.total)}</p>
             </li>
           ))}
         </ul>
-        <aside class="h-fit rounded-xl border bg-background p-5">
-          <h2 class="font-semibold">Summary</h2>
-          <dl class="mt-3 space-y-1 text-sm">
+        {/* Ink panel (.dark scope) with the machined corner: the page's primary panel. */}
+        <aside class="dark chamfer h-fit bg-background p-6 text-foreground [--cut:1.5rem]">
+          <h2 class="font-wide text-xl font-extrabold">Summary</h2>
+          <dl class="mt-4 space-y-1.5 text-sm">
             <div class="flex justify-between">
               <dt class="text-muted-foreground">Items</dt>
-              <dd class="tabular-nums">{cart.itemCount}</dd>
+              <dd class="font-narrow tabular-nums">{cart.itemCount}</dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-muted-foreground">Subtotal</dt>
-              <dd class="tabular-nums">{formatMoney(cart.subtotal)}</dd>
+              <dd class="font-narrow tabular-nums">{formatMoney(cart.subtotal)}</dd>
             </div>
-            <div class="flex justify-between border-t pt-2 text-base font-semibold">
-              <dt>Total</dt>
-              <dd class="tabular-nums">{formatMoney(cart.total)}</dd>
+            <div class="mt-3 flex items-baseline justify-between border-t pt-3">
+              <dt class="font-semibold">Total</dt>
+              <dd class="font-wide text-2xl font-extrabold tabular-nums">{formatMoney(cart.total)}</dd>
             </div>
           </dl>
-          <a href="/checkout" class={cn(buttonVariants({ size: 'lg' }), 'mt-5 w-full')}>
+          <a href="/checkout" class={cn(buttonVariants({ size: 'lg' }), 'mt-6 w-full bg-primary text-primary-foreground hover:bg-foreground hover:text-background')}>
             Checkout
           </a>
         </aside>

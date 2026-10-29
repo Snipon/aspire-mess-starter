@@ -10,6 +10,7 @@ use Drupal\commerce_order\Entity\OrderItemInterface;
 use Drupal\commerce_payment\Entity\Payment;
 use Drupal\commerce_product\Entity\ProductVariationInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\headless_commerce\Customers;
 use Drupal\headless_commerce\FakeCard;
 use Drupal\headless_commerce\ProductExporter;
 use Drupal\headless_commerce\Schema;
@@ -22,17 +23,20 @@ use Symfony\Component\HttpFoundation\Request;
  * Carts are Commerce draft orders, addressed by their UUID and guarded by a random token (X-Cart-Token) that is only
  * returned on creation and stored hashed in the order data. Checkout runs the fake card check, records a completed
  * payment on the fake_card (manual) gateway, takes the items out of stock and places the order, all in one
- * transaction.
+ * transaction. A checkout with a customer (the identity provider's subject, see Customers) makes the order theirs;
+ * GET /headless/orders?customer= lists a customer's placed orders.
  */
 final class CartController extends ApiControllerBase {
 
   private const MAX_QUANTITY = 99;
+  private const MAX_ORDERS = 50;
   private const TOKEN_KEY = 'headless_token_sha256';
 
   public function __construct(
     private readonly CartManagerInterface $cartManager,
     private readonly ProductExporter $exporter,
     private readonly Connection $database,
+    private readonly Customers $customers,
   ) {}
 
   public static function create(ContainerInterface $container): static {
@@ -40,6 +44,7 @@ final class CartController extends ApiControllerBase {
       $container->get('commerce_cart.cart_manager'),
       $container->get(ProductExporter::class),
       $container->get('database'),
+      $container->get(Customers::class),
     );
   }
 
@@ -145,8 +150,8 @@ final class CartController extends ApiControllerBase {
 
   /**
    * Body: email, name {given, family}, address {line1, line2?, locality, postalCode, administrativeArea?, countryCode},
-   * card {number, expMonth, expYear, cvc}. 200 with the receipt; 400 with field errors; 402 when the card is
-   * declined; 409 when the cart is empty or an item is no longer in stock.
+   * card {number, expMonth, expYear, cvc}, customer {subject, email?} or null for a guest. 200 with the receipt; 400
+   * with field errors; 402 when the card is declined; 409 when the cart is empty or an item is no longer in stock.
    */
   public function checkout(Request $request, string $cart): JsonResponse {
     $order = $this->load($request, $cart);
@@ -160,6 +165,11 @@ final class CartController extends ApiControllerBase {
     $address = (array) ($body['address'] ?? []);
     $card = (array) ($body['card'] ?? []);
     $number = FakeCard::normalize((string) ($card['number'] ?? ''));
+    $customer = isset($body['customer']) ? (array) $body['customer'] : NULL;
+    $subject = (string) ($customer['subject'] ?? '');
+    if ($customer !== NULL && !Customers::isValidSubject($subject)) {
+      return $this->error(400, 'invalid_customer', 'The customer subject is missing or invalid.');
+    }
 
     $errors = [];
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -211,6 +221,9 @@ final class CartController extends ApiControllerBase {
       $profile->save();
       $order->setEmail($email);
       $order->setBillingProfile($profile);
+      if ($customer !== NULL) {
+        $order->setCustomer($this->customers->findOrCreate($subject, (string) ($customer['email'] ?? $email)));
+      }
       $order->save();
 
       $reference = 'FAKE-' . strtoupper(bin2hex(random_bytes(6))) . '-' . substr($number, -4);
@@ -248,6 +261,46 @@ final class CartController extends ApiControllerBase {
       'paymentReference' => $reference,
       'cardLast4' => substr($number, -4),
     ] + $this->cartJson($order));
+  }
+
+  /**
+   * GET /headless/orders?customer={subject}&offset=&limit=: the customer's placed orders, newest first; none for a
+   * customer who has never checked out.
+   */
+  public function orders(Request $request): JsonResponse {
+    if ($denied = $this->unauthorized($request)) {
+      return $denied;
+    }
+
+    $subject = (string) $request->query->get('customer', '');
+    if (!Customers::isValidSubject($subject)) {
+      return $this->error(400, 'invalid_customer', 'The customer subject is missing or invalid.');
+    }
+
+    $offset = max(0, (int) $request->query->get('offset', 0));
+    $limit = min(self::MAX_ORDERS, max(1, (int) $request->query->get('limit', 10)));
+    $user = $this->customers->find($subject);
+    if (!$user) {
+      return $this->json(['total' => 0, 'offset' => $offset, 'items' => []]);
+    }
+
+    $storage = $this->entityTypeManager()->getStorage('commerce_order');
+    $query = fn () => $storage->getQuery()->accessCheck(FALSE)
+      ->condition('uid', $user->id())
+      ->condition('state', 'draft', '<>');
+    $total = (int) $query()->count()->execute();
+    $ids = $query()->sort('placed', 'DESC')->sort('order_id', 'DESC')->range($offset, $limit)->execute();
+
+    $items = [];
+    foreach ($storage->loadMultiple($ids) as $order) {
+      $items[] = [
+        'orderNumber' => $order->getOrderNumber(),
+        'placedAt' => date(DATE_ATOM, (int) $order->getPlacedTime()),
+        'state' => $order->getState()->getId(),
+        'email' => (string) $order->getEmail(),
+      ] + $this->cartJson($order);
+    }
+    return $this->json(['total' => $total, 'offset' => $offset, 'items' => $items]);
   }
 
   /**

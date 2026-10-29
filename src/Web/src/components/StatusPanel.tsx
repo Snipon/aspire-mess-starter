@@ -26,21 +26,28 @@ const icons: Record<State, LucideIcon> = {
   unhealthy: CircleXIcon,
   unknown: CircleHelpIcon,
 };
-// Status colours have no shadcn token; these sit on top of the Alert/Badge base styles.
-const tones: Record<State, string> = {
-  healthy: 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
-  degraded: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100',
-  unhealthy: 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100',
-  unknown: 'border-border bg-muted text-foreground',
+// Status colours have no Enclosure token: one strong hue per state for the edge bar and icon, on flat panel surfaces.
+// The icon hues are !important to beat the Alert's svg text-current.
+const bars: Record<State, string> = {
+  healthy: 'border-l-emerald-600',
+  degraded: 'border-l-amber-500',
+  unhealthy: 'border-l-destructive',
+  unknown: 'border-l-input',
+};
+const hues: Record<State, string> = {
+  healthy: 'text-emerald-700!',
+  degraded: 'text-amber-700!',
+  unhealthy: 'text-destructive!',
+  unknown: 'text-muted-foreground!',
 };
 
 export default function StatusPanel({ overall, rows }: { overall: State; rows: Row[] }) {
   const OverallIcon = icons[overall];
   return (
     <>
-      <Alert role="status" className={cn('mt-6', tones[overall])}>
-        <OverallIcon aria-hidden="true" />
-        <AlertTitle className="text-base">{headlines[overall]}</AlertTitle>
+      <Alert role="status" className={cn('mt-8 border-l-8 px-5 py-5 *:[svg]:translate-y-1', bars[overall])}>
+        <OverallIcon aria-hidden="true" className={cn('size-6!', hues[overall])} />
+        <AlertTitle className="font-wide text-xl font-extrabold sm:text-2xl">{headlines[overall]}</AlertTitle>
       </Alert>
 
       <Card className="mt-6 gap-0 py-0">
@@ -50,11 +57,11 @@ export default function StatusPanel({ overall, rows }: { overall: State; rows: R
             return (
               <li key={row.name} className="flex items-center justify-between gap-4 px-5 py-4">
                 <div className="min-w-0">
-                  <p className="font-medium">{row.name}</p>
-                  <p className="text-sm text-muted-foreground">{row.detail}</p>
+                  <p className="font-bold">{row.name}</p>
+                  <p className="font-narrow text-sm text-muted-foreground">{row.detail}</p>
                 </div>
-                <Badge variant="outline" className={cn('h-6 px-2.5 text-sm', tones[row.state])}>
-                  <Icon aria-hidden="true" />
+                <Badge variant="secondary" className="h-7 gap-1.5 px-2.5 text-sm">
+                  <Icon aria-hidden="true" className={cn('size-4!', hues[row.state])} />
                   {labels[row.state]}
                 </Badge>
               </li>
