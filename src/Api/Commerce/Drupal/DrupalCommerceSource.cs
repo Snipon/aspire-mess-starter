@@ -13,6 +13,7 @@ public sealed class DrupalCommerceSource(HttpClient http, IOptions<DrupalOptions
 {
     internal const string ProductsApi = "headless/products";
     internal const string CartsApi = "headless/carts";
+    internal const string OrdersApi = "headless/orders";
     internal const string CartTokenHeader = "X-Cart-Token";
     private const int PageSize = 200;
 
@@ -69,8 +70,19 @@ public sealed class DrupalCommerceSource(HttpClient http, IOptions<DrupalOptions
     public Task<CommerceResult<Cart>> RemoveItemAsync(string cartId, string token, string itemId, CancellationToken ct) =>
         SendAsync<DrupalCart, Cart>(HttpMethod.Delete, ItemUri(cartId, itemId), token, body: null, ToCart, ct);
 
-    public Task<CommerceResult<OrderReceipt>> CheckoutAsync(string cartId, string token, CheckoutRequest request, CancellationToken ct) =>
-        SendAsync<DrupalReceipt, OrderReceipt>(HttpMethod.Post, $"{CartUri(cartId)}/checkout", token, request, ToReceipt, ct);
+    public Task<CommerceResult<OrderReceipt>> CheckoutAsync(
+        string cartId, string token, CheckoutRequest request, CustomerIdentity? customer, CancellationToken ct) =>
+        SendAsync<DrupalReceipt, OrderReceipt>(HttpMethod.Post, $"{CartUri(cartId)}/checkout", token,
+            new DrupalCheckout(request.Email, request.Name, request.Address, request.Card, customer), ToReceipt, ct);
+
+    public async Task<OrderPage> GetOrdersAsync(CustomerIdentity customer, int page, int pageSize, CancellationToken ct)
+    {
+        var offset = (page - 1) * pageSize;
+        using var response = await http.GetAsync(
+            $"{OrdersApi}?customer={Uri.EscapeDataString(customer.Subject)}&offset={offset}&limit={pageSize}", ct);
+        var orders = await ReadAsync<DrupalOrderPage>(response, ct);
+        return new OrderPage(page, pageSize, orders.Total, [.. orders.Items.Select(ToOrder)]);
+    }
 
     /// <summary>"juniper-nomad-14-dg00001" -> "DG00001": slugs end in the lower-cased SKU (see ProductExporter::slug).</summary>
     internal static string? SkuFromSlug(string slug)
@@ -142,6 +154,9 @@ public sealed class DrupalCommerceSource(HttpClient http, IOptions<DrupalOptions
 
     private OrderReceipt ToReceipt(DrupalReceipt r) =>
         new(r.OrderNumber, r.PlacedAt, r.Email, r.PaymentReference, r.CardLast4, [.. r.Items.Select(ToCartItem)], r.ItemCount, ToMoney(r.Total));
+
+    private Order ToOrder(DrupalOrder o) =>
+        new(o.OrderNumber, o.PlacedAt, o.State, o.Email, [.. o.Items.Select(ToCartItem)], o.ItemCount, ToMoney(o.Total));
 
     private CartItem ToCartItem(DrupalCartItem i) => new(
         i.Id, i.Sku ?? string.Empty, i.Slug is null ? null : ProductPath(i.Slug), i.Title, ToImage(i.Image), ToMoney(i.UnitPrice), i.Quantity, ToMoney(i.Total), i.Stock);

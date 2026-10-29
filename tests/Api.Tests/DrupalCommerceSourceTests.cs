@@ -97,12 +97,52 @@ public sealed class DrupalCommerceSourceTests
         _handler.Respond(status, "drupal/checkout-invalid.json");
 
         var result = await _source.CheckoutAsync("08ed21f5-ec3d-472d-b31e-b973e6cb46f7", "tok",
-            new CheckoutRequest("x", new CustomerName("", ""), new PostalAddress("", null, "", "", null, "US"), new PaymentCard("1", 1, 2020, "1")), Ct);
+            new CheckoutRequest("x", new CustomerName("", ""), new PostalAddress("", null, "", "", null, "US"), new PaymentCard("1", 1, 2020, "1")), null, Ct);
 
         Assert.Null(result.Value);
         Assert.Equal(kind, result.Error!.Kind);
         Assert.Equal("invalid_checkout", result.Error.Code);
         Assert.Equal("Enter a valid card number.", result.Error.Fields!["number"]);
+    }
+
+    [Fact]
+    public async Task Checkout_sends_the_customer_and_guests_send_none()
+    {
+        _handler.Respond(HttpStatusCode.OK, "drupal/receipt.json");
+        _handler.Respond(HttpStatusCode.OK, "drupal/receipt.json");
+        var request = new CheckoutRequest("ada@example.com", new CustomerName("Ada", "Lovelace"),
+            new PostalAddress("1 Main St", null, "Springfield", "12345", null, "US"), new PaymentCard("4242424242424242", 12, 2030, "123"));
+
+        var receipt = await _source.CheckoutAsync("08ed21f5-ec3d-472d-b31e-b973e6cb46f7", "tok", request,
+            new CustomerIdentity("5f0c6b1e-sub", "ada@example.com"), Ct);
+        await _source.CheckoutAsync("08ed21f5-ec3d-472d-b31e-b973e6cb46f7", "tok", request, null, Ct);
+
+        Assert.Contains("""
+            "customer":{"subject":"5f0c6b1e-sub","email":"ada@example.com"}
+            """, _handler.Bodies[0]);
+        Assert.Contains("""
+            "card":{"number":"4242424242424242","expMonth":12,"expYear":2030,"cvc":"123"}
+            """, _handler.Bodies[0]);
+        Assert.Contains("""
+            "customer":null
+            """, _handler.Bodies[1]);
+        Assert.Equal(("1001", "FAKE-0A1B2C3D4E5F-4242"), (receipt.Value!.OrderNumber, receipt.Value.PaymentReference));
+    }
+
+    [Fact]
+    public async Task Maps_the_customers_orders_page()
+    {
+        _handler.Respond(HttpStatusCode.OK, "drupal/orders.json");
+
+        var page = await _source.GetOrdersAsync(new CustomerIdentity("5f0c6b1e-sub", null), 2, 10, Ct);
+
+        Assert.Equal("GET /headless/orders?customer=5f0c6b1e-sub&offset=10&limit=10", Assert.Single(_handler.Requests));
+        Assert.Equal((2, 10, 11), (page.Page, page.PageSize, page.Total));
+        var order = Assert.Single(page.Items);
+        Assert.Equal(("1001", "completed", "ada@example.com", 2), (order.OrderNumber, order.Status, order.Email, order.ItemCount));
+        Assert.Equal(new DateTimeOffset(2026, 10, 29, 20, 15, 3, TimeSpan.Zero), order.PlacedAt);
+        Assert.Equal(new Money(2975.98m, "USD"), order.Total);
+        Assert.Equal("/shop/juniper-nomad-14-dg00001", Assert.Single(order.Items).Path);
     }
 
     [Fact]
@@ -126,7 +166,7 @@ public sealed class DrupalCommerceSourceTests
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Requests.Add($"{request.Method} {request.RequestUri!.AbsolutePath}");
+            Requests.Add($"{request.Method} {request.RequestUri!.PathAndQuery}");
             if (request.Headers.TryGetValues(DrupalCommerceSource.CartTokenHeader, out var tokens))
             {
                 CartTokens.AddRange(tokens);

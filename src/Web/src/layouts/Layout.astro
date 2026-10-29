@@ -1,10 +1,12 @@
 ---
 import '../styles/global.css';
+import AccountMenu from '../components/AccountMenu';
 import MiniCart from '../components/MiniCart';
 import SearchInput from '../components/SearchInput.astro';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getNavigation, type NavItem } from '../lib/api/client';
+import { authEnabled } from '../lib/auth';
 
 interface Props {
   title: string;
@@ -74,7 +76,8 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
             class="w-40 sm:w-56"
           />
         </form>
-        {/* Pages are shared-cached: the count and mini cart are fetched per visitor in the browser. */}
+        {/* Pages are shared-cached: the account state, count and mini cart are fetched per visitor in the browser. */}
+        {authEnabled() && <AccountMenu client:load active={current === '/account'} />}
         <MiniCart client:load active={current === '/cart'} />
       </div>
     </header>

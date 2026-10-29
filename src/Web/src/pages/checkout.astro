@@ -6,6 +6,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { api, type OrderReceipt } from '../lib/api/client';
+import { accessToken, getSession } from '../lib/auth';
 import { cartHeaders, clearCart, loadCart } from '../lib/cart';
 import { formatMoney } from '../lib/format';
 
@@ -13,7 +14,15 @@ import { formatMoney } from '../lib/format';
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 const loaded = await loadCart(Astro.cookies);
-const values: Record<string, string> = { countryCode: 'US' };
+// A signed-in customer's details are prefilled, and the order goes into their order history.
+const session = getSession(Astro.cookies);
+const values: Record<string, string> = {
+  countryCode: 'US',
+  ...(session?.email && { email: session.email }),
+  ...(session?.givenName && { given: session.givenName }),
+  ...(session?.familyName && { family: session.familyName }),
+};
+const signInAgain = () => Astro.redirect('/auth/login?returnTo=/checkout', 303);
 let fieldErrors: Record<string, string> = {};
 let paymentError: string | undefined;
 let receipt: OrderReceipt | undefined;
@@ -26,8 +35,12 @@ if (Astro.request.method === 'POST' && loaded) {
   }
 
   const [expMonth, expYear] = String(form.get('expiry') ?? '').split('/').map((part) => Number.parseInt(part.trim(), 10));
+  // An expired sign-in must not turn the order into a guest order: sign in again (the cart stays), then pay.
+  const token = session ? await accessToken(Astro.cookies, Astro.url) : undefined;
+  if (session && !token) return signInAgain();
   const { data, error, response } = await api().POST('/api/carts/{cartId}/checkout', {
     params: cartHeaders(loaded.ref),
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: {
       email: values.email ?? '',
       name: { given: values.given ?? '', family: values.family ?? '' },
@@ -56,6 +69,8 @@ if (Astro.request.method === 'POST' && loaded) {
     fieldErrors = problem.fields;
   } else if (response.status === 402) {
     paymentError = problem?.detail ?? 'The card was declined.';
+  } else if (response.status === 401) {
+    return signInAgain();
   } else if (response.status === 409 || response.status === 404) {
     return Astro.redirect(`/cart?error=${encodeURIComponent(problem?.code ?? 'cart_not_found')}`, 303);
   } else {

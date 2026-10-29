@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Api.Auth;
 using Api.Caching;
 using Api.Commerce;
 using Api.Content;
@@ -16,6 +17,7 @@ builder.AddServiceDefaults();
 builder.AddContentSource();
 builder.AddSearchIndex();
 builder.AddCommerce();
+builder.AddCustomerAuth();
 
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -72,6 +74,7 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseCustomerAuth();
 
 // OpenAPI + Scalar are mapped in every environment on purpose (demo); restrict with RequireAuthorization or an
 // environment check if the API is exposed publicly.

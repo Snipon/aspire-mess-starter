@@ -70,6 +70,68 @@
         }
       }
     },
+    "/api/me/orders": {
+      "get": {
+        "tags": [
+          "Customer"
+        ],
+        "summary": "The signed-in customer's orders",
+        "description": "Needs the customer's access token from the identity provider (`Authorization: Bearer`, audience `CustomerAuth:Audience`); 401 without a valid one, and always when customer sign-in is off. Newest first.",
+        "operationId": "GetMyOrders",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/status": {
       "get": {
         "tags": [
@@ -837,7 +899,7 @@
           "Commerce"
         ],
         "summary": "Pay with the fake card processor and place the order",
-        "description": "Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; 4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, 4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an empty cart, missing stock or a cart that was already checked out.",
+        "description": "Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; 4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, 4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an empty cart, missing stock or a cart that was already checked out. With a customer's bearer token (see `GetMyOrders`) the order belongs to that customer; an invalid or expired token, or one without the customer's subject claim, answers 401.",
         "operationId": "Checkout",
         "parameters": [
           {
@@ -873,6 +935,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OrderReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1675,6 +1747,75 @@
           }
         }
       },
+      "Order": {
+        "required": [
+          "orderNumber",
+          "placedAt",
+          "status",
+          "email",
+          "items",
+          "itemCount",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "orderNumber": {
+            "type": "string"
+          },
+          "placedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartItem"
+            }
+          },
+          "itemCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "OrderPage": {
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            }
+          }
+        }
+      },
       "OrderReceipt": {
         "required": [
           "orderNumber",
@@ -2432,6 +2573,9 @@
   "tags": [
     {
       "name": "Webhooks"
+    },
+    {
+      "name": "Customer"
     },
     {
       "name": "Status"

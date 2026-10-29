@@ -3,8 +3,9 @@ using Api.Contracts;
 namespace Api.Commerce;
 
 /// <summary>
-/// Port for the commerce backend: the catalog (live, per product, and in full for indexing), carts and checkout.
-/// Implemented by a commerce adapter (see <c>Commerce/Drupal</c>). Cart calls carry the cart's token.
+/// Port for the commerce backend: the catalog (live, per product, and in full for indexing), carts, checkout and the
+/// customers' order history. Implemented by a commerce adapter (see <c>Commerce/Drupal</c>). Cart calls carry the
+/// cart's token.
 /// </summary>
 public interface ICommerceSource
 {
@@ -26,8 +27,17 @@ public interface ICommerceSource
 
     Task<CommerceResult<Cart>> RemoveItemAsync(string cartId, string token, string itemId, CancellationToken ct);
 
-    Task<CommerceResult<OrderReceipt>> CheckoutAsync(string cartId, string token, CheckoutRequest request, CancellationToken ct);
+    /// <summary>Places the order; with a <paramref name="customer"/> it belongs to that customer (otherwise a guest order).</summary>
+    Task<CommerceResult<OrderReceipt>> CheckoutAsync(string cartId, string token, CheckoutRequest request, CustomerIdentity? customer, CancellationToken ct);
+
+    /// <summary>The customer's placed orders, newest first (empty for a customer who has not ordered yet).</summary>
+    Task<OrderPage> GetOrdersAsync(CustomerIdentity customer, int page, int pageSize, CancellationToken ct);
 }
+
+/// <summary>A signed-in customer as the identity provider knows them.</summary>
+/// <param name="Subject">Stable, unique id of the customer at the identity provider (the token's subject).</param>
+/// <param name="Email">From the token, when it has one; informational (the order's email is the checkout form's).</param>
+public sealed record CustomerIdentity(string Subject, string? Email);
 
 /// <summary>A value, or the reason the backend refused the operation.</summary>
 public sealed record CommerceResult<T>(T? Value, CommerceError? Error)
