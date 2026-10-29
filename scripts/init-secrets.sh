@@ -6,7 +6,8 @@
 #   scripts/init-secrets.sh --rotate <name>      # regenerate one parameter, e.g. --rotate delivery-api-key
 #
 # Needs the Aspire CLI (`aspire secret`), openssl and jq. The store is the AppHost's user secrets
-# (UserSecretsId in apphost.cs, see `aspire secret path`). Local Seq runs without authentication, so it has no parameter.
+# (UserSecretsId in apphost.cs, see `aspire secret path`). Local Seq runs without authentication behind the staff login
+# (seq-proxy), so it has no password parameter.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -16,8 +17,8 @@ apphost=apphost.cs
 # <resource>-masterKey).
 params=(umbraco-admin-email umbraco-admin-password delivery-api-key hmac-secret webhook-secret reindex-secret
   cache-purge-secret commerce-admin-password commerce-api-key commerce-hash-salt idp-admin-password cms-oidc-secret
-  commerce-oidc-secret seq-oidc-secret web-oidc-secret sql-password meilisearch-masterKey commerce-postgres-password
-  keycloak-password)
+  commerce-oidc-secret seq-oidc-secret seq-proxy-cookie-secret web-oidc-secret sql-password meilisearch-masterKey
+  commerce-postgres-password keycloak-password)
 
 secret() { aspire secret "$@" --apphost "$apphost" --nologo --non-interactive; }
 
