@@ -68,7 +68,8 @@ public static partial class CommerceEndpoints
                 "4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, " +
                 "4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an " +
                 "empty cart, missing stock or a cart that was already checked out. With a customer's bearer token (see " +
-                "`GetMyOrders`) the order belongs to that customer; an invalid or expired token answers 401.")
+                "`GetMyOrders`) the order belongs to that customer; an invalid or expired token, or one without the customer's " +
+                "subject claim, answers 401.")
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/api/me/orders", GetMyOrders)
@@ -173,8 +174,8 @@ public static partial class CommerceEndpoints
             return ToResult<OrderReceipt>(CartNotFound);
         }
 
-        // A signed-in customer whose token was rejected must not silently become a guest (the order would be missing
-        // from their history): the caller refreshes the token and tries again.
+        // A signed-in customer whose token was rejected (or carries no subject) must not silently become a guest (the
+        // order would be missing from their history): the caller refreshes the token or signs in again.
         if (http.HasRejectedToken())
         {
             return TypedResults.Problem("The customer's access token is invalid or expired.", statusCode: StatusCodes.Status401Unauthorized,

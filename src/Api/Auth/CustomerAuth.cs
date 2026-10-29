@@ -20,12 +20,17 @@ public static class CustomerAuth
             return builder;
         }
 
+        // Fail closed: without an audience any token the issuer signs (for another app of the tenant) would pass.
+        if (string.IsNullOrWhiteSpace(options.Audience))
+        {
+            throw new InvalidOperationException($"{CustomerAuthOptions.SectionName}:Audience is required when {CustomerAuthOptions.SectionName}:Authority is set.");
+        }
+
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o =>
         {
             o.Authority = options.Authority;
             o.Audience = options.Audience;
             o.MapInboundClaims = false; // keep "sub", "email" as issued
-            o.TokenValidationParameters.ValidateAudience = !string.IsNullOrEmpty(options.Audience);
         });
         return builder;
     }
@@ -44,13 +49,14 @@ public static class CustomerAuth
     }
 
     /// <summary>
-    /// A bearer token was sent but is invalid or expired: the caller should refresh it rather than continue as a guest.
-    /// Always false when customer auth is off (the header is ignored).
+    /// A bearer token was sent but yields no customer: invalid, expired, or valid without the subject claim (a provider
+    /// misconfiguration). The caller should sign in again rather than continue as a guest. Always false when customer
+    /// auth is off (the header is ignored).
     /// </summary>
     public static bool HasRejectedToken(this HttpContext http) =>
-        http.User.Identity?.IsAuthenticated != true
-        && !string.IsNullOrWhiteSpace(http.RequestServices.GetRequiredService<CustomerAuthOptions>().Authority)
-        && http.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
+        !string.IsNullOrWhiteSpace(http.RequestServices.GetRequiredService<CustomerAuthOptions>().Authority)
+        && http.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+        && http.GetCustomer() is null;
 }
 
 public sealed class CustomerAuthOptions
@@ -60,7 +66,7 @@ public sealed class CustomerAuthOptions
     /// <summary>Issuer URL of the customer realm / tenant (e.g. <c>https://localhost:8080/realms/shop</c>); empty = off.</summary>
     public string? Authority { get; set; }
 
-    /// <summary>Required <c>aud</c> of access tokens (e.g. <c>shop-api</c>, or the API app's client id in Entra).</summary>
+    /// <summary>Required <c>aud</c> of access tokens (e.g. <c>shop-api</c>, or the API app's client id in Entra); required with an authority.</summary>
     public string? Audience { get; set; }
 
     /// <summary>Claim that identifies the customer. <c>sub</c>; <c>oid</c> in Entra ID, whose <c>sub</c> differs per app.</summary>

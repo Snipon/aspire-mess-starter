@@ -22,7 +22,7 @@
       "directAccessGrantsEnabled": false,
       "redirectUris": ["http://localhost:8082/auth/callback"],
       "attributes": { "post.logout.redirect.uris": "http://localhost:8082/*", "pkce.code.challenge.method": "S256" },
-      "defaultClientScopes": ["profile", "email"],
+      "defaultClientScopes": ["basic", "profile", "email"],
       "protocolMappers": [
         {
           "name": "shop-api audience",

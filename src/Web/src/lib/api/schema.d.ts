@@ -330,7 +330,7 @@ export interface paths {
         put?: never;
         /**
          * Pay with the fake card processor and place the order
-         * @description Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; 4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, 4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an empty cart, missing stock or a cart that was already checked out. With a customer's bearer token (see `GetMyOrders`) the order belongs to that customer; an invalid or expired token answers 401.
+         * @description Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; 4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, 4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an empty cart, missing stock or a cart that was already checked out. With a customer's bearer token (see `GetMyOrders`) the order belongs to that customer; an invalid or expired token, or one without the customer's subject claim, answers 401.
          */
         post: operations["Checkout"];
         delete?: never;

@@ -5,7 +5,7 @@ import Pager from '@/components/Pager';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { api, type OrderPage } from '../lib/api/client';
-import { accessToken, authEnabled, getSession } from '../lib/auth';
+import { accessToken, authEnabled, endSession, getSession } from '../lib/auth';
 import { formatDate, formatMoney } from '../lib/format';
 
 const PAGE_SIZE = 10;
@@ -14,6 +14,7 @@ const PAGE_SIZE = 10;
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 let orders: OrderPage | undefined;
+let rejected = false;
 const session = getSession(Astro.cookies);
 if (authEnabled()) {
   const token = await accessToken(Astro.cookies, Astro.url);
@@ -24,7 +25,14 @@ if (authEnabled()) {
     params: { query: { page, pageSize: PAGE_SIZE } },
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!data && response.status !== 400) throw new Error(`Orders API returned ${response.status}`);
+  if (response.status === 401) {
+    // The API does not accept the token (e.g. it lacks the customer claim). Signing in again by redirect could loop,
+    // so end the session and offer it.
+    endSession(Astro.cookies);
+    rejected = true;
+  } else if (!data && response.status !== 400) {
+    throw new Error(`Orders API returned ${response.status}`);
+  }
   orders = data;
 } else {
   Astro.response.status = 404;
@@ -51,7 +59,14 @@ const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
         </div>
 
         <h2 class="mt-12 text-2xl font-semibold tracking-tight">Orders</h2>
-        {!orders || orders.items.length === 0 ? (
+        {rejected ? (
+          <p class="mt-4 text-muted-foreground">
+            Your sign-in could not be verified.{' '}
+            <a href="/auth/login?returnTo=/account" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0')}>
+              Sign in again
+            </a>
+          </p>
+        ) : !orders || orders.items.length === 0 ? (
           <p class="mt-4 text-muted-foreground">
             {orders && orders.page > 1 ? 'No orders on this page.' : 'You have not placed any orders yet.'}{' '}
             <a href="/shop" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0')}>

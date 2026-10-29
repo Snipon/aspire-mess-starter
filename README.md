@@ -424,7 +424,7 @@ guest. Turn both on or both off.
 - **Web** (`src/Web/src/lib/auth.ts`, [openid-client](https://github.com/panva/openid-client)): the Astro server runs
   the authorization code flow with PKCE as the confidential client `web`. `/auth/login` keeps state, nonce and the
   PKCE verifier in a 10-minute encrypted cookie and redirects to the provider; `/auth/callback` exchanges the code and
-  validates the ID token (JWKS signature, `iss`, `aud`, `exp`, `nonce`); `returnTo` must be a same-site path. The
+  validates the ID token (JWKS signature, `iss`, `aud`, `exp`, `nonce`); `returnTo` must be a same-site path (also after normalization). The
   session is one httpOnly, `SameSite=Lax` cookie (`Secure` when `SITE_URL` is https), deflated and encrypted with
   AES-256-GCM (key from `SESSION_SECRET`): subject, name, email and the access and refresh tokens. The access token is
   refreshed when it has expired; a rejected refresh ends the session. `/auth/logout` (POST) ends it here and at the
@@ -436,9 +436,11 @@ guest. Turn both on or both off.
   their history. If the token cannot be refreshed the customer signs in again (the cart stays) instead of the order
   silently becoming a guest order.
 - **API** (`src/Api/Auth/CustomerAuth.cs`): JWT bearer tokens from `CustomerAuth:Authority` (issuer and keys from its
-  discovery document) for audience `CustomerAuth:Audience` (`shop-api`; the realm's audience mapper adds it).
-  `CustomerAuth:SubjectClaim` (default `sub`, `oid` for Entra ID) identifies the customer. The commerce port gets a
-  neutral `CustomerIdentity` (subject, email).
+  discovery document) for audience `CustomerAuth:Audience` (`shop-api`; the realm's audience mapper adds it; required
+  when an authority is set, the API refuses to start without it). `CustomerAuth:SubjectClaim` (default `sub`, `oid`
+  for Entra ID) identifies the customer and must be in the access token (Keycloak puts `sub` there only with the
+  `basic` client scope, which the realm assigns to `web`). A token without it is treated like an invalid one (401),
+  never as a guest. The commerce port gets a neutral `CustomerIdentity` (subject, email).
 - **Drupal** (`Customers.php`): the API is trusted through `X-Api-Key` and vouches for the customer. Checkout finds or
   creates a Drupal user named `shop-<hash of the subject>` (blocked, no roles or password, the email only as its
   initial email because shop emails are self-asserted) and makes it the order's customer.

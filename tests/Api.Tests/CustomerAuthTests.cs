@@ -64,6 +64,27 @@ public sealed class CustomerAuthTests
     }
 
     [Fact]
+    public async Task A_valid_token_without_a_subject_is_not_a_guest()
+    {
+        var commerce = new FakeCommerce();
+        await using var app = await StartAsync(commerce, authOn: true);
+        var client = app.GetTestClient();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync(client, HttpMethod.Get, "/api/me/orders", Token(subject: null))).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync(client, HttpMethod.Post, CartUri, Token(subject: null))).StatusCode);
+        Assert.Equal(0, commerce.Checkouts);
+    }
+
+    [Fact]
+    public void An_authority_without_an_audience_fails_at_startup()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["CustomerAuth:Authority"] = Issuer });
+
+        Assert.Throws<InvalidOperationException>(() => builder.AddCustomerAuth());
+    }
+
+    [Fact]
     public async Task Without_an_authority_everyone_is_a_guest()
     {
         var commerce = new FakeCommerce();
@@ -93,14 +114,15 @@ public sealed class CustomerAuthTests
         return await client.SendAsync(request, Ct);
     }
 
-    private static string Token(string audience = "shop-api", bool expired = false)
+    private static string Token(string audience = "shop-api", bool expired = false, string? subject = "customer-1")
     {
         var now = DateTime.UtcNow;
+        Claim[] claims = subject is null ? [new Claim("email", "ada@example.com")] : [new Claim("sub", subject), new Claim("email", "ada@example.com")];
         return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Issuer = Issuer,
             Audience = audience,
-            Subject = new ClaimsIdentity([new Claim("sub", "customer-1"), new Claim("email", "ada@example.com")]),
+            Subject = new ClaimsIdentity(claims),
             IssuedAt = now.AddHours(-2),
             NotBefore = now.AddHours(-2),
             Expires = expired ? now.AddHours(-1) : now.AddMinutes(5),
