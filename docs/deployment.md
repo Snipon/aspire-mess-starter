@@ -157,7 +157,8 @@ from Key Vault or an image pull error, wait a minute and run `terraform apply` a
 1. **cms** starts, finds an empty `umbraco` database and runs the unattended install
    (schema + `Admin` user with `umbraco_admin_email`). uSync then imports the document, element
    and data types from `src/Cms/uSync/v18` (copied into the image), the seeder creates the demo
-   site, the Articles page, 1500 articles and 12 placeholder images, and the content webhook that
+   site, the Articles and Blog pages, 1500 articles, 500 blog posts and 12 placeholder images
+   (`DemoContent__Enabled=true` in `containerapps.tf`; without it the site starts empty), and the content webhook that
    points at `<api url>/api/webhooks/content` is registered. Watch it with
    `az containerapp logs show -g <rg> -n cms --follow`.
 2. **api** creates the Meilisearch `content` index and runs the initial full reindex in the
