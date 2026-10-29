@@ -1,6 +1,7 @@
 ---
 import { Swiper, SwiperButtonNext, SwiperButtonPrev, SwiperPagination, SwiperSlide, SwiperWrapper } from 'astro-swiper';
-import ArticleCard from '../ArticleCard.astro';
+import ArticleCard from '@/components/ArticleCard';
+import { buttonVariants } from '@/components/ui/button';
 import type { Block } from '../../lib/api/client';
 import { tagHref } from '../../lib/format';
 
@@ -14,10 +15,10 @@ const heading = block.heading ?? 'Latest articles';
 
 <section>
   <div class="flex items-baseline justify-between gap-4">
-    <h2 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{heading}</h2>
+    <h2 class="text-2xl font-bold tracking-tight sm:text-3xl">{heading}</h2>
     {
       block.tag && (
-        <a href={tagHref(block.tag)} class="shrink-0 text-sm font-semibold text-indigo-600 hover:text-indigo-500">
+        <a href={tagHref(block.tag)} class={buttonVariants({ variant: 'link' })}>
           All “{block.tag}” articles <span aria-hidden="true">→</span>
         </a>
       )
@@ -51,7 +52,7 @@ const heading = block.heading ?? 'Latest articles';
           <SwiperPagination />
         </Swiper>
       ) : (
-        <p class="rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center text-slate-500">
+        <p class="rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
           No articles published yet.
         </p>
       )
@@ -62,9 +63,9 @@ const heading = block.heading ?? 'Latest articles';
 <style>
   /* :global, as scoping does not reach into the Swiper component's element. */
   :global(.latest-articles) {
-    --swiper-theme-color: var(--color-indigo-600);
+    --swiper-theme-color: var(--primary);
     --swiper-navigation-size: 28px;
-    --swiper-pagination-bullet-inactive-color: var(--color-slate-400);
+    --swiper-pagination-bullet-inactive-color: var(--muted-foreground);
     --swiper-pagination-bottom: 7px;
   }
 

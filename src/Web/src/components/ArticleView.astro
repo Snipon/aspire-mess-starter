@@ -1,6 +1,10 @@
 ---
-import ResponsiveImage from './ResponsiveImage.astro';
-import TagList from './TagList.astro';
+import { ArrowLeftIcon } from 'lucide-react';
+import ResponsiveImage from '@/components/ResponsiveImage';
+import TagList from '@/components/TagList';
+import { buttonVariants } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import type { Article, Page } from '../lib/api/client';
 import { formatDate } from '../lib/format';
 
@@ -17,34 +21,34 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
 <article>
   <header class="mx-auto max-w-3xl">
     <nav aria-label="Breadcrumb">
-      <a href={parentPath} class="text-sm font-semibold text-indigo-600 hover:text-indigo-500">
-        <span aria-hidden="true">←</span> All articles
+      <a href={parentPath} class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2.5 text-muted-foreground')}>
+        <ArrowLeftIcon aria-hidden="true" /> All articles
       </a>
     </nav>
-    <h1 class="mt-4 text-4xl font-bold tracking-tight text-balance text-slate-900 sm:text-5xl">{page.title}</h1>
-    <p class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+    <h1 class="mt-4 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{page.title}</h1>
+    <p class="mt-6 flex h-5 items-center gap-3 text-sm text-muted-foreground">
       <time datetime={article.publishDate}>{formatDate(article.publishDate)}</time>
-      <span aria-hidden="true">·</span>
+      <Separator orientation="vertical" />
       <span>{article.readingTimeMinutes} min read</span>
     </p>
-    <TagList tags={article.tags} class="mt-4" />
+    <TagList tags={article.tags} className="mt-4" />
   </header>
 
   {
     page.image && (
-      <figure class="mx-auto mt-10 max-w-4xl overflow-hidden rounded-2xl bg-slate-200 shadow-sm">
+      <figure class="mx-auto mt-10 max-w-4xl overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10">
         <ResponsiveImage
           image={page.image}
           loading="eager"
           sizes="(min-width: 960px) 896px, 100vw"
-          class="aspect-video w-full object-cover"
+          className="aspect-video w-full object-cover"
         />
       </figure>
     )
   }
 
   <div
-    class="prose prose-lg prose-slate mx-auto mt-10 max-w-3xl prose-headings:tracking-tight prose-a:text-indigo-600 prose-a:decoration-indigo-300 prose-a:underline-offset-2 prose-a:hover:decoration-indigo-600 prose-pre:rounded-xl prose-pre:bg-slate-900 prose-img:rounded-lg"
+    class="prose prose-lg prose-neutral dark:prose-invert mx-auto mt-10 max-w-3xl prose-headings:tracking-tight prose-a:text-primary prose-a:decoration-primary/40 prose-a:underline-offset-2 prose-a:hover:decoration-primary prose-pre:rounded-xl prose-pre:bg-neutral-900 prose-img:rounded-lg"
     set:html={article.bodyHtml}
   />
 </article>

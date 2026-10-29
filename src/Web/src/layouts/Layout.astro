@@ -1,6 +1,8 @@
 ---
 import '../styles/global.css';
 import SearchInput from '../components/SearchInput.astro';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { getNavigation, type NavItem } from '../lib/api/client';
 
 interface Props {
@@ -31,8 +33,8 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     {description && <meta name="description" content={description} />}
     <slot name="head" />
   </head>
-  <body class="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-900 antialiased">
-    <header class="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur">
+  <body class="flex min-h-screen flex-col bg-muted/40 antialiased">
+    <header class="sticky top-0 z-10 border-b bg-background/85 backdrop-blur">
       <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
         <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
           <img src="/favicon.svg" alt="" width="28" height="28" />
@@ -46,12 +48,10 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
                   <a
                     href={item.path}
                     aria-current={isActive(item.path) ? 'page' : undefined}
-                    class:list={[
-                      'rounded-md px-3 py-1.5 transition-colors',
-                      isActive(item.path)
-                        ? 'bg-indigo-50 font-medium text-indigo-700'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                    ]}
+                    class={cn(
+                      buttonVariants({ variant: isActive(item.path) ? 'secondary' : 'ghost' }),
+                      !isActive(item.path) && 'text-muted-foreground',
+                    )}
                   >
                     {item.name}
                   </a>
@@ -66,7 +66,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
             id="site-search"
             value={q}
             placeholder="Search…"
-            class="w-40 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none sm:w-56"
+            class="w-40 sm:w-56"
           />
         </form>
       </div>
@@ -76,10 +76,10 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
       <slot />
     </main>
 
-    <footer class="border-t border-slate-200 bg-white">
-      <div class="mx-auto max-w-5xl px-4 py-6 text-sm text-slate-500 sm:px-6">
+    <footer class="border-t bg-background">
+      <div class="mx-auto max-w-5xl px-4 py-6 text-sm text-muted-foreground sm:px-6">
         Content from Umbraco, search by Meilisearch, served by Astro.
-        <a href="/status" class="ml-1 font-medium text-indigo-600 hover:text-indigo-500">System status</a>
+        <a href="/status" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-1')}>System status</a>
       </div>
     </footer>
   </body>

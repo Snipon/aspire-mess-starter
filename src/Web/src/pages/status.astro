@@ -1,16 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getStatus, type HealthState } from '../lib/api/client';
+import StatusPanel, { type Row, type State } from '@/components/StatusPanel';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { getStatus } from '../lib/api/client';
 
 // Informational page: always 200, never cached. No auto-reload (it would reset focus and screen-reader position).
 Astro.response.headers.set('Cache-Control', 'no-store');
-
-type State = HealthState | 'unknown';
-interface Row {
-  name: string;
-  state: State;
-  detail: string;
-}
 
 const { report, httpStatus, latencyMs } = await getStatus();
 const renderedAt = new Date();
@@ -32,32 +28,6 @@ const rows: Row[] = [
 const rank: Record<State, number> = { healthy: 0, unknown: 1, degraded: 2, unhealthy: 3 };
 const overall = rows.reduce<State>((worst, row) => (rank[row.state] > rank[worst] ? row.state : worst), 'healthy');
 
-const labels: Record<State, string> = {
-  healthy: 'Operational',
-  degraded: 'Degraded',
-  unhealthy: 'Down',
-  unknown: 'Unknown',
-};
-const icons: Record<State, string> = { healthy: '✓', degraded: '!', unhealthy: '✕', unknown: '?' };
-const badgeClass: Record<State, string> = {
-  healthy: 'bg-emerald-100 text-emerald-800',
-  degraded: 'bg-amber-100 text-amber-900',
-  unhealthy: 'bg-red-100 text-red-800',
-  unknown: 'bg-slate-200 text-slate-700',
-};
-const bannerClass: Record<State, string> = {
-  healthy: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-  degraded: 'border-amber-200 bg-amber-50 text-amber-900',
-  unhealthy: 'border-red-200 bg-red-50 text-red-900',
-  unknown: 'border-slate-200 bg-slate-100 text-slate-800',
-};
-const headline: Record<State, string> = {
-  healthy: 'All systems operational',
-  degraded: 'Some systems are degraded',
-  unhealthy: 'Some systems are down',
-  unknown: 'System status unknown',
-};
-
 const timeFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC' });
 const checkedAt = report ? new Date(report.checkedAt) : renderedAt;
 ---
@@ -66,36 +36,11 @@ const checkedAt = report ? new Date(report.checkedAt) : renderedAt;
   <div class="mx-auto max-w-3xl">
     <h1 class="text-3xl font-bold tracking-tight">System status</h1>
 
-    <div class:list={['mt-6 flex items-center gap-3 rounded-xl border px-5 py-4', bannerClass[overall]]} role="status">
-      <span class="text-xl font-bold" aria-hidden="true">{icons[overall]}</span>
-      <p class="text-lg font-semibold">{headline[overall]}</p>
-    </div>
+    <StatusPanel overall={overall} rows={rows} />
 
-    <ul class="mt-6 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white shadow-sm">
-      {
-        rows.map((row) => (
-          <li class="flex items-center justify-between gap-4 px-5 py-4">
-            <div class="min-w-0">
-              <p class="font-medium text-slate-900">{row.name}</p>
-              <p class="text-sm text-slate-500">{row.detail}</p>
-            </div>
-            <span
-              class:list={[
-                'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-sm font-medium',
-                badgeClass[row.state],
-              ]}
-            >
-              <span aria-hidden="true">{icons[row.state]}</span>
-              {labels[row.state]}
-            </span>
-          </li>
-        ))
-      }
-    </ul>
-
-    <p class="mt-4 text-sm text-slate-500">
+    <p class="mt-4 text-sm text-muted-foreground">
       Last checked <time datetime={checkedAt.toISOString()}>{timeFormat.format(checkedAt)} UTC</time>.
-      <a href="/status" class="font-medium text-slate-700 underline hover:text-slate-900">Refresh</a>
+      <a href="/status" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-1')}>Refresh</a>
     </p>
   </div>
 </Layout>

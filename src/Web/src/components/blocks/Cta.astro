@@ -1,6 +1,8 @@
 ---
 import type { Block } from '../../lib/api/client';
 import { linkAttrs } from '../../lib/format';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface Props {
   block: Extract<Block, { type: 'cta' }>;
@@ -13,23 +15,21 @@ const primary = block.style === 'primary';
 <section
   class:list={[
     'flex flex-col gap-6 rounded-3xl px-6 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-10',
-    primary ? 'bg-indigo-600 text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-900',
+    primary ? 'bg-primary text-primary-foreground shadow-sm' : 'border bg-card text-card-foreground',
   ]}
 >
   <div class="max-w-2xl">
     <h2 class="text-2xl font-bold tracking-tight text-balance sm:text-3xl">{block.heading}</h2>
-    {block.text && <p class:list={['mt-3 text-lg text-pretty', primary ? 'text-indigo-100' : 'text-slate-600']}>{block.text}</p>}
+    {block.text && <p class:list={['mt-3 text-lg text-pretty', primary ? 'text-primary-foreground/80' : 'text-muted-foreground']}>{block.text}</p>}
   </div>
   {
     block.link && (
       <a
         {...linkAttrs(block.link)}
-        class:list={[
-          'inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-lg px-5 py-3 font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:self-auto',
-          primary
-            ? 'bg-white text-indigo-700 hover:bg-indigo-50 focus-visible:outline-white'
-            : 'bg-indigo-600 text-white hover:bg-indigo-500 focus-visible:outline-indigo-600',
-        ]}
+        class={cn(
+          buttonVariants({ variant: primary ? 'secondary' : 'default', size: 'lg' }),
+          'h-11 shrink-0 self-start px-5 text-base sm:self-auto',
+        )}
       >
         {block.link.title ?? 'Learn more'}
         {block.link.target === '_blank' ? (

@@ -1,20 +1,29 @@
 ---
-import type { HTMLAttributes } from 'astro/types';
+import { Input } from '@/components/ui/input';
 
 /** A `q` search input with autosuggest (combobox over /api/suggest); without JavaScript it is a plain search field. */
-type Props = Omit<HTMLAttributes<'input'>, 'type' | 'name'> & { id: string };
+interface Props {
+  id: string;
+  value?: string;
+  placeholder?: string;
+  autofocus?: boolean;
+  class?: string;
+}
 
-const { id, ...attrs } = Astro.props;
+const { id, value, placeholder, autofocus, class: className } = Astro.props;
 const listId = `${id}-suggestions`;
 ---
 
 <div class="relative" data-search-suggest>
-  <input
-    {...attrs}
+  <Input
     id={id}
     type="search"
     name="q"
-    autocomplete="off"
+    defaultValue={value}
+    placeholder={placeholder}
+    autoFocus={autofocus}
+    className={className}
+    autoComplete="off"
     role="combobox"
     aria-autocomplete="list"
     aria-expanded="false"
@@ -25,7 +34,7 @@ const listId = `${id}-suggestions`;
     role="listbox"
     aria-label="Suggestions"
     hidden
-    class="absolute top-full right-0 z-20 mt-1 w-full min-w-72 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg"
+    class="absolute top-full right-0 z-20 mt-1 w-full min-w-72 overflow-hidden rounded-md border bg-popover p-1 text-sm text-popover-foreground shadow-md"
   >
   </ul>
 </div>
@@ -51,12 +60,12 @@ const listId = `${id}-suggestions`;
           option.role = 'option';
           option.ariaSelected = String(i === active);
           option.className =
-            'flex cursor-pointer items-baseline justify-between gap-3 px-3 py-2 text-slate-700 hover:bg-slate-50 aria-selected:bg-indigo-50 aria-selected:text-indigo-700';
+            'flex cursor-pointer items-baseline justify-between gap-3 rounded-sm px-2 py-1.5 hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground';
           const title = document.createElement('span');
           title.className = 'min-w-0 truncate';
           title.textContent = item.title;
           const type = document.createElement('span');
-          type.className = 'shrink-0 text-xs text-slate-400';
+          type.className = 'shrink-0 text-xs text-muted-foreground';
           type.textContent = item.contentType;
           option.append(title, type);
           // mousedown, not click: fires before the input's blur closes the list.

@@ -1,8 +1,11 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import ArticleGrid from '../../components/ArticleGrid.astro';
+import { ArrowLeftIcon } from 'lucide-react';
+import ArticleGrid from '@/components/ArticleGrid';
+import Pager from '@/components/Pager';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import NotFound from '../../components/NotFound.astro';
-import Pagination from '../../components/Pagination.astro';
 import { api, type ArticleSummary } from '../../lib/api/client';
 import { tagHref } from '../../lib/format';
 
@@ -33,14 +36,14 @@ const pageHref = (n: number) => (n === 1 ? tagHref(tag) : `${tagHref(tag)}?page=
   result && articles.length ? (
     <Layout title={`Articles tagged “${tag}”`} description={`${result.total} articles about ${tag}.`}>
       <header class="max-w-3xl">
-        <a href="/articles" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500">
-          <span aria-hidden="true">←</span> All articles
+        <a href="/articles" class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2.5 text-muted-foreground')}>
+          <ArrowLeftIcon aria-hidden="true" /> All articles
         </a>
-        <p class="mt-6 text-sm font-semibold tracking-wide text-indigo-600 uppercase">Topic</p>
+        <p class="mt-6 text-sm font-semibold tracking-wide text-primary uppercase">Topic</p>
         <h1 class="mt-1 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{tag}</h1>
-        <p class="mt-4 text-lg text-slate-600">
+        <p class="mt-4 text-lg text-muted-foreground">
           {result.total} article{result.total === 1 ? '' : 's'}
-          {totalPages > 1 && <span class="text-slate-500"> · page {result.page} of {totalPages}</span>}
+          {totalPages > 1 && <span> · page {result.page} of {totalPages}</span>}
         </p>
       </header>
 
@@ -48,7 +51,7 @@ const pageHref = (n: number) => (n === 1 ? tagHref(tag) : `${tagHref(tag)}?page=
         <ArticleGrid articles={articles} headingLevel="h2" />
       </div>
 
-      <Pagination page={result.page} totalPages={totalPages} href={pageHref} />
+      <Pager page={result.page} totalPages={totalPages} href={pageHref} />
     </Layout>
   ) : (
     <Layout title="Page not found">

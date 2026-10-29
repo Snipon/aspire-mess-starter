@@ -1,7 +1,11 @@
 ---
-import ArticleGrid from '../ArticleGrid.astro';
-import FacetFilters, { type FacetGroup } from '../FacetFilters.astro';
-import Pagination from '../Pagination.astro';
+import { XIcon } from 'lucide-react';
+import ArticleGrid from '@/components/ArticleGrid';
+import FacetFilters, { type FacetGroup } from '@/components/FacetFilters';
+import Pager from '@/components/Pager';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { api, type ArticleSummary, type Block } from '../../lib/api/client';
 import { log } from '../../lib/log';
 
@@ -58,18 +62,18 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 ---
 
 <section id="articles" class="scroll-mt-24">
-  <h2 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{heading}</h2>
+  <h2 class="text-2xl font-bold tracking-tight sm:text-3xl">{heading}</h2>
 
   {
     !result ? (
-      <p class="mt-6 rounded-lg bg-red-50 px-4 py-3 text-red-700" role="alert">
-        Articles are temporarily unavailable. Please try again shortly.
-      </p>
+      <Alert variant="destructive" className="mt-6">
+        <AlertDescription>Articles are temporarily unavailable. Please try again shortly.</AlertDescription>
+      </Alert>
     ) : (
       <div class="mt-6 flex flex-col gap-8 lg:flex-row">
         <FacetFilters groups={groups} />
         <div class="min-w-0 flex-1" aria-live="polite">
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-500">
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             <p>
               {result.total} article{result.total === 1 ? '' : 's'}
               {tag && ` about “${tag}”`}
@@ -79,9 +83,9 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
             {(tag || year) && (
               <a
                 href={listHref({ tag: null, year: null })}
-                class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-300"
+                class={cn(buttonVariants({ variant: 'outline', size: 'xs' }))}
               >
-                <span aria-hidden="true">×</span> Clear filters
+                <XIcon aria-hidden="true" /> Clear filters
               </a>
             )}
           </div>
@@ -90,11 +94,11 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
               <ArticleGrid articles={articles} />
             </div>
           ) : (
-            <p class="mt-4 rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center text-slate-500">
+            <p class="mt-4 rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
               No articles match these filters.
             </p>
           )}
-          <Pagination page={result.page} totalPages={totalPages} href={(n) => listHref({ page: n })} />
+          <Pager page={result.page} totalPages={totalPages} href={(n) => listHref({ page: n })} />
         </div>
       </div>
     )

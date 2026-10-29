@@ -1,7 +1,7 @@
 # Aspire headless CMS demo
 
 An [Aspire](https://aspire.dev) solution with a headless **Umbraco 18** CMS, a typed **.NET 10 API** with
-swappable content and search adapters, **Meilisearch** for search, and an **Astro 7 + Tailwind 4** SSR website.
+swappable content and search adapters, **Meilisearch** for search, and an **Astro 7 + Tailwind 4 + shadcn/ui** SSR website.
 Local development runs entirely from the Aspire AppHost (`apphost.cs`); Azure deployment uses Terraform
 (`infra/terraform`, see [docs/deployment.md](docs/deployment.md)).
 
@@ -304,6 +304,17 @@ cd src/Web
 npm run gen:api      # openapi-typescript ../Api/openapi/Api.json -> src/lib/api/schema.d.ts
 npm run build        # astro check + astro build
 ```
+
+### UI components (shadcn/ui)
+
+The website's UI baseline is [shadcn/ui](https://ui.shadcn.com) (style `radix-nova`, `components.json`): primitives
+live in `src/Web/src/components/ui` (add more with `npx shadcn@latest add <name>` in `src/Web`) and the theme tokens
+(`background`, `foreground`, `primary`, `muted`, `border`, `ring`, …) in `src/styles/global.css`, where `primary` is the
+site's indigo. Use the tokens rather than raw palette colours. shadcn components are React (`@astrojs/react`) and are
+rendered on the server only: pages ship no React unless a component is given a `client:*` directive. Compose them in
+`.tsx` components (`ArticleCard`, `Pager`, `FacetFilters`, …) rather than passing Astro children into them (Astro wraps
+slot content, which breaks `asChild` and child selectors); in `.astro` files style links with `buttonVariants()` /
+`badgeVariants()`.
 
 ## Tests
 
