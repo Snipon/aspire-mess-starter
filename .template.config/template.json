@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "AKQA",
+  "classifications": ["Aspire", "Umbraco", "Drupal", "Astro", "Headless", "Solution"],
+  "identity": "AspireHeadless.Solution",
+  "name": "Aspire headless CMS + commerce",
+  "shortName": "aspire-headless",
+  "description": "Aspire solution: headless Umbraco, Drupal Commerce, .NET API, Meilisearch, Keycloak and an Astro website.",
+  "tags": { "language": "C#", "type": "solution" },
+  "preferNameDirectory": true,
+  "forms": {
+    "identity": { "identifier": "identity" },
+    "kebab": { "identifier": "kebabCase" },
+    "lower": { "identifier": "lowerCase" },
+    "alnum": { "identifier": "replace", "pattern": "[^A-Za-z0-9]", "replacement": "" },
+    "compact": { "identifier": "chain", "steps": ["alnum", "lower"] }
+  },
+  "symbols": {
+    "pascalName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "identity",
+      "replaces": "AspireTest",
+      "fileRename": "AspireTest",
+      "description": "Solution file and CI (AspireTest.slnx)."
+    },
+    "kebabName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "kebab",
+      "replaces": "aspire-test",
+      "description": "UserSecretsId, image repository prefix, tfstate key, tags."
+    },
+    "compactName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "compact",
+      "replaces": "aspiretest",
+      "description": "Azure resource name prefix (lower-case letters and digits)."
+    },
+    "demo": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Seed demo articles, blog posts, images and 2000 products on first start."
+    },
+    "demoLiteral": {
+      "type": "generated",
+      "generator": "switch",
+      "datatype": "string",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [{ "condition": "(demo)", "value": "true" }, { "condition": "", "value": "false" }]
+      },
+      "replaces": "true",
+      "onlyIf": [{ "after": "const bool DemoContent = " }, { "after": "demo_content  = " }]
+    },
+    "keycloakPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 10000, "high": 19999, "fallback": 8080 },
+      "replaces": "8080",
+      "onlyIf": [{ "after": "localhost:" }, { "after": ", port: " }]
+    },
+    "commercePort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 10000, "high": 19999, "fallback": 8081 },
+      "replaces": "8081",
+      "onlyIf": [{ "after": "localhost:" }, { "after": "(port: " }]
+    },
+    "webCachePort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 10000, "high": 19999, "fallback": 8082 },
+      "replaces": "8082",
+      "onlyIf": [{ "after": "localhost:" }, { "after": "(port: " }]
+    },
+    "seqProxyPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 10000, "high": 19999, "fallback": 5341 },
+      "replaces": "5341",
+      "onlyIf": [{ "after": "localhost:" }, { "after": "(port: " }]
+    },
+    "seqIngestionPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 10000, "high": 19999, "fallback": 5342 },
+      "replaces": "5342",
+      "onlyIf": [{ "after": "localhost:" }, { "after": ", port: " }]
+    },
+    "cmsHttpPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 23000, "high": 29999, "fallback": 28048 },
+      "replaces": "28048",
+      "onlyIf": [{ "after": "localhost:" }]
+    },
+    "cmsHttpsPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 44300, "high": 44399, "fallback": 44350 },
+      "replaces": "44350",
+      "onlyIf": [{ "after": "localhost:" }, { "after": "\"sslPort\": " }]
+    },
+    "dashboardHttpsPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 17000, "high": 17300, "fallback": 17039 },
+      "replaces": "17039",
+      "onlyIf": [{ "after": "localhost:" }]
+    },
+    "dashboardHttpPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 15000, "high": 15300, "fallback": 15107 },
+      "replaces": "15107",
+      "onlyIf": [{ "after": "localhost:" }]
+    },
+    "otlpHttpsPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 21000, "high": 21300, "fallback": 21095 },
+      "replaces": "21095",
+      "onlyIf": [{ "after": "localhost:" }]
+    },
+    "resourceHttpsPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 22000, "high": 22300, "fallback": 22039 },
+      "replaces": "22039",
+      "onlyIf": [{ "after": "localhost:" }]
+    },
+    "otlpHttpPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 19000, "high": 19300, "fallback": 19028 },
+      "replaces": "19028",
+      "onlyIf": [{ "after": "localhost:" }]
+    },
+    "resourceHttpPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 20000, "high": 20300, "fallback": 20162 },
+      "replaces": "20162",
+      "onlyIf": [{ "after": "localhost:" }]
+    }
+  },
+  "sources": [
+    {
+      "exclude": [
+        ".template.config/**",
+        ".git/**",
+        ".claude/**",
+        ".idea/**",
+        ".vscode/**",
+        "graft/**",
+        ".tool-versions",
+        "**/[Bb]in/**",
+        "**/[Oo]bj/**",
+        "**/node_modules/**",
+        "**/*.user",
+        "infra/terraform/.terraform/**",
+        "infra/terraform/*.tfstate*",
+        "src/Cms/umbraco/**",
+        "src/Cms/wwwroot/media/**",
+        "src/Cms/appsettings-schema*.json",
+        "src/Cms/umbraco-package-schema.json",
+        "src/Web/.astro/**",
+        "src/Web/dist/**"
+      ]
+    }
+  ]
+}
