@@ -85,6 +85,8 @@ foreach (var check in seq.Resource.Annotations.OfType<HealthCheckAnnotation>().T
 // URIs there assume the fixed host ports below (cms 28048/44350, commerce 8081, web-cache 8082, seq 5341). Admin
 // console: https://localhost:8080 (user admin, password keycloak-password).
 const string KeycloakUrl = "https://localhost:8080"; // the integration serves HTTPS (dev certificate) on 8080
+const string KeycloakInternalUrl = "https://keycloak.dev.internal:8443"; // container-to-container, trusted dev certificate
+const string StaffOidcPath = "/realms/staff/protocol/openid-connect";
 var keycloak = builder.AddKeycloak("keycloak", port: 8080)
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume()
@@ -103,8 +105,6 @@ var keycloak = builder.AddKeycloak("keycloak", port: 8080)
 // at https://localhost:8080 while the container redeems and refreshes tokens, fetches keys and logs out over the
 // container network (keycloak.dev.internal, trusted through Aspire's SSL_CERT_DIR), so discovery is skipped and the
 // endpoints are explicit. Host port fixed: the IdP redirect URI (infra/keycloak) names it.
-const string StaffOidcPath = "/realms/staff/protocol/openid-connect";
-const string KeycloakInternalUrl = "https://keycloak.dev.internal:8443";
 builder.AddContainer("seq-proxy", "quay.io/oauth2-proxy/oauth2-proxy", "v7.15.5")
     .WithArgs(
         "--http-address=0.0.0.0:4180",
@@ -189,7 +189,6 @@ var api = builder.AddProject<Projects.Api>("api")
 // Drupal into the empty database on first start and seeds 2000 demo products (DEMO_CONTENT); admin UI at /user/login,
 // signed in through the staff realm (OIDC_*; without OIDC_CLIENT_ID the password form stays). The browser is sent to
 // the authorization and logout endpoints on localhost; Drupal calls the token endpoint from inside its container.
-const string KeycloakInternalUrl = "https://keycloak.dev.internal:8443"; // container-to-container, trusted dev certificate
 var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
     .WithReference(commerceDb) // COMMERCEDB_HOST/_PORT/_USERNAME/_PASSWORD/_DATABASENAME, read by settings.php
     .WaitFor(commerceDb)
@@ -202,9 +201,9 @@ var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
     .WithEnvironment("OIDC_CLIENT_ID", "commerce")
     .WithEnvironment("OIDC_CLIENT_SECRET", commerceOidcSecret)
     .WithEnvironment("OIDC_ISSUER", $"{KeycloakUrl}/realms/staff") // the ID token's iss, checked on sign-in
-    .WithEnvironment("OIDC_AUTHORIZATION_ENDPOINT", $"{KeycloakUrl}/realms/staff/protocol/openid-connect/auth")
-    .WithEnvironment("OIDC_TOKEN_ENDPOINT", $"{KeycloakInternalUrl}/realms/staff/protocol/openid-connect/token")
-    .WithEnvironment("OIDC_END_SESSION_ENDPOINT", $"{KeycloakUrl}/realms/staff/protocol/openid-connect/logout")
+    .WithEnvironment("OIDC_AUTHORIZATION_ENDPOINT", $"{KeycloakUrl}{StaffOidcPath}/auth")
+    .WithEnvironment("OIDC_TOKEN_ENDPOINT", $"{KeycloakInternalUrl}{StaffOidcPath}/token")
+    .WithEnvironment("OIDC_END_SESSION_ENDPOINT", $"{KeycloakUrl}{StaffOidcPath}/logout")
     .WithHttpEndpoint(port: 8081, targetPort: 80) // fixed: the IdP redirect URI (infra/keycloak) names it
     .WithHttpHealthCheck("/headless/health")
     .WithExternalHttpEndpoints();
