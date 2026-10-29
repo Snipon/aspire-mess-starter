@@ -201,6 +201,11 @@ resource "azurerm_container_app" "cms" {
         value = "true"
       }
       env {
+        # Demo articles, blog posts and images (src/Cms/Headless/ContentSeeder.cs); remove for a real project.
+        name  = "DemoContent__Enabled"
+        value = "true"
+      }
+      env {
         name  = "Umbraco__CMS__DeliveryApi__PublicAccess"
         value = "false"
       }

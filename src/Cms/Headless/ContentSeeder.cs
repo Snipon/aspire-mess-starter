@@ -25,8 +25,14 @@ namespace Cms.Headless;
 /// articles" block gets the article list instead, and a Home page still in the layout seeded before blog posts existed
 /// gets the blog post slider and a Blog page. Everything created is then sent to the search index
 /// (<see cref="SearchIndexNotifier"/>).
+/// <para>
+/// Opt-in: runs only when <c>DemoContent:Enabled</c> is <c>true</c> (set by apphost.cs and infra/terraform for this
+/// demo). Without it the CMS starts with the schema and no content; a project built on this repo leaves it off, or
+/// deletes this class together with <see cref="DemoArticles"/> and <see cref="DemoBlogPosts"/>.
+/// </para>
 /// </summary>
 internal sealed class ContentSeeder(
+    IConfiguration configuration,
     IRuntimeState runtimeState,
     ICoreScopeProvider scopeProvider,
     IServerRoleAccessor serverRoleAccessor,
@@ -40,6 +46,7 @@ internal sealed class ContentSeeder(
     SearchIndexNotifier searchIndexNotifier,
     ILogger<ContentSeeder> logger) : INotificationAsyncHandler<UmbracoApplicationStartedNotification>
 {
+    internal const string EnabledSetting = "DemoContent:Enabled";
     private const string SiteAlias = "site";
     private const int ImageCount = 12;
     private const int MaxChildren = 100_000;
@@ -57,6 +64,12 @@ internal sealed class ContentSeeder(
     {
         if (runtimeState.Level != RuntimeLevel.Run || serverRoleAccessor.CurrentServerRole == ServerRole.Subscriber)
         {
+            return Task.CompletedTask;
+        }
+
+        if (!configuration.GetValue<bool>(EnabledSetting))
+        {
+            logger.LogInformation("Demo content is off ({Setting} is not true), not seeding", EnabledSetting);
             return Task.CompletedTask;
         }
 

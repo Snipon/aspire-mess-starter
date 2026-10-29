@@ -60,6 +60,7 @@ var cms = builder.AddProject<Projects.Cms>("cms")
     .WithEnvironment("Umbraco__CMS__DeliveryApi__ApiKey", deliveryApiKey)
     .WithEnvironment("Umbraco__CMS__Imaging__HMACSecretKey", hmacSecret)
     .WithEnvironment("ContentWebhook__Secret", webhookSecret)
+    .WithEnvironment("DemoContent__Enabled", "true") // demo articles, blog posts and images; remove for a real project
     .WithExternalHttpEndpoints();
 
 // Typed API (content + search adapters, Scalar docs at /scalar).

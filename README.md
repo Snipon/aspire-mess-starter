@@ -4,6 +4,8 @@ An [Aspire](https://aspire.dev) solution with a headless **Umbraco 18** CMS, a t
 swappable content and search adapters, **Meilisearch** for search, and an **Astro 7 + Tailwind 4 + shadcn/ui** SSR website.
 Local development runs entirely from the Aspire AppHost (`apphost.cs`); Azure deployment uses Terraform
 (`infra/terraform`, see [docs/deployment.md](docs/deployment.md)).
+Guidance for coding agents (commands, generated files, how a change flows through the stack) is in
+[AGENTS.md](AGENTS.md).
 
 ## Architecture
 
@@ -36,6 +38,7 @@ flowchart LR
     api -- "Umbraco:PublicBaseUrl<br/>service discovery" --> cms
     api -- "connection string: meilisearch" --> meilisearch
     api -- "connection string: seq" --> seq
+    api -- "WebCache:PurgeUrl" --> web_cache
     web -- "API_URL" --> api
     web -- "connection string: seq" --> seq
     web_cache -- "WEB_UPSTREAM" --> web
@@ -52,15 +55,18 @@ manifest): `node scripts/gen-architecture.mjs` rewrites it, and CI commits the u
   (`src/Cms/Headless/HeadlessComposer.cs`). ImageSharp resize requests must carry a valid `hmac` (HMAC secret
   configured), so unsigned `?width=...` requests get a 400. On first start it installs unattended into SQL Server,
   imports the schema (document, element and data types) from **uSync** (`src/Cms/uSync/v18`), seeds demo content
-  (`ContentSeeder.cs`, `DemoArticles.cs`) and registers a webhook pointing at the API
-  (`ContentWebhookRegistrar.cs`). See [Content model](#content-model).
+  when `DemoContent:Enabled` is on (`ContentSeeder.cs`, `DemoArticles.cs`, `DemoBlogPosts.cs`) and registers a
+  webhook pointing at the API (`ContentWebhookRegistrar.cs`). See [Content model](#content-model).
 - **api** – the only thing the website talks to. It exposes a CMS- and search-engine-neutral contract
   (`src/Api/Contracts`) and builds absolute media URLs and HMAC-signed `srcset` renditions (480/960/1440/1920).
   On startup it ensures the search index and runs a full reindex in the background (retrying until the CMS has
   content). Content webhooks keep the index up to date afterwards, and a full reindex every `Search:ReindexInterval`
-  (default 30 minutes, `00:00:00` disables it) catches anything a lost webhook missed.
+  (default 30 minutes, `00:00:00` disables it) catches anything a lost webhook missed. After each content webhook
+  it purges the web cache.
 - **web** – Astro server-side rendering only; the browser never calls the API directly. The API client is
   generated from the API's OpenAPI document.
+- **web-cache** – nginx reverse proxy cache in front of the web, the site's entry point locally (see
+  [Reverse proxy cache](#reverse-proxy-cache)).
 
 ## Prerequisites
 
@@ -90,10 +96,13 @@ What happens on start:
 
 1. `sql`, `meilisearch` and `seq` start as **persistent** containers with data volumes (they survive `aspire stop`).
 2. `cms` waits for the database, installs Umbraco unattended (first run only), imports the uSync schema
-   ("uSync First boot complete 12 changes" in the log), seeds the demo content and registers the webhook. A fresh
-   install takes about a minute; Umbraco's Delivery API query index fills about a minute after that.
+   ("uSync First boot complete" in the log; later schema changes need a backoffice import, see
+   [Changing the schema](#changing-the-schema-usync-workflow)), seeds the demo content (`DemoContent:Enabled`) and
+   registers the webhook. A fresh install takes about a minute; Umbraco's Delivery API query index fills about a
+   minute after that.
 3. `api` waits for Meilisearch, then reindexes in the background once the CMS returns content.
-4. `web` runs `npm install` + `npm run dev` (Astro dev server on Aspire's `PORT`) once the api is healthy.
+4. `web` runs `npm install` + `npm run dev` (Astro dev server on Aspire's `PORT`) once the api is healthy, and
+   `web-cache` (nginx) starts in front of it.
 
 ### Local secrets
 
@@ -136,8 +145,8 @@ existing `sql` volume. The script then warns and prints the command that restore
 
 ### Start from a clean database
 
-uSync's first-boot import and the seeder only run against an empty database (the seeder skips when a root `site`
-node exists). To reinstall from scratch, for example after pulling a schema change that conflicts with your local
+uSync's first-boot import only runs against an empty database, and the seeder only tops up its own demo content on an
+existing one. To reinstall from scratch, for example after pulling a schema change that conflicts with your local
 data, stop the AppHost and remove this AppHost's `sql`/`meilisearch` containers and volumes plus local media and
 Examine indexes (the hash in the names is per AppHost path; check with `podman ps -a` / `podman volume ls`):
 
@@ -273,6 +282,13 @@ database uSync imports it on first boot (`uSync:Settings:ImportOnFirstBoot`), be
 | `blogPost` | document | `title`, `image` (single image), `body` (Markdown), `relatedArticle` (Content Picker; anything but an article is ignored), `publishDate` (optional; falls back to the create date) | `page` |
 | `latestBlogPostsBlock` | element | `heading`, `count` (1–50, empty = 6); the newest blog posts as a slider on the web | Content Blocks |
 | `blogPostListBlock` | element | `heading`, `pageSize` (1–50, empty = 12); all blog posts with a year filter and a pager, read by the web from `/api/search` | Content Blocks |
+
+**Demo content is opt-in.** The seeder only runs when `DemoContent:Enabled` is `true`, which `apphost.cs` and
+`infra/terraform/containerapps.tf` set for this demo (`DemoContent__Enabled`). Starting a real project from this
+repository: remove those two lines (or delete `ContentSeeder.cs`, `DemoArticles.cs` and `DemoBlogPosts.cs` and the
+`ContentSeeder` registration in `HeadlessComposer.cs`). The CMS then boots with the schema and no content; create a
+`site` node in the backoffice, because until one exists the website answers 404 on every page. Switching it off on
+a seeded database leaves the existing content alone.
 
 Seeded demo content (`ContentSeeder.cs`, idempotent, deterministic seed, one transaction so a failed seed leaves
 nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, latest blog
