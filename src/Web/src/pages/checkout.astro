@@ -97,7 +97,7 @@ const expiryError = fieldErrors.expiry;
     ) : (
       cart && (
         <>
-          <h1 class="font-wide text-5xl font-extrabold sm:text-6xl">Checkout</h1>
+          <h1 class="font-wide border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl">Checkout</h1>
           {paymentError && (
             <Alert variant="destructive" className="mt-6">
               <AlertDescription>{paymentError} Try another card.</AlertDescription>
@@ -132,7 +132,7 @@ const expiryError = fieldErrors.expiry;
                 <fieldset class="grid gap-4 sm:grid-cols-2">
                   <legend class="font-wide mb-4 w-full border-b border-ink pb-2 text-xl font-extrabold">{group.legend}</legend>
                   {group.fields.map((f) => (
-                    <label class={cn('grid gap-1.5 text-sm font-semibold', f.name === 'email' || f.name === 'line1' ? 'sm:col-span-2' : '')}>
+                    <label class={cn('grid content-start gap-1.5 text-sm font-semibold', f.name === 'email' || f.name === 'line1' ? 'sm:col-span-2' : '')}>
                       {f.label}
                       <Input
                         name={f.name}
@@ -157,24 +157,24 @@ const expiryError = fieldErrors.expiry;
                   Demo payment, no money moves. Use 4242 4242 4242 4242 to succeed; 4000 0000 0000 0002 is declined and
                   4000 0000 0000 9995 has insufficient funds. Any future expiry and any 3 digits work.
                 </p>
-                <label class="grid gap-1.5 text-sm font-semibold sm:col-span-2">
+                <label class="grid content-start gap-1.5 text-sm font-semibold sm:col-span-2">
                   Card number
                   <Input name="number" inputMode="numeric" autoComplete="cc-number" required aria-invalid={fieldErrors.number ? 'true' : undefined} />
                   {fieldErrors.number && <span class="text-sm font-normal text-destructive">{fieldErrors.number}</span>}
                 </label>
-                <label class="grid gap-1.5 text-sm font-semibold">
+                <label class="grid content-start gap-1.5 text-sm font-semibold">
                   Expiry (MM/YY)
                   <Input name="expiry" placeholder="12/30" autoComplete="cc-exp" value={values.expiry ?? ''} required aria-invalid={expiryError ? 'true' : undefined} />
                   {expiryError && <span class="text-sm font-normal text-destructive">{expiryError}</span>}
                 </label>
-                <label class="grid gap-1.5 text-sm font-semibold">
+                <label class="grid content-start gap-1.5 text-sm font-semibold">
                   CVC
                   <Input name="cvc" inputMode="numeric" autoComplete="cc-csc" maxLength={4} required aria-invalid={fieldErrors.cvc ? 'true' : undefined} />
                   {fieldErrors.cvc && <span class="text-sm font-normal text-destructive">{fieldErrors.cvc}</span>}
                 </label>
               </fieldset>
 
-              <button type="submit" class={cn(buttonVariants({ size: 'lg' }), 'w-full sm:w-auto sm:justify-self-start')}>
+              <button type="submit" class={cn(buttonVariants({ size: 'lg' }), 'w-full bg-primary text-primary-foreground hover:bg-foreground hover:text-background sm:w-auto sm:justify-self-start')}>
                 Pay {formatMoney(cart.total)}
               </button>
             </form>
@@ -196,7 +196,7 @@ const expiryError = fieldErrors.expiry;
                 <span class="font-semibold">Total</span>
                 <span class="font-wide text-2xl font-extrabold tabular-nums">{formatMoney(cart.total)}</span>
               </p>
-              <a href="/cart" class={cn(buttonVariants({ variant: 'link' }), 'mt-3 h-auto px-0')}>
+              <a href="/cart" class={cn(buttonVariants({ variant: 'link' }), 'mt-1 px-0')}>
                 Edit cart
               </a>
             </aside>

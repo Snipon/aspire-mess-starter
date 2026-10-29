@@ -24,7 +24,7 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
 <article>
   <header class="mx-auto max-w-3xl">
     <nav aria-label="Breadcrumb">
-      <a href={parentPath} class="font-narrow text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+      <a href={parentPath} class="font-narrow inline-flex min-h-10 items-center text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
         {page.contentType === 'blogPost' ? 'All blog posts' : 'All articles'}
       </a>
     </nav>

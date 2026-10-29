@@ -7,7 +7,7 @@ import { formatMoney, formatNumber } from '@/lib/format';
 export default function ProductCard({ product }: { product: ProductSummary }) {
   return (
     <Card className="group relative w-full pt-0 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
-      <div className="chamfer aspect-[4/3] overflow-hidden bg-muted [--cut:1.5rem]">
+      <div className="aspect-[4/3] overflow-hidden bg-muted">
         {product.image && (
           <ResponsiveImage
             image={{ ...product.image, alt: null }}

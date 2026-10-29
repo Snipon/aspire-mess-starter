@@ -47,7 +47,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
 ---
 
 <Layout title="Cart">
-  <h1 class="font-wide text-5xl font-extrabold sm:text-6xl">Cart</h1>
+  <h1 class="font-wide border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl">Cart</h1>
 
   {
     message && (
@@ -91,7 +91,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
                     <select
                       id={`qty-${item.id}`}
                       name="quantity"
-                      class="h-8 rounded-sm border border-input bg-card px-2 text-sm tabular-nums hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      class="h-10 rounded-sm border border-muted-foreground bg-card sm:h-8 px-2 text-sm tabular-nums hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                       {Array.from({ length: Math.max(Math.min(item.stock, 10), item.quantity) }, (_, i) => (
                         <option value={i + 1} selected={i + 1 === item.quantity}>
@@ -99,14 +99,14 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
                         </option>
                       ))}
                     </select>
-                    <button type="submit" class={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                    <button type="submit" class={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-10 sm:h-8')}>
                       Update
                     </button>
                   </form>
                   <form method="post">
                     <input type="hidden" name="action" value="remove" />
                     <input type="hidden" name="item" value={item.id} />
-                    <button type="submit" class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'text-muted-foreground')}>
+                    <button type="submit" class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-10 text-muted-foreground sm:h-8')}>
                       Remove
                     </button>
                   </form>

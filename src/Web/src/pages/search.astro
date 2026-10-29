@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { XIcon } from 'lucide-react';
+import { contentTypeLabel } from '@/components/content-types';
 import FacetFilters, { type FacetGroup } from '@/components/FacetFilters';
 import Pager from '@/components/Pager';
 import SearchHitCard from '@/components/SearchHitCard';
@@ -62,6 +63,7 @@ const facetGroups: FacetGroup[] = result
         label: 'Type',
         values: result.facets.contentTypes,
         selected: contentType,
+        format: contentTypeLabel,
         href: (value) => searchHref({ contentType: value }),
       },
       { label: 'Topic', values: result.facets.tags, selected: tag, href: (value) => searchHref({ tag: value }) },
@@ -75,7 +77,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 
 <Layout title={q ? `Search: ${q}` : 'Search'}>
   <div class="max-w-3xl">
-    <h1 class="font-wide text-5xl font-extrabold sm:text-6xl">Search</h1>
+    <h1 class="font-wide border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl">Search</h1>
 
     <form action="/search" method="get" role="search" class="mt-8 flex flex-col gap-2 sm:flex-row">
       <label for="q" class="sr-only">Search terms</label>
@@ -130,7 +132,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
               {result.total === 0
                 ? `No results for “${result.query}”`
                 : `${result.total} result${result.total === 1 ? '' : 's'} for “${result.query}”`}
-              {contentType && ` in ${contentType}s`}
+              {contentType && ` in ${contentTypeLabel(contentType).toLowerCase()}s`}
               {tag && ` about “${tag}”`}.
             </p>
             {filtered && (

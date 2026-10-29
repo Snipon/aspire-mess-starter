@@ -90,8 +90,8 @@ const filtered = Boolean(category || brand || minRating || inStock);
 ---
 
 <Layout title="Shop" description="Developer gear: laptops, monitors, keyboards and more, with specs and real-world stats.">
-  <header class="mb-8 border-b border-ink pb-8">
-    <h1 class="font-wide text-5xl leading-[0.95] font-extrabold sm:text-7xl">Shop</h1>
+  <header class="mb-8 border-b border-ink pb-6">
+    <h1 class="font-wide text-5xl leading-[0.95] font-extrabold sm:text-6xl">Shop</h1>
     <p class="mt-6 max-w-2xl text-xl leading-relaxed text-pretty text-muted-foreground">Developer gear with full specs and how it actually performs for customers.</p>
   </header>
 
@@ -135,6 +135,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
                   aria-current={sort === value ? 'true' : undefined}
                   class={cn(
                     buttonVariants({ variant: 'ghost', size: 'sm' }),
+                    'h-10 sm:h-8',
                     sort === value ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground' : 'text-muted-foreground',
                   )}
                 >

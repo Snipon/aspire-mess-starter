@@ -33,7 +33,7 @@ const tag = posts ? null : block.tag;
       items.length > 0 ? (
         <Swiper
           aria-label={heading}
-          class="latest-articles -mx-2 px-2! pt-2! pb-12!"
+          class="latest-articles pb-14!"
           options={{
             slidesPerView: 1,
             spaceBetween: 24,
@@ -72,7 +72,7 @@ const tag = posts ? null : block.tag;
     --swiper-navigation-size: 24px;
     --swiper-pagination-bullet-inactive-color: var(--muted-foreground);
     --swiper-pagination-bullet-inactive-opacity: 0.4;
-    --swiper-pagination-bottom: 13px;
+    --swiper-pagination-bottom: 11px;
     /* Bars, not dots: they read as a position gauge. */
     --swiper-pagination-bullet-width: 1.5rem;
     --swiper-pagination-bullet-height: 0.25rem;
@@ -84,7 +84,38 @@ const tag = posts ? null : block.tag;
   :global(.latest-articles .swiper-button-prev),
   :global(.latest-articles .swiper-button-next) {
     top: auto;
-    bottom: 4px;
+    bottom: 0;
+    width: 2.5rem;
+    height: 2.5rem;
     margin-top: 0;
+    border: 1px solid var(--foreground);
+    border-radius: var(--radius-sm);
+    background: var(--card);
+    color: var(--foreground);
+  }
+  /* Square outline icon buttons, like the pager: ink on hover, a solid signal outline on focus. */
+  :global(.latest-articles .swiper-button-prev:hover),
+  :global(.latest-articles .swiper-button-next:hover) {
+    background: var(--ink);
+    color: var(--ink-foreground);
+  }
+  :global(.latest-articles .swiper-button-prev:focus-visible),
+  :global(.latest-articles .swiper-button-next:focus-visible) {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  :global(.latest-articles .swiper-navigation-icon) {
+    width: auto;
+    height: 0.875rem;
+  }
+  :global(.latest-articles .swiper-button-prev) {
+    left: 0;
+  }
+  :global(.latest-articles .swiper-button-next) {
+    right: 0;
+  }
+  /* The slider clips its overflow, so the card's focus outline goes inside the card here. */
+  :global(.latest-articles [data-slot='card']:focus-within) {
+    outline-offset: -3px;
   }
 </style>

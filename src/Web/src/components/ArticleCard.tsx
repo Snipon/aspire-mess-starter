@@ -13,7 +13,7 @@ interface Props {
 export default function ArticleCard({ article, headingLevel: Heading = 'h3' }: Props) {
   return (
     <Card className="group relative w-full pt-0 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
-      <div className="chamfer aspect-[16/10] overflow-hidden bg-muted [--cut:1.5rem]">
+      <div className="aspect-[16/10] overflow-hidden bg-muted">
         {article.image && (
           <ResponsiveImage
             image={{ ...article.image, alt: null }}

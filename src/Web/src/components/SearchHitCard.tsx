@@ -1,3 +1,4 @@
+import { contentTypeLabel } from '@/components/content-types';
 import TagList from '@/components/TagList';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +22,7 @@ export default function SearchHitCard({ hit, tagHref }: Props) {
               </a>
             </h2>
             <Badge variant="outline" className="shrink-0">
-              {hit.contentType}
+              {contentTypeLabel(hit.contentType)}
             </Badge>
           </CardTitle>
           <CardDescription className="font-narrow flex flex-wrap gap-x-3">

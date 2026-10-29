@@ -26,6 +26,24 @@
   .chamfer {
     clip-path: polygon(0 0, calc(100% - var(--cut, 1.25rem)) 0, 100% var(--cut, 1.25rem), 100% 100%, 0 100%);
   }
+
+  /* With .chamfer on a bordered box: draws the 1px border along the cut, in the box's border colour. */
+  .chamfer-edge {
+    position: relative;
+  }
+  .chamfer-edge::before {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    top: -1px;
+    left: calc(100% + 1px - var(--cut, 1.25rem));
+    width: calc(var(--cut, 1.25rem) * 1.4143);
+    border-top: 1px solid;
+    border-color: inherit;
+    transform: rotate(45deg);
+    transform-origin: 0 0;
+    pointer-events: none;
+  }
 }
 
 /* Article bodies and product descriptions. The typography plugin sits in the utilities layer, so `html .prose`
@@ -152,7 +170,7 @@
   --muted-foreground: #5a616c;
   --accent: #d5d9df;
   --accent-foreground: #111318;
-  --destructive: #d42a1e;
+  --destructive: #b3241a;
   --border: #c5cad2;
   --input: #b4bac3;
   --ring: #2b2bff;

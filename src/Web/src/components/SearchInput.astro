@@ -40,6 +40,7 @@ const listId = `${id}-suggestions`;
 </div>
 
 <script>
+  import { contentTypeLabel } from '@/components/content-types';
   import type { Suggestion } from '../pages/api/suggest';
 
   const DEBOUNCE_MS = 150;
@@ -65,8 +66,8 @@ const listId = `${id}-suggestions`;
           title.className = 'min-w-0 truncate';
           title.textContent = item.title;
           const type = document.createElement('span');
-          type.className = 'font-narrow shrink-0 text-xs text-muted-foreground group-aria-selected:text-primary-foreground/80';
-          type.textContent = item.contentType;
+          type.className = 'font-narrow shrink-0 text-xs text-muted-foreground group-hover:text-foreground group-aria-selected:text-primary-foreground';
+          type.textContent = contentTypeLabel(item.contentType);
           option.append(title, type);
           // mousedown, not click: fires before the input's blur closes the list.
           option.addEventListener('mousedown', (event) => {

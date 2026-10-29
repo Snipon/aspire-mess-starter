@@ -37,7 +37,7 @@ const stats = product
   product ? (
     <Layout title={`${product.title} – Shop`} description={product.summary}>
       <nav aria-label="Breadcrumb">
-        <a href="/shop" class="font-narrow text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <a href="/shop" class="font-narrow inline-flex min-h-10 items-center text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           Shop
         </a>
       </nav>
@@ -65,7 +65,7 @@ const stats = product
           </p>
 
           {/* The buy panel reads as the head of a spec sheet: price and action on top, key figures ruled below. */}
-          <div class="chamfer mt-8 border border-border bg-card [--cut:1.5rem]">
+          <div class="chamfer chamfer-edge mt-8 border border-border bg-card [--cut:1.5rem]">
             <div class="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
               <p class="font-wide text-4xl font-extrabold tabular-nums sm:text-5xl">{formatMoney(product.price)}</p>
               {product.stock > 0 ? (
@@ -83,7 +83,7 @@ const stats = product
                 <select
                   name="quantity"
                   disabled={maxQuantity === 0}
-                  class="h-12 min-w-20 rounded-sm border border-input bg-card px-3 text-base tabular-nums hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
+                  class="h-12 min-w-20 rounded-sm border border-muted-foreground bg-card px-3 text-base tabular-nums hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
                 >
                   {Array.from({ length: Math.max(maxQuantity, 1) }, (_, i) => (
                     <option value={i + 1}>{i + 1}</option>
