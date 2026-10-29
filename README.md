@@ -393,15 +393,19 @@ Commerce). Nothing about it is configured by hand or exported as YAML:
   Responses are `no-store` and bypass Drupal's page cache.
 - **Staff sign-in** (`drupal/openid_connect` 3.x, generic client `sso`; every 3.x release is still alpha). `Schema.php`
   creates the client, the `administrator` role and the module settings; `settings.php` fills in the environment:
-  `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_AUTHORIZATION_ENDPOINT` and `OIDC_END_SESSION_ENDPOINT`
+  `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER`, `OIDC_AUTHORIZATION_ENDPOINT` and `OIDC_END_SESSION_ENDPOINT`
   (browser-facing), `OIDC_TOKEN_ENDPOINT` (called from the container; locally `https://keycloak.dev.internal:8443`).
   Endpoints are not discovered. Without `OIDC_CLIENT_ID` the client is off and the password form stays. With it, the
   login form is only the IdP button, the password reset form and JSON login are closed, and accounts are created on
   first sign-in (redirect URI `<commerce url>/openid-connect/sso`). Claims come from the ID token (no userinfo call);
-  the `roles` claim (Keycloak realm roles, Entra ID app roles) maps `admin` to `administrator` on every sign-in, other
+  the `roles` claim (Keycloak realm roles, Entra ID app roles) maps `admin` to `administrator` at each sign-in, other
   staff get a plain account. Existing accounts are never connected by email, so `entrypoint.sh` moves the local admin
-  (uid 1, kept for `drush uli`) to `admin@localhost`. The module takes the ID token from the token endpoint over TLS
-  without checking its signature. `entrypoint.sh` also adds Aspire's dev CA (`SSL_CERT_DIR`) to the system bundle,
+  (uid 1, kept for `drush uli`) to `admin@localhost`. Roles are synced at sign-in only: an admin removed in the IdP
+  keeps the role and the Drupal session (up to ~23 days) until signed out, so also run `drush user:block <name>`.
+  The module (alpha) sends no PKCE challenge or nonce and does not validate the ID token; `headless_commerce.module`
+  checks its `iss` (`OIDC_ISSUER`), `aud` and `exp` but not its signature (taken from the token endpoint over TLS).
+  The callback is protected only by the session-bound `state`, so a leaked authorization code could be redeemed by
+  someone else. `entrypoint.sh` also adds Aspire's dev CA (`SSL_CERT_DIR`) to the system bundle,
   because PHP's curl reads only that. Behind the Azure ingress set `DRUPAL_REVERSE_PROXY=true` (https redirect URI).
 
 **Fake payment.** Checkout validates the card like a form would (Luhn, expiry not in the past, 3–4 digit CVC) and then

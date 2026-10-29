@@ -139,6 +139,7 @@ var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
     .WithEnvironment("DEMO_CONTENT", "true") // 2000 demo products; remove for a real project
     .WithEnvironment("OIDC_CLIENT_ID", "commerce")
     .WithEnvironment("OIDC_CLIENT_SECRET", commerceOidcSecret)
+    .WithEnvironment("OIDC_ISSUER", $"{KeycloakUrl}/realms/staff") // the ID token's iss, checked on sign-in
     .WithEnvironment("OIDC_AUTHORIZATION_ENDPOINT", $"{KeycloakUrl}/realms/staff/protocol/openid-connect/auth")
     .WithEnvironment("OIDC_TOKEN_ENDPOINT", $"{KeycloakInternalUrl}/realms/staff/protocol/openid-connect/token")
     .WithEnvironment("OIDC_END_SESSION_ENDPOINT", $"{KeycloakUrl}/realms/staff/protocol/openid-connect/logout")
