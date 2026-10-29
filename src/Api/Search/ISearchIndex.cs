@@ -7,7 +7,8 @@ public interface ISearchIndex
 {
     Task EnsureIndexAsync(CancellationToken ct);
 
-    Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, string? tag, CancellationToken ct);
+    /// <summary>An empty <paramref name="query"/> lists every (filtered) document, newest first.</summary>
+    Task<SearchResult> SearchAsync(string query, int page, int pageSize, SearchFilters filters, CancellationToken ct);
 
     Task UpsertAsync(IEnumerable<SearchDocument> documents, CancellationToken ct);
 
@@ -33,3 +34,7 @@ public interface ISearchIndex
     /// <summary>Ids of all indexed documents whose path is strictly below <paramref name="path"/>.</summary>
     Task<IReadOnlyList<string>> GetIdsBelowPathAsync(string path, CancellationToken ct);
 }
+
+/// <summary>Narrows a search; <c>null</c> means any value.</summary>
+/// <param name="Year">Publish year (articles only).</param>
+public sealed record SearchFilters(string? ContentType = null, string? Tag = null, int? Year = null);

@@ -368,7 +368,7 @@
           "Search"
         ],
         "summary": "Full-text search",
-        "description": "Searches pages and articles. An empty `q` returns no hits. `tag` and `contentType` narrow the results. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.",
+        "description": "Searches pages and articles. `contentType`, `tag` and `year` (publish year) narrow the results; `facets` counts the values of each, ignoring that facet's own filter. An empty `q` lists everything, newest first. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.",
         "operationId": "Search",
         "parameters": [
           {
@@ -390,6 +390,14 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
             }
           },
           {
@@ -570,6 +578,9 @@
           },
           {
             "$ref": "#/components/schemas/BlockLatestArticlesBlock"
+          },
+          {
+            "$ref": "#/components/schemas/BlockArticleListBlock"
           }
         ],
         "discriminator": {
@@ -577,7 +588,34 @@
           "mapping": {
             "hero": "#/components/schemas/BlockHeroBlock",
             "cta": "#/components/schemas/BlockCtaBlock",
-            "latestArticles": "#/components/schemas/BlockLatestArticlesBlock"
+            "latestArticles": "#/components/schemas/BlockLatestArticlesBlock",
+            "articleList": "#/components/schemas/BlockArticleListBlock"
+          }
+        }
+      },
+      "BlockArticleListBlock": {
+        "required": [
+          "heading",
+          "pageSize",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "articleList"
+            ],
+            "type": "string"
+          },
+          "heading": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -758,6 +796,22 @@
           "primary",
           "secondary"
         ]
+      },
+      "FacetCount": {
+        "required": [
+          "value",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       },
       "FocalPoint": {
         "required": [
@@ -1059,6 +1113,34 @@
           }
         }
       },
+      "SearchFacets": {
+        "required": [
+          "contentTypes",
+          "tags",
+          "years"
+        ],
+        "type": "object",
+        "properties": {
+          "contentTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            }
+          },
+          "years": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            }
+          }
+        }
+      },
       "SearchHit": {
         "required": [
           "id",
@@ -1069,7 +1151,8 @@
           "highlight",
           "tags",
           "publishDate",
-          "imageUrl"
+          "imageUrl",
+          "image"
         ],
         "type": "object",
         "properties": {
@@ -1115,6 +1198,16 @@
               "null",
               "string"
             ]
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Image"
+              }
+            ]
           }
         }
       },
@@ -1124,7 +1217,8 @@
           "page",
           "pageSize",
           "total",
-          "hits"
+          "hits",
+          "facets"
         ],
         "type": "object",
         "properties": {
@@ -1148,6 +1242,9 @@
             "items": {
               "$ref": "#/components/schemas/SearchHit"
             }
+          },
+          "facets": {
+            "$ref": "#/components/schemas/SearchFacets"
           }
         }
       },

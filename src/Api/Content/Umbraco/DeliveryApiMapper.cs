@@ -14,6 +14,9 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
 
     public const int MaxLatestArticles = 50;
 
+    /// <summary>The articleList block's <c>pageSize</c> default (also unset in Umbraco).</summary>
+    public const int DefaultArticleListPageSize = 12;
+
     /// <summary>Resolves the articles of a latestArticles block (newest first, optionally only those with a tag).</summary>
     public delegate Task<ArticleSummary[]> LatestArticlesResolver(string? tag, int count, CancellationToken ct);
 
@@ -151,6 +154,9 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
                     GetLink(props, "link"),
                     GetString(props, "style") == "secondary" ? CtaStyle.Secondary : CtaStyle.Primary),
                 "latestArticlesBlock" => await GetLatestArticlesAsync(props, latestArticles, ct),
+                "articleListBlock" => new ArticleListBlock(
+                    GetString(props, "heading"),
+                    Math.Clamp(GetInt(props, "pageSize") ?? DefaultArticleListPageSize, 1, RequestValidation.MaxPageSize)),
                 _ => null, // Unknown block types are skipped, so new CMS blocks never break existing clients.
             };
             if (block is not null)

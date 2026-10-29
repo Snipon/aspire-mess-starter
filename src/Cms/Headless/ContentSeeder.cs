@@ -17,9 +17,12 @@ namespace Cms.Headless;
 
 /// <summary>
 /// Idempotent demo content on top of the uSync schema (src/Cms/uSync, imported on first boot before this runs):
-/// generated placeholder images, a "Home" site node with blocks, an "Articles" page and 50 articles.
-/// Runs only if the "site" document type exists and no root site node does yet, in one scope (transaction and media
-/// files), so a failed seed leaves nothing behind and is retried on the next boot.
+/// generated placeholder images, a "Home" site node with blocks, an "Articles" page and <see cref="DemoArticles.Count"/>
+/// articles. Runs only if the "site" document type exists, in one scope (transaction and media files), so a failed seed
+/// leaves nothing behind and is retried on the next boot. When the site was seeded before, only the demo articles missing
+/// from the Articles page (by name) are added, so an install seeded with fewer articles is topped up, and an Articles
+/// page still showing the previously seeded "latest articles" block gets the article list instead. Everything created
+/// is then sent to the search index (<see cref="SearchIndexNotifier"/>).
 /// </summary>
 internal sealed class ContentSeeder(
     IRuntimeState runtimeState,
@@ -32,6 +35,7 @@ internal sealed class ContentSeeder(
     MediaUrlGeneratorCollection mediaUrlGenerators,
     IShortStringHelper shortStringHelper,
     IContentTypeBaseServiceProvider contentTypeBaseServiceProvider,
+    SearchIndexNotifier searchIndexNotifier,
     ILogger<ContentSeeder> logger) : INotificationAsyncHandler<UmbracoApplicationStartedNotification>
 {
     private const string SiteAlias = "site";
@@ -60,8 +64,9 @@ internal sealed class ContentSeeder(
             return Task.CompletedTask;
         }
 
-        if (contentService.GetRootContent().Any(c => c.ContentType.Alias == SiteAlias))
+        if (contentService.GetRootContent().FirstOrDefault(c => c.ContentType.Alias == SiteAlias) is { } existingHome)
         {
+            UpdateExistingSite(existingHome);
             return Task.CompletedTask;
         }
 
@@ -71,6 +76,7 @@ internal sealed class ContentSeeder(
         IMedia[] images = [.. Enumerable.Range(1, ImageCount).Select(i => CreateImage(folder.Id, i))];
 
         Guid hero = ElementTypeKey("heroBlock"), cta = ElementTypeKey("ctaBlock"), latest = ElementTypeKey("latestArticlesBlock");
+        var created = new List<Guid>();
         var articlesKey = Guid.NewGuid();
 
         IContent home = CreateAndPublish("Home", Constants.System.Root, SiteAlias, Guid.NewGuid(), new()
@@ -97,16 +103,95 @@ internal sealed class ContentSeeder(
         IContent articles = CreateAndPublish("Articles", home.Id, "page", articlesKey, new()
         {
             ["title"] = "Articles",
-            ["blocks"] = Blocks(
-                (hero, new() { ["heading"] = "Articles", ["subheading"] = "Everything we have written, newest first.", ["image"] = MediaPicker(images[1]) }),
-                (latest, new() { ["heading"] = "Recently published", ["count"] = 12 })),
+            ["blocks"] = ArticlesPageBlocks(images),
         });
+        created.AddRange([home.Key, articles.Key]);
 
         IReadOnlyList<DemoArticle> demoArticles = DemoArticles.Generate(DateTime.UtcNow);
-        for (var i = 0; i < demoArticles.Count; i++)
+        created.AddRange(CreateArticles(articles.Id, demoArticles, images));
+
+        scope.Complete();
+        logger.LogInformation("Seeded {Count} articles", demoArticles.Count);
+        searchIndexNotifier.NotifyInBackground(created);
+        return Task.CompletedTask;
+    }
+
+    private string ArticlesPageBlocks(IMedia[] images) => Blocks(
+        (ElementTypeKey("heroBlock"), new()
         {
-            DemoArticle article = demoArticles[i];
-            CreateAndPublish(article.Title, articles.Id, "article", Guid.NewGuid(), new()
+            ["heading"] = "Articles",
+            ["subheading"] = "Everything we have written, newest first.",
+            ["image"] = MediaPicker(images[1 % images.Length]),
+        }),
+        (ElementTypeKey("articleListBlock"), new() { ["heading"] = "All articles", ["pageSize"] = 12 }));
+
+    private void UpdateExistingSite(IContent home)
+    {
+        const int maxChildren = 100_000;
+        IContent? articles = contentService.GetPagedChildren(home.Id, 0, maxChildren, out _)
+            .FirstOrDefault(c => c.ContentType.Alias == "page" && c.Name == "Articles");
+        IMedia? folder = mediaService.GetRootMedia().FirstOrDefault(m => m.Name == "Placeholders");
+        if (articles is null || folder is null)
+        {
+            return; // Restructured by hand: leave it alone.
+        }
+
+        var existing = contentService.GetPagedChildren(articles.Id, 0, maxChildren, out _)
+            .Select(c => c.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        DemoArticle[] missing = [.. DemoArticles.Generate(DateTime.UtcNow).Where(a => !existing.Contains(a.Title))];
+        IMedia[] images = [.. mediaService.GetPagedChildren(folder.Id, 0, maxChildren, out _)];
+        bool upgradeArticlesPage = HasOnlyBlocks(articles, "heroBlock", "latestArticlesBlock")
+            && contentTypeService.Get("articleListBlock") is not null;
+        if (images.Length == 0 || (missing.Length == 0 && !upgradeArticlesPage))
+        {
+            return;
+        }
+
+        var changed = new List<Guid>();
+        using ICoreScope scope = scopeProvider.CreateCoreScope(scopeFileSystems: true);
+        if (upgradeArticlesPage)
+        {
+            logger.LogInformation("Replacing the Articles page's latest articles block with the article list");
+            articles.SetValue("blocks", ArticlesPageBlocks(images));
+            Publish(articles);
+            changed.Add(articles.Key);
+        }
+
+        if (missing.Length > 0)
+        {
+            logger.LogInformation("Adding {Count} missing demo articles", missing.Length);
+            changed.AddRange(CreateArticles(articles.Id, missing, images));
+        }
+
+        scope.Complete();
+        logger.LogInformation("Updated the demo content ({Count} articles added)", missing.Length);
+        searchIndexNotifier.NotifyInBackground(changed);
+    }
+
+    /// <summary>Whether the page's blocks are exactly one of each of the given element types, in order (the seeded layout).</summary>
+    private bool HasOnlyBlocks(IContent page, params string[] elementTypeAliases)
+    {
+        if (page.GetValue<string>("blocks") is not { Length: > 0 } json)
+        {
+            return false;
+        }
+
+        using var document = JsonDocument.Parse(json);
+        string?[] keys = [.. document.RootElement.GetProperty("contentData").EnumerateArray()
+            .Select(block => block.GetProperty("contentTypeKey").GetString())];
+        string?[] expected = [.. elementTypeAliases.Select(alias => contentTypeService.Get(alias)?.Key.ToString())];
+        return keys.SequenceEqual(expected, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private List<Guid> CreateArticles(int parentId, IReadOnlyList<DemoArticle> articles, IMedia[] images)
+    {
+        var keys = new List<Guid>(articles.Count);
+        for (var i = 0; i < articles.Count; i++)
+        {
+            DemoArticle article = articles[i];
+            keys.Add(Guid.NewGuid());
+            CreateAndPublish(article.Title, parentId, "article", keys[^1], new()
             {
                 ["title"] = article.Title,
                 ["image"] = MediaPicker(images[i % images.Length]),
@@ -116,9 +201,7 @@ internal sealed class ContentSeeder(
             });
         }
 
-        scope.Complete();
-        logger.LogInformation("Seeded {Count} articles", demoArticles.Count);
-        return Task.CompletedTask;
+        return keys;
     }
 
     private Guid ElementTypeKey(string alias) =>
@@ -133,14 +216,18 @@ internal sealed class ContentSeeder(
             content.SetValue(alias, value);
         }
 
+        Publish(content);
+        return content;
+    }
+
+    private void Publish(IContent content)
+    {
         contentService.Save(content);
         PublishResult result = contentService.Publish(content, ["*"]);
         if (!result.Success)
         {
-            throw new InvalidOperationException($"Could not publish '{name}': {result.Result}");
+            throw new InvalidOperationException($"Could not publish '{content.Name}': {result.Result}");
         }
-
-        return content;
     }
 
     /// <summary>Block List value (v15+ format: layout, contentData and expose; no settings).</summary>

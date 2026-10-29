@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Api.Content.Umbraco;
 using Api.Contracts;
+using Api.Endpoints;
 
 namespace Api.Tests;
 
@@ -231,6 +232,24 @@ public sealed class DeliveryApiMapperTests
         });
 
         Assert.Equal([("css", 6), (null, DeliveryApiMapper.MaxLatestArticles), ("C#", 1), (null, 1), (null, 1)], requested);
+    }
+
+    [Fact]
+    public async Task Article_list_page_size_defaults_to_12_and_is_clamped()
+    {
+        using var json = JsonDocument.Parse("""
+            { "id": "1", "contentType": "page", "name": "P", "route": { "path": "/p/" }, "properties": { "blocks": { "items": [
+              { "content": { "contentType": "articleListBlock", "properties": { "heading": "All", "pageSize": null } } },
+              { "content": { "contentType": "articleListBlock", "properties": { "pageSize": 500 } } },
+              { "content": { "contentType": "articleListBlock", "properties": { "pageSize": 0 } } }
+            ] } } }
+            """);
+
+        var page = await MapAsync(json);
+
+        Assert.Equal(
+            [new ArticleListBlock("All", 12), new ArticleListBlock(null, RequestValidation.MaxPageSize), new ArticleListBlock(null, 1)],
+            page.Blocks.Cast<ArticleListBlock>());
     }
 
     [Fact]

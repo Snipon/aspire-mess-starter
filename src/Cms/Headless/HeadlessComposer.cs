@@ -16,6 +16,8 @@ public sealed class HeadlessComposer : IComposer
     public void Compose(IUmbracoBuilder builder)
     {
         builder.Services.Configure<ContentWebhookOptions>(builder.Config.GetSection(ContentWebhookOptions.SectionName));
+        builder.Services.AddHttpClient();
+        builder.Services.AddSingleton<SearchIndexNotifier>();
 
         // Only the default webhook events are registered out of the box. ContentMovedToRecycleBin (used by the
         // search-index webhook, since trashing does not raise Unpublish) is an extended event, so register all content

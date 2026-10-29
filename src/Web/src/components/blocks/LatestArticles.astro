@@ -1,5 +1,6 @@
 ---
-import ArticleGrid from '../ArticleGrid.astro';
+import { Swiper, SwiperButtonNext, SwiperButtonPrev, SwiperPagination, SwiperSlide, SwiperWrapper } from 'astro-swiper';
+import ArticleCard from '../ArticleCard.astro';
 import type { Block } from '../../lib/api/client';
 import { tagHref } from '../../lib/format';
 
@@ -25,7 +26,30 @@ const heading = block.heading ?? 'Latest articles';
   <div class="mt-6">
     {
       block.articles.length > 0 ? (
-        <ArticleGrid articles={block.articles} />
+        <Swiper
+          aria-label={heading}
+          class="latest-articles -mx-2 px-2! pt-2! pb-12!"
+          options={{
+            slidesPerView: 1,
+            spaceBetween: 24,
+            breakpoints: { 640: { slidesPerView: 2 }, 1024: { slidesPerView: 3 } },
+            navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+            pagination: { el: '.swiper-pagination', clickable: true },
+            keyboard: { enabled: true, onlyInViewport: true },
+            watchSlidesProgress: true,
+          }}
+        >
+          <SwiperWrapper>
+            {block.articles.map((article) => (
+              <SwiperSlide class="flex! h-auto!">
+                <ArticleCard article={article} />
+              </SwiperSlide>
+            ))}
+          </SwiperWrapper>
+          <SwiperButtonPrev />
+          <SwiperButtonNext />
+          <SwiperPagination />
+        </Swiper>
       ) : (
         <p class="rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center text-slate-500">
           No articles published yet.
@@ -34,3 +58,21 @@ const heading = block.heading ?? 'Latest articles';
     }
   </div>
 </section>
+
+<style>
+  /* :global, as scoping does not reach into the Swiper component's element. */
+  :global(.latest-articles) {
+    --swiper-theme-color: var(--color-indigo-600);
+    --swiper-navigation-size: 28px;
+    --swiper-pagination-bullet-inactive-color: var(--color-slate-400);
+    --swiper-pagination-bottom: 7px;
+  }
+
+  /* Arrows in the pagination row (centred on the bullets), not over the card text. */
+  :global(.latest-articles .swiper-button-prev),
+  :global(.latest-articles .swiper-button-next) {
+    top: auto;
+    bottom: 4px;
+    margin-top: 0;
+  }
+</style>

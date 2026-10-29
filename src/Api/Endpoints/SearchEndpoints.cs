@@ -16,7 +16,8 @@ public static partial class SearchEndpoints
         search.MapGet("/", Search)
             .WithName("Search")
             .WithSummary("Full-text search")
-            .WithDescription("Searches pages and articles. An empty `q` returns no hits. `tag` and `contentType` narrow the results. " +
+            .WithDescription("Searches pages and articles. `contentType`, `tag` and `year` (publish year) narrow the results; " +
+                "`facets` counts the values of each, ignoring that facet's own filter. An empty `q` lists everything, newest first. " +
                 "`highlight` is HTML-escaped text with matches wrapped in `<mark>`.");
 
         search.MapPost("/reindex", Reindex)
@@ -43,7 +44,7 @@ public static partial class SearchEndpoints
     }
 
     private static async Task<Results<Ok<SearchResult>, BadRequest<ProblemDetails>>> Search(
-        ISearchIndex index, string? q, string? contentType, string? tag, CancellationToken ct, int page = 1, int pageSize = 10)
+        ISearchIndex index, string? q, string? contentType, string? tag, int? year, CancellationToken ct, int page = 1, int pageSize = 10)
     {
         if (!RequestValidation.IsValidPaging(page, pageSize))
         {
@@ -60,12 +61,13 @@ public static partial class SearchEndpoints
             return TypedResults.BadRequest(Problems.BadRequest("'contentType' may only contain letters, digits, '-' and '_'."));
         }
 
-        if (string.IsNullOrWhiteSpace(q))
+        if (year is < 1 or > 9999)
         {
-            return TypedResults.Ok(new SearchResult(q ?? string.Empty, page, pageSize, 0, []));
+            return TypedResults.BadRequest(Problems.BadRequest("'year' must be between 1 and 9999."));
         }
 
-        return TypedResults.Ok(await index.SearchAsync(q.Trim(), page, pageSize, contentType, tag, ct));
+        var filters = new SearchFilters(contentType, tag, year);
+        return TypedResults.Ok(await index.SearchAsync(q?.Trim() ?? string.Empty, page, pageSize, filters, ct));
     }
 
     private static async Task<Results<Ok<ReindexResult>, UnauthorizedHttpResult>> Reindex(

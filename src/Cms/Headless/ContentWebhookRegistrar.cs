@@ -30,7 +30,7 @@ internal sealed class ContentWebhookRegistrar(
     ILogger<ContentWebhookRegistrar> logger) : INotificationAsyncHandler<UmbracoApplicationStartedNotification>
 {
     private const string WebhookName = "Search index sync";
-    private const string SecretHeader = "X-Webhook-Secret";
+    internal const string SecretHeader = "X-Webhook-Secret";
 
     // Payloads (camelCase JSON, event alias in the Umb-Webhook-Event header):
     //   Umbraco.ContentPublish          -> { "id": "<guid>", "cultures": [{ "culture": "en-US", "date": "..." }] }

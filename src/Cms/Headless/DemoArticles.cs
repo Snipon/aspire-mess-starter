@@ -6,11 +6,14 @@ namespace Cms.Headless;
 internal sealed record DemoArticle(string Title, string Body, string[] Tags, DateTime PublishDate);
 
 /// <summary>
-/// Deterministic demo articles (fixed seed) about web development, design and cloud: the same titles, bodies and tags
-/// on every cold install. Publish dates are spread over the 12 months before <c>today</c>.
+/// <see cref="Count"/> deterministic demo articles (fixed seed) about web development, design and cloud: the same titles,
+/// bodies and tags on every cold install. Each topic appears once under its own title and then under each of the
+/// <see cref="TitleVariants"/>. Publish dates are about one a day before <c>today</c>, newest first.
 /// </summary>
 internal static class DemoArticles
 {
+    public const int Count = 1500;
+
     public static readonly string[] TagPool =
     [
         "dotnet", "aspire", "azure", "cloud", "devops", "frontend",
@@ -58,7 +61,7 @@ internal static class DemoArticles
         ("Feature Flags Without the Chaos", "feature flags", "devops", "cloud"),
         ("Blue-Green Releases on Container Apps", "blue-green releases", "azure", "devops"),
         ("Scaling to Zero: When It Helps and When It Hurts", "scale to zero", "cloud", "performance"),
-        ("Managed Identities in Practice", "managed identities", "azure", "security"),
+        ("Managed Identities Without Stored Secrets", "managed identities", "azure", "security"),
         ("Designing Error States Users Understand", "error states", "design-systems", "accessibility"),
         ("Motion Design and Reduced Motion Preferences", "reduced motion", "accessibility", "css"),
         ("Form Validation That Respects Users", "form validation", "accessibility", "typescript"),
@@ -70,6 +73,19 @@ internal static class DemoArticles
         ("Contract Testing Between Front End and API", "contract testing", "typescript", "devops"),
         ("Preview Environments for Every Pull Request", "preview environments", "devops", "azure"),
         ("From Monolith to Modular Without a Rewrite", "modular architecture", "dotnet", "cloud"),
+    ];
+
+    // {0} is the topic's subject in title case. Topics.Length * (TitleVariants.Length + 1) must be at least Count.
+    private static readonly string[] TitleVariants =
+    [
+        "Lessons Learned from {0}", "{0} in Practice", "A Field Guide to {0}", "{0}: Common Mistakes and How to Avoid Them",
+        "Five Things Nobody Tells You About {0}", "Rethinking {0} for Small Teams", "{0} at Scale", "The Hidden Costs of {0}",
+        "Debugging {0} in Production", "{0}: A Checklist for Code Review", "Getting Buy-In for {0}", "Measuring the Impact of {0}",
+        "{0} Without the Hype", "A Year of {0}: What We Learned", "When Not to Use {0}", "{0} for Beginners",
+        "Advanced Patterns for {0}", "Migrating to {0} Step by Step", "{0}: Myths and Realities", "Testing Strategies for {0}",
+        "Documenting {0} for Your Team", "Automating {0} in CI", "{0}: Trade-Offs Worth Knowing", "Teaching {0} to New Developers",
+        "{0} on a Budget", "Questions to Ask Before Adopting {0}", "Refactoring Towards {0}", "{0}: Notes from the Trenches",
+        "Making {0} Observable",
     ];
 
     private static readonly string[] Openers =
@@ -159,10 +175,14 @@ internal static class DemoArticles
     public static IReadOnlyList<DemoArticle> Generate(DateTime today)
     {
         var random = new Random(20261028);
-        var articles = new List<DemoArticle>(Topics.Length);
-        for (var i = 0; i < Topics.Length; i++)
+        // Topic/variant combinations in shuffled order, so each title variant is spread over the whole date range.
+        int[] combinations = [.. Enumerable.Range(0, Count).OrderBy(_ => random.Next())];
+        var articles = new List<DemoArticle>(Count);
+        for (var i = 0; i < Count; i++)
         {
-            (string title, string subject, string tag1, string tag2) = Topics[i];
+            (string topicTitle, string subject, string tag1, string tag2) = Topics[combinations[i] % Topics.Length];
+            int round = combinations[i] / Topics.Length;
+            string title = round == 0 ? topicTitle : string.Format(TitleVariants[round - 1], TitleCase(subject));
             var tags = new List<string> { tag1, tag2 };
             int extra = random.Next(0, 3);
             while (tags.Count < 2 + extra)
@@ -174,12 +194,30 @@ internal static class DemoArticles
                 }
             }
 
-            // Roughly one article a week, newest first, all within the last 12 months.
-            DateTime publishDate = today.Date.AddDays(-(i * 7 + random.Next(0, 7)));
+            // Roughly one article a day, newest first (about four years in all).
+            DateTime publishDate = today.Date.AddDays(-(i + random.Next(0, 2)));
             articles.Add(new DemoArticle(title, Body(random, subject, tags), [.. tags], publishDate));
         }
 
         return articles;
+    }
+
+    /// <summary>
+    /// Capitalises each word (keeping the rest, so "TypeScript" and "API" survive), except short joining words and words
+    /// with digits ("v4").
+    /// </summary>
+    internal static string TitleCase(string text)
+    {
+        string[] words = text.Split(' ');
+        for (var i = 0; i < words.Length; i++)
+        {
+            if (!words[i].Any(char.IsDigit) && (i == 0 || words[i] is not ("to" or "and" or "of" or "the" or "a" or "for" or "in" or "on")))
+            {
+                words[i] = string.Join('-', words[i].Split('-').Select(w => w.Length == 0 ? w : char.ToUpperInvariant(w[0]) + w[1..]));
+            }
+        }
+
+        return string.Join(' ', words);
     }
 
     private static string Body(Random random, string subject, List<string> tags)

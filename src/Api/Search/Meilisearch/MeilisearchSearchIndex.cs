@@ -20,6 +20,10 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
     private const string DocumentNotFound = "document_not_found";
     private const int BatchSize = 100;
 
+    private const string ContentTypeFacet = "contentType";
+    private const string TagsFacet = "tags";
+    private const string YearFacet = "publishYear";
+
     private MeiliIndex Index => client.Index(IndexName);
 
     public Task EnsureIndexAsync(CancellationToken ct) => CreateAndConfigureAsync(IndexName, ct);
@@ -32,50 +36,93 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
         var settings = await client.Index(uid).UpdateSettingsAsync(new Settings
         {
             SearchableAttributes = ["title", "summary", "tags", "body"],
-            FilterableAttributes = ["contentType", "culture", "tags", "ancestorPaths"],
+            FilterableAttributes = ["contentType", "culture", "tags", "publishYear", "ancestorPaths"],
+            SortableAttributes = ["publishDate"],
         }, ct);
         await WaitAsync(settings.TaskUid, ct);
     }
 
-    public async Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, string? tag, CancellationToken ct)
+    public async Task<SearchResult> SearchAsync(string query, int page, int pageSize, SearchFilters filters, CancellationToken ct)
     {
-        var filters = new List<string>();
-        if (contentType is not null)
+        var main = SearchOrNullAsync(query, new SearchQuery
         {
-            filters.Add($"contentType = {Quote(contentType)}");
+            Page = page,
+            HitsPerPage = pageSize,
+            Filter = Filter(filters),
+            Facets = [ContentTypeFacet, TagsFacet, YearFacet],
+            Sort = query.Length == 0 ? ["publishDate:desc"] : null, // Without a query there is no relevance to rank by.
+            AttributesToHighlight = ["title", "summary", "body"],
+            AttributesToCrop = ["body"],
+            CropLength = 24,
+            HighlightPreTag = PreTag,
+            HighlightPostTag = PostTag,
+        }, ct);
+
+        // A filtered facet is counted again without its own filter, so its other values show what switching to them gives.
+        var contentTypes = filters.ContentType is null
+            ? main
+            : SearchOrNullAsync(query, FacetOnly(ContentTypeFacet, Filter(filters with { ContentType = null })), ct);
+        var tags = filters.Tag is null ? main : SearchOrNullAsync(query, FacetOnly(TagsFacet, Filter(filters with { Tag = null })), ct);
+        var years = filters.Year is null ? main : SearchOrNullAsync(query, FacetOnly(YearFacet, Filter(filters with { Year = null })), ct);
+        await Task.WhenAll(main, contentTypes, tags, years);
+
+        if (await main is not { } result)
+        {
+            // Meilisearch restarted on empty storage; the initializer rebuilds the index shortly.
+            return new SearchResult(query, page, pageSize, 0, [], SearchFacets.Empty);
         }
 
-        if (tag is not null)
-        {
-            filters.Add($"tags = {Quote(tag)}");
-        }
+        var hits = result.Hits.Select(h => new SearchHit(
+            h.Id, h.Path, h.Title, h.Summary, h.ContentType, Highlight(h.Formatted), h.Tags ?? [], h.PublishDate, h.ImageUrl, h.Image)).ToArray();
+        var facets = new SearchFacets(
+            Counts(await contentTypes, ContentTypeFacet),
+            Counts(await tags, TagsFacet),
+            [.. Counts(await years, YearFacet).OrderByDescending(c => c.Value, StringComparer.Ordinal)]);
+        return new SearchResult(query, page, pageSize, result.TotalHits, hits, facets);
+    }
 
-        ISearchable<Hit> result;
+    private async Task<PaginatedSearchResult<Hit>?> SearchOrNullAsync(string query, SearchQuery parameters, CancellationToken ct)
+    {
         try
         {
-            result = await Index.SearchAsync<Hit>(query, new SearchQuery
-            {
-                Page = page,
-                HitsPerPage = pageSize,
-                Filter = filters.Count == 0 ? null : string.Join(" AND ", filters),
-                AttributesToHighlight = ["title", "summary", "body"],
-                AttributesToCrop = ["body"],
-                CropLength = 24,
-                HighlightPreTag = PreTag,
-                HighlightPostTag = PostTag,
-            }, ct);
+            return (PaginatedSearchResult<Hit>)await Index.SearchAsync<Hit>(query, parameters, ct);
         }
         catch (MeilisearchApiError e) when (e.Code == IndexNotFound)
         {
-            // Meilisearch restarted on empty storage; the initializer rebuilds the index shortly.
-            return new SearchResult(query, page, pageSize, 0, []);
+            return null;
+        }
+    }
+
+    private static SearchQuery FacetOnly(string facet, string? filter) => new() { HitsPerPage = 0, Filter = filter, Facets = [facet] };
+
+    private static string? Filter(SearchFilters filters)
+    {
+        var clauses = new List<string>();
+        if (filters.ContentType is not null)
+        {
+            clauses.Add($"{ContentTypeFacet} = {Quote(filters.ContentType)}");
         }
 
-        var paginated = (PaginatedSearchResult<Hit>)result;
-        var hits = paginated.Hits.Select(h => new SearchHit(
-            h.Id, h.Path, h.Title, h.Summary, h.ContentType, Highlight(h.Formatted), h.Tags ?? [], h.PublishDate, h.ImageUrl)).ToArray();
-        return new SearchResult(query, page, pageSize, paginated.TotalHits, hits);
+        if (filters.Tag is not null)
+        {
+            clauses.Add($"{TagsFacet} = {Quote(filters.Tag)}");
+        }
+
+        if (filters.Year is not null)
+        {
+            clauses.Add($"{YearFacet} = {filters.Year}");
+        }
+
+        return clauses.Count == 0 ? null : string.Join(" AND ", clauses);
     }
+
+    private static FacetCount[] Counts(PaginatedSearchResult<Hit>? result, string facet) =>
+        result?.FacetDistribution?.GetValueOrDefault(facet) is { } counts
+            ? [.. counts
+                .OrderByDescending(c => c.Value)
+                .ThenBy(c => c.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(c => new FacetCount(c.Key, c.Value))]
+            : [];
 
     public async Task UpsertAsync(IEnumerable<SearchDocument> documents, CancellationToken ct)
     {
@@ -232,11 +279,11 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
     /// descendants of a renamed, moved or unpublished page can be found with one filter.</param>
     private sealed record IndexedDocument(
         string Id, string Path, string Title, string? Summary, string Body, string ContentType, string? Culture, long UpdatedAt,
-        string[] Tags, DateOnly? PublishDate, string? ImageUrl, string[] AncestorPaths)
+        string[] Tags, DateOnly? PublishDate, int? PublishYear, string? ImageUrl, Image? Image, string[] AncestorPaths)
     {
         public static IndexedDocument From(SearchDocument d) => new(
             d.Id, d.Path, d.Title, d.Summary, d.Body, d.ContentType, d.Culture, d.UpdatedAt.ToUnixTimeSeconds(),
-            d.Tags, d.PublishDate, d.ImageUrl, AncestorsOf(d.Path));
+            d.Tags, d.PublishDate, d.PublishDate?.Year, d.ImageUrl, d.Image, AncestorsOf(d.Path));
     }
 
     private sealed record PathOnly(string Id, string Path);
@@ -255,7 +302,8 @@ public sealed class MeilisearchSearchIndex(MeilisearchClient client) : ISearchIn
 
     // Tags is nullable: documents indexed before tags existed lack the field until the next reindex.
     private sealed record Hit(
-        string Id, string Path, string Title, string? Summary, string ContentType, string[]? Tags, DateOnly? PublishDate, string? ImageUrl)
+        string Id, string Path, string Title, string? Summary, string ContentType, string[]? Tags, DateOnly? PublishDate, string? ImageUrl,
+        Image? Image)
     {
         [JsonPropertyName("_formatted")]
         public Formatted? Formatted { get; init; }

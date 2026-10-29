@@ -150,7 +150,7 @@ export interface paths {
         };
         /**
          * Full-text search
-         * @description Searches pages and articles. An empty `q` returns no hits. `tag` and `contentType` narrow the results. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.
+         * @description Searches pages and articles. `contentType`, `tag` and `year` (publish year) narrow the results; `facets` counts the values of each, ignoring that facet's own filter. An empty `q` lists everything, newest first. `highlight` is HTML-escaped text with matches wrapped in `<mark>`.
          */
         get: operations["Search"];
         put?: never;
@@ -203,7 +203,17 @@ export interface components {
             publishDate: string;
             tags: string[];
         };
-        Block: components["schemas"]["BlockHeroBlock"] | components["schemas"]["BlockCtaBlock"] | components["schemas"]["BlockLatestArticlesBlock"];
+        Block: components["schemas"]["BlockHeroBlock"] | components["schemas"]["BlockCtaBlock"] | components["schemas"]["BlockLatestArticlesBlock"] | components["schemas"]["BlockArticleListBlock"];
+        BlockArticleListBlock: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "articleList";
+            heading: null | string;
+            /** Format: int32 */
+            pageSize: number;
+        };
         BlockCtaBlock: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -252,6 +262,11 @@ export interface components {
         };
         /** @enum {unknown} */
         CtaStyle: "primary" | "secondary";
+        FacetCount: {
+            value: string;
+            /** Format: int32 */
+            count: number;
+        };
         FocalPoint: {
             /** Format: double */
             left: number;
@@ -324,6 +339,11 @@ export interface components {
             /** Format: int32 */
             indexed: number;
         };
+        SearchFacets: {
+            contentTypes: components["schemas"]["FacetCount"][];
+            tags: components["schemas"]["FacetCount"][];
+            years: components["schemas"]["FacetCount"][];
+        };
         SearchHit: {
             id: string;
             path: string;
@@ -335,6 +355,7 @@ export interface components {
             /** Format: date */
             publishDate: null | string;
             imageUrl: null | string;
+            image: null | components["schemas"]["Image"];
         };
         SearchResult: {
             query: string;
@@ -345,6 +366,7 @@ export interface components {
             /** Format: int32 */
             total: number;
             hits: components["schemas"]["SearchHit"][];
+            facets: components["schemas"]["SearchFacets"];
         };
         StatusReport: {
             status: components["schemas"]["HealthState"];
@@ -615,6 +637,7 @@ export interface operations {
                 q?: string;
                 contentType?: string;
                 tag?: string;
+                year?: number;
                 page?: number;
                 pageSize?: number;
             };

@@ -1,0 +1,102 @@
+---
+import ArticleGrid from '../ArticleGrid.astro';
+import FacetFilters, { type FacetGroup } from '../FacetFilters.astro';
+import Pagination from '../Pagination.astro';
+import { api, type ArticleSummary, type Block } from '../../lib/api/client';
+import { log } from '../../lib/log';
+
+interface Props {
+  block: Extract<Block, { type: 'articleList' }>;
+}
+
+const { block } = Astro.props;
+const heading = block.heading ?? 'All articles';
+const params = Astro.url.searchParams;
+const tag = params.get('tag') || undefined;
+const yearParam = Number.parseInt(params.get('year') ?? '', 10);
+const year = Number.isInteger(yearParam) && yearParam >= 1 && yearParam <= 9999 ? yearParam : undefined;
+const requestedPage = Number.parseInt(params.get('page') ?? '1', 10);
+const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+// The search index lists articles newest first when there is no query, with facet counts in the same call.
+const search = await api()
+  .GET('/api/search', {
+    params: { query: { q: '', contentType: 'article', tag, year, page, pageSize: block.pageSize } },
+  })
+  .catch((cause: unknown) => {
+    log.error('Search API unreachable', cause);
+    return undefined;
+  });
+const result = search?.data;
+if (search && !result) log.error('Article list failed', undefined, { status: search.response.status });
+
+const articles: ArticleSummary[] = (result?.hits ?? []).flatMap((hit) =>
+  hit.publishDate
+    ? [{ id: hit.id, path: hit.path, title: hit.title, summary: hit.summary, image: hit.image, publishDate: hit.publishDate, tags: hit.tags }]
+    : [],
+);
+
+type Overrides = { page?: number; tag?: string | null; year?: string | null };
+const listHref = (overrides: Overrides) => {
+  const next = new URLSearchParams();
+  const nextTag = overrides.tag === undefined ? tag : overrides.tag;
+  const nextYear = overrides.year === undefined ? year?.toString() : overrides.year;
+  if (nextTag) next.set('tag', nextTag);
+  if (nextYear) next.set('year', nextYear);
+  if (overrides.page && overrides.page > 1) next.set('page', String(overrides.page));
+  const query = next.toString();
+  return `${Astro.url.pathname}${query ? `?${query}` : ''}#articles`;
+};
+
+const groups: FacetGroup[] = result
+  ? [
+      { label: 'Topic', values: result.facets.tags, selected: tag, href: (value) => listHref({ tag: value }) },
+      { label: 'Year', values: result.facets.years, selected: year?.toString(), href: (value) => listHref({ year: value }) },
+    ]
+  : [];
+const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
+---
+
+<section id="articles" class="scroll-mt-24">
+  <h2 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{heading}</h2>
+
+  {
+    !result ? (
+      <p class="mt-6 rounded-lg bg-red-50 px-4 py-3 text-red-700" role="alert">
+        Articles are temporarily unavailable. Please try again shortly.
+      </p>
+    ) : (
+      <div class="mt-6 flex flex-col gap-8 lg:flex-row">
+        <FacetFilters groups={groups} />
+        <div class="min-w-0 flex-1" aria-live="polite">
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-500">
+            <p>
+              {result.total} article{result.total === 1 ? '' : 's'}
+              {tag && ` about “${tag}”`}
+              {year && ` from ${year}`}
+              {totalPages > 1 && ` · page ${result.page} of ${totalPages}`}
+            </p>
+            {(tag || year) && (
+              <a
+                href={listHref({ tag: null, year: null })}
+                class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-300"
+              >
+                <span aria-hidden="true">×</span> Clear filters
+              </a>
+            )}
+          </div>
+          {articles.length > 0 ? (
+            <div class="mt-4">
+              <ArticleGrid articles={articles} />
+            </div>
+          ) : (
+            <p class="mt-4 rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center text-slate-500">
+              No articles match these filters.
+            </p>
+          )}
+          <Pagination page={result.page} totalPages={totalPages} href={(n) => listHref({ page: n })} />
+        </div>
+      </div>
+    )
+  }
+</section>

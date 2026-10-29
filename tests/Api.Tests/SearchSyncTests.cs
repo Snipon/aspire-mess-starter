@@ -224,7 +224,7 @@ public sealed class SearchSyncTests
     }
 
     private static SearchDocument Doc(string id, string path) =>
-        new(id, path, id, null, string.Empty, "page", null, DateTimeOffset.UnixEpoch, [], null, null);
+        new(id, path, id, null, string.Empty, "page", null, DateTimeOffset.UnixEpoch, [], null, null, null);
 
     private sealed class FakeContent : IContentSource
     {
@@ -272,7 +272,7 @@ public sealed class SearchSyncTests
 
         public Task EnsureIndexAsync(CancellationToken ct) => Task.CompletedTask;
 
-        public Task<SearchResult> SearchAsync(string query, int page, int pageSize, string? contentType, string? tag, CancellationToken ct) =>
+        public Task<SearchResult> SearchAsync(string query, int page, int pageSize, SearchFilters filters, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task UpsertAsync(IEnumerable<SearchDocument> documents, CancellationToken ct)

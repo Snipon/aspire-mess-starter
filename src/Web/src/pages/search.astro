@@ -1,8 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import FacetFilters, { type FacetGroup } from '../components/FacetFilters.astro';
 import Pagination from '../components/Pagination.astro';
+import SearchInput from '../components/SearchInput.astro';
 import TagList from '../components/TagList.astro';
-import { api, getTags, type SearchResult } from '../lib/api/client';
+import { api, type SearchResult } from '../lib/api/client';
 import { formatDate, tagHref } from '../lib/format';
 import { log } from '../lib/log';
 
@@ -17,74 +19,71 @@ const pageNumber = Number.isFinite(requestedPage) && requestedPage > 0 ? request
 let result: SearchResult | undefined;
 let error: string | undefined;
 
-const [tags, search] = await Promise.all([
-  getTags(),
-  q
-    ? api().GET('/api/search', {
-        params: { query: { q, page: pageNumber, pageSize: PAGE_SIZE, contentType, tag } },
-      })
-    : undefined,
-]);
-
-if (search) {
-  const { data, error: problem, response } = search;
-  if (data) {
-    result = data;
-  } else if (response.status === 400) {
-    Astro.response.status = 400;
-    error = problem?.detail ?? problem?.title ?? 'Invalid search request.';
-  } else {
-    // Search backend down: keep the page usable instead of the 500 page.
-    log.error('Search API failed', undefined, { status: response.status });
+// Without a query this still runs: it returns no hits, only the facets, which list the topics to browse.
+const search = await api()
+  .GET('/api/search', { params: { query: { q, page: pageNumber, pageSize: PAGE_SIZE, contentType, tag } } })
+  .catch((cause: unknown) => {
+    log.error('Search API unreachable', cause);
+    return undefined;
+  });
+if (search?.data) {
+  result = search.data;
+} else if (search?.response.status === 400) {
+  Astro.response.status = 400;
+  error = search.error?.detail ?? search.error?.title ?? 'Invalid search request.';
+} else {
+  // Search backend down: keep the page usable instead of the 500 page.
+  if (search) log.error('Search API failed', undefined, { status: search.response.status });
+  if (q) {
     Astro.response.status = 503;
     error = 'Search is temporarily unavailable. Please try again shortly.';
   }
 }
 
-const searchHref = (overrides: { page?: number; tag?: string | null }) => {
+type Overrides = { page?: number; tag?: string | null; contentType?: string | null };
+const searchHref = (overrides: Overrides) => {
   const next = new URLSearchParams({ q });
   const nextTag = overrides.tag === undefined ? tag : overrides.tag;
+  const nextType = overrides.contentType === undefined ? contentType : overrides.contentType;
   if (nextTag) next.set('tag', nextTag);
-  if (contentType) next.set('contentType', contentType);
+  if (nextType) next.set('contentType', nextType);
   if (overrides.page && overrides.page > 1) next.set('page', String(overrides.page));
   return `/search?${next}`;
 };
 
+const facetGroups: FacetGroup[] = result
+  ? [
+      {
+        label: 'Type',
+        values: result.facets.contentTypes,
+        selected: contentType,
+        href: (value) => searchHref({ contentType: value }),
+      },
+      { label: 'Topic', values: result.facets.tags, selected: tag, href: (value) => searchHref({ tag: value }) },
+    ]
+  : [];
+const topics = result?.facets.tags.map((t) => t.value) ?? [];
+const filtered = Boolean(tag || contentType);
+
 const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
-const fieldClass =
-  'rounded-lg border border-slate-300 bg-white px-4 py-2.5 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none';
 ---
 
 <Layout title={q ? `Search: ${q}` : 'Search'}>
-  <div class="mx-auto max-w-3xl">
+  <div class="max-w-3xl">
     <h1 class="text-3xl font-bold tracking-tight">Search</h1>
 
     <form action="/search" method="get" role="search" class="mt-6 flex flex-col gap-2 sm:flex-row">
       <label for="q" class="sr-only">Search terms</label>
-      <input
-        id="q"
-        type="search"
-        name="q"
-        value={q}
-        autofocus={!q}
-        placeholder="What are you looking for?"
-        class:list={[fieldClass, 'min-w-0 flex-1 placeholder:text-slate-400']}
-      />
-      {
-        tags.length > 0 && (
-          <>
-            <label for="tag" class="sr-only">Topic</label>
-            <select id="tag" name="tag" class:list={[fieldClass, 'pr-9 sm:w-48']}>
-              <option value="">All topics</option>
-              {tags.map((t) => (
-                <option value={t.tag} selected={t.tag.toLowerCase() === tag?.toLowerCase()}>
-                  {t.tag} ({t.count})
-                </option>
-              ))}
-            </select>
-          </>
-        )
-      }
+      <div class="min-w-0 flex-1">
+        <SearchInput
+          id="q"
+          value={q}
+          autofocus={!q}
+          placeholder="What are you looking for?"
+          class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+        />
+      </div>
+      {tag && <input type="hidden" name="tag" value={tag} />}
       {contentType && <input type="hidden" name="contentType" value={contentType} />}
       <button
         type="submit"
@@ -97,30 +96,43 @@ const fieldClass =
     {error && <p class="mt-6 rounded-lg bg-red-50 px-4 py-3 text-red-700" role="alert">{error}</p>}
 
     {
-      !q && tags.length > 0 && (
+      !q && topics.length > 0 && (
         <section class="mt-10">
           <h2 class="text-sm font-semibold tracking-wide text-slate-500 uppercase">Browse by topic</h2>
-          <TagList tags={tags.map((t) => t.tag)} class="mt-3" />
+          <TagList tags={topics} class="mt-3" />
         </section>
       )
     }
 
     {
-      result && (
-        <section class="mt-8" aria-live="polite">
+      tag && !q && (
+        <p class="mt-8 text-slate-600">
+          Enter a search term, or <a href={tagHref(tag)} class="font-medium text-indigo-600 hover:text-indigo-500">browse all “{tag}” articles</a>.
+        </p>
+      )
+    }
+  </div>
+
+  {
+    q && result && (
+      <div class="mt-8 flex flex-col gap-8 lg:flex-row-reverse">
+        <FacetFilters groups={facetGroups} />
+
+        <section class="min-w-0 flex-1" aria-live="polite">
           <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-slate-500">
             <p>
               {result.total === 0
                 ? `No results for “${result.query}”`
                 : `${result.total} result${result.total === 1 ? '' : 's'} for “${result.query}”`}
-              {tag && ` in “${tag}”`}.
+              {contentType && ` in ${contentType}s`}
+              {tag && ` about “${tag}”`}.
             </p>
-            {tag && (
+            {filtered && (
               <a
-                href={searchHref({ tag: null })}
+                href={searchHref({ tag: null, contentType: null })}
                 class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-300"
               >
-                <span aria-hidden="true">×</span> Clear topic filter
+                <span aria-hidden="true">×</span> Clear filters
               </a>
             )}
           </div>
@@ -172,15 +184,7 @@ const fieldClass =
 
           <Pagination page={result.page} totalPages={totalPages} href={(n) => searchHref({ page: n })} />
         </section>
-      )
-    }
-
-    {
-      tag && !q && (
-        <p class="mt-8 text-slate-600">
-          Enter a search term, or <a href={tagHref(tag)} class="font-medium text-indigo-600 hover:text-indigo-500">browse all “{tag}” articles</a>.
-        </p>
-      )
-    }
-  </div>
+      </div>
+    )
+  }
 </Layout>

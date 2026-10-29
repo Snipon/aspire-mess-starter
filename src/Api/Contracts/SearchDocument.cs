@@ -5,6 +5,7 @@ namespace Api.Contracts;
 
 /// <summary>Internal indexing shape passed from a content source to a search index.</summary>
 /// <param name="ImageUrl">A small rendition of the page's (or its hero's) image, for result thumbnails.</param>
+/// <param name="Image">The page's (or its hero's) image.</param>
 public sealed partial record SearchDocument(
     string Id,
     string Path,
@@ -16,7 +17,8 @@ public sealed partial record SearchDocument(
     DateTimeOffset UpdatedAt,
     string[] Tags,
     DateOnly? PublishDate,
-    string? ImageUrl)
+    string? ImageUrl,
+    Image? Image)
 {
     public static SearchDocument FromPage(Page page)
     {
@@ -32,7 +34,8 @@ public sealed partial record SearchDocument(
             page.UpdatedAt,
             page.Article?.Tags ?? [],
             page.Article?.PublishDate,
-            image is null ? null : image.Srcset.FirstOrDefault()?.Url ?? image.Url);
+            image is null ? null : image.Srcset.FirstOrDefault()?.Url ?? image.Url,
+            image);
     }
 
     internal static string HtmlToText(string? html)
@@ -52,6 +55,7 @@ public sealed partial record SearchDocument(
             HeroBlock hero => [hero.Heading, hero.Subheading],
             CtaBlock cta => [cta.Heading, cta.Text],
             LatestArticlesBlock latest => [latest.Heading],
+            ArticleListBlock list => [list.Heading],
             _ => [],
         })
         .Where(t => !string.IsNullOrWhiteSpace(t)));

@@ -1,0 +1,114 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+
+/** A `q` search input with autosuggest (combobox over /api/suggest); without JavaScript it is a plain search field. */
+type Props = Omit<HTMLAttributes<'input'>, 'type' | 'name'> & { id: string };
+
+const { id, ...attrs } = Astro.props;
+const listId = `${id}-suggestions`;
+---
+
+<div class="relative" data-search-suggest>
+  <input
+    {...attrs}
+    id={id}
+    type="search"
+    name="q"
+    autocomplete="off"
+    role="combobox"
+    aria-autocomplete="list"
+    aria-expanded="false"
+    aria-controls={listId}
+  />
+  <ul
+    id={listId}
+    role="listbox"
+    aria-label="Suggestions"
+    hidden
+    class="absolute top-full right-0 z-20 mt-1 w-full min-w-72 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg"
+  >
+  </ul>
+</div>
+
+<script>
+  import type { Suggestion } from '../pages/api/suggest';
+
+  const DEBOUNCE_MS = 150;
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-search-suggest]')) {
+    const input = root.querySelector('input')!;
+    const list = root.querySelector('ul')!;
+    let items: Suggestion[] = [];
+    let active = -1;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let controller: AbortController | undefined;
+
+    const render = () => {
+      list.replaceChildren(
+        ...items.map((item, i) => {
+          const option = document.createElement('li');
+          option.id = `${list.id}-${i}`;
+          option.role = 'option';
+          option.ariaSelected = String(i === active);
+          option.className =
+            'flex cursor-pointer items-baseline justify-between gap-3 px-3 py-2 text-slate-700 hover:bg-slate-50 aria-selected:bg-indigo-50 aria-selected:text-indigo-700';
+          const title = document.createElement('span');
+          title.className = 'min-w-0 truncate';
+          title.textContent = item.title;
+          const type = document.createElement('span');
+          type.className = 'shrink-0 text-xs text-slate-400';
+          type.textContent = item.contentType;
+          option.append(title, type);
+          // mousedown, not click: fires before the input's blur closes the list.
+          option.addEventListener('mousedown', (event) => {
+            event.preventDefault();
+            location.href = item.path;
+          });
+          return option;
+        }),
+      );
+      list.hidden = items.length === 0;
+      input.ariaExpanded = String(items.length > 0);
+      if (active >= 0) input.setAttribute('aria-activedescendant', `${list.id}-${active}`);
+      else input.removeAttribute('aria-activedescendant');
+    };
+
+    const close = () => {
+      clearTimeout(timer);
+      controller?.abort();
+      items = [];
+      active = -1;
+      render();
+    };
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim();
+      close();
+      if (q.length < 2) return;
+      timer = setTimeout(async () => {
+        controller = new AbortController();
+        try {
+          const response = await fetch(`/api/suggest?${new URLSearchParams({ q })}`, { signal: controller.signal });
+          items = response.ok ? await response.json() : [];
+          render();
+        } catch {
+          // Aborted by newer input, or offline: the form still submits normally.
+        }
+      }, DEBOUNCE_MS);
+    });
+
+    input.addEventListener('keydown', (event) => {
+      if (list.hidden) return;
+      const count = items.length;
+      if (event.key === 'ArrowDown') active = (active + 1) % count;
+      else if (event.key === 'ArrowUp') active = active <= 0 ? count - 1 : active - 1;
+      else if (event.key === 'Enter' && active >= 0) location.href = items[active].path;
+      else if (event.key === 'Escape') close();
+      else return;
+      event.preventDefault();
+      render();
+    });
+
+    input.addEventListener('blur', close);
+  }
+</script>

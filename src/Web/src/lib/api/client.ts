@@ -12,6 +12,7 @@ export type Image = components['schemas']['Image'];
 export type NavItem = components['schemas']['NavItem'];
 export type SearchResult = components['schemas']['SearchResult'];
 export type SearchHit = components['schemas']['SearchHit'];
+export type FacetCount = components['schemas']['FacetCount'];
 export type ProblemDetails = components['schemas']['ProblemDetails'];
 export type StatusReport = components['schemas']['StatusReport'];
 export type HealthState = components['schemas']['HealthState'];

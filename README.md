@@ -39,7 +39,8 @@ flowchart LR
 - **api** – the only thing the website talks to. It exposes a CMS- and search-engine-neutral contract
   (`src/Api/Contracts`) and builds absolute media URLs and HMAC-signed `srcset` renditions (480/960/1440/1920).
   On startup it ensures the search index and runs a full reindex in the background (retrying until the CMS has
-  content). Content webhooks keep the index up to date afterwards.
+  content). Content webhooks keep the index up to date afterwards, and a full reindex every `Search:ReindexInterval`
+  (default 30 minutes, `00:00:00` disables it) catches anything a lost webhook missed.
 - **web** – Astro server-side rendering only; the browser never calls the API directly. The API client is
   generated from the API's OpenAPI document.
 
@@ -154,7 +155,7 @@ Scalar and the OpenAPI document are mapped in every environment on purpose for t
 | GET | `/api/navigation` | `NavItem[]` tree of site and pages (articles are excluded) |
 | GET | `/api/articles?tag=&page=1&pageSize=12&culture=` | `Paged<ArticleSummary>`, newest `publishDate` first |
 | GET | `/api/tags` | `TagCount[]` (`{tag, count}`), most used first |
-| GET | `/api/search?q=&page=1&pageSize=10&contentType=&tag=` | `SearchResult`, highlights wrapped in `<mark>`; hits carry tags, date, thumbnail |
+| GET | `/api/search?q=&page=1&pageSize=10&contentType=&tag=&year=` | `SearchResult`, highlights wrapped in `<mark>`; hits carry tags, date, image; `facets` counts types, tags and years (each ignoring its own filter); empty `q` lists everything newest first |
 | POST | `/api/search/reindex` | full reindex; header `X-Reindex-Secret` (parameter `reindex-secret`) |
 | POST | `/api/webhooks/content` | Umbraco webhook (`{"id": ...}` or `[{"id": ...}]`); header `X-Webhook-Secret` |
 | GET | `/api/status` | `StatusReport` (`status` + `components[]` of `{name, displayName, status, durationMs}`), always 200; see below |
@@ -217,12 +218,17 @@ database uSync imports it on first boot (`uSync:Settings:ImportOnFirstBoot`), be
 | `article` | document | `title`, `image` (single image), `body` (Markdown), `tags` (group `articles`), `publishDate` (optional; falls back to the create date) | `page` |
 | `heroBlock` | element | `heading`, `subheading`, `image`, `ctaLabel`, `ctaLink` (one link) | Content Blocks |
 | `ctaBlock` | element | `heading`, `text`, `link` (one link), `style` (`primary`/`secondary`) | Content Blocks |
-| `latestArticlesBlock` | element | `heading`, `count` (1–50, empty = 6), `tag` (optional, a single tag; a list or `!tag` is ignored) | Content Blocks |
+| `latestArticlesBlock` | element | `heading`, `count` (1–50, empty = 6), `tag` (optional, a single tag; a list or `!tag` is ignored); a slider on the web | Content Blocks |
+| `articleListBlock` | element | `heading`, `pageSize` (1–50, empty = 12); all articles with topic/year filters and a pager, read by the web from `/api/search` | Content Blocks |
 
 Seeded demo content (`ContentSeeder.cs`, idempotent, deterministic seed, one transaction so a failed seed leaves
-nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, CTA) → **Articles** (`page`, `/articles`, blocks hero, latest articles ×12) → 50 articles with
-Markdown bodies, 2–4 of 12 tags each, publish dates over the last 12 months, and 12 generated 1600×900 JPEG
-placeholder images in the media library. Content is created in C#, not via uSync content import, so the repo
+nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, CTA) → **Articles** (`page`, `/articles`, blocks hero, article list) → 1500 articles with
+Markdown bodies, 2–4 of 12 tags each, about one publish date a day going back four years, and 12 generated 1600×900 JPEG
+placeholder images in the media library. An install seeded with fewer articles is topped up on boot (by name), and an
+Articles page still holding the old seeded latest-articles block is switched to the article list (once
+`articleListBlock` has been imported, see below). Whatever the seeder creates is posted straight to the API's content
+webhook endpoint (`SearchIndexNotifier.cs`), because Umbraco's own webhook queue does not reliably fire for content
+published during startup. Content is created in C#, not via uSync content import, so the repo
 only holds schema and no media files.
 
 `src/Cms/Headless/ArticleQueryHandlers.cs` adds two Delivery API query extensions the API relies on:
