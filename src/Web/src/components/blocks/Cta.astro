@@ -14,21 +14,22 @@ const primary = block.style === 'primary';
 
 <section
   class:list={[
-    'flex flex-col gap-6 rounded-3xl px-6 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-10',
-    primary ? 'bg-primary text-primary-foreground shadow-sm' : 'border bg-card text-card-foreground',
+    'chamfer flex flex-col gap-8 px-6 py-12 [--cut:2rem] sm:flex-row sm:items-end sm:justify-between sm:px-12',
+    primary ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-card-foreground',
   ]}
 >
   <div class="max-w-2xl">
-    <h2 class="text-2xl font-bold tracking-tight text-balance sm:text-3xl">{block.heading}</h2>
-    {block.text && <p class:list={['mt-3 text-lg text-pretty', primary ? 'text-primary-foreground/80' : 'text-muted-foreground']}>{block.text}</p>}
+    <h2 class="font-wide text-3xl leading-none font-extrabold text-balance sm:text-5xl">{block.heading}</h2>
+    {block.text && <p class:list={['mt-5 max-w-xl text-lg leading-relaxed text-pretty', primary ? 'text-primary-foreground/80' : 'text-muted-foreground']}>{block.text}</p>}
   </div>
   {
     block.link && (
       <a
         {...linkAttrs(block.link)}
         class={cn(
-          buttonVariants({ variant: primary ? 'secondary' : 'default', size: 'lg' }),
-          'h-11 shrink-0 self-start px-5 text-base sm:self-auto',
+          buttonVariants({ size: 'lg' }),
+          'shrink-0 self-start sm:self-auto',
+          primary && 'hover:bg-card hover:text-card-foreground',
         )}
       >
         {block.link.title ?? 'Learn more'}
@@ -37,9 +38,7 @@ const primary = block.style === 'primary';
             <span aria-hidden="true">↗</span>
             <span class="sr-only">(opens in a new tab)</span>
           </>
-        ) : (
-          <span aria-hidden="true">→</span>
-        )}
+        ) : null}
       </a>
     )
   }

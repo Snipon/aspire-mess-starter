@@ -24,14 +24,9 @@ export default function SearchHitCard({ hit, tagHref }: Props) {
               {hit.contentType}
             </Badge>
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="font-narrow flex flex-wrap gap-x-3">
             <span className="text-primary">{hit.path}</span>
-            {hit.publishDate && (
-              <>
-                <span aria-hidden="true"> · </span>
-                <time dateTime={hit.publishDate}>{formatDate(hit.publishDate)}</time>
-              </>
-            )}
+            {hit.publishDate && <time dateTime={hit.publishDate}>{formatDate(hit.publishDate)}</time>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 px-0 text-base text-muted-foreground">
@@ -52,7 +47,7 @@ export default function SearchHitCard({ hit, tagHref }: Props) {
           height={96}
           loading="lazy"
           decoding="async"
-          className="hidden size-24 shrink-0 self-center rounded-lg bg-muted object-cover sm:block"
+          className="chamfer hidden size-24 shrink-0 self-center bg-muted object-cover [--cut:0.75rem] sm:block"
         />
       )}
     </Card>

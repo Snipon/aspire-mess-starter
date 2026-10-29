@@ -2,7 +2,6 @@
 import '../styles/global.css';
 import MiniCart from '../components/MiniCart';
 import SearchInput from '../components/SearchInput.astro';
-import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getNavigation, type NavItem } from '../lib/api/client';
 
@@ -38,15 +37,16 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     {description && <meta name="description" content={description} />}
     <slot name="head" />
   </head>
-  <body class="flex min-h-screen flex-col bg-muted/40 antialiased">
-    <header class="sticky top-0 z-10 border-b bg-background/85 backdrop-blur">
-      <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
-        <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
-          <img src="/favicon.svg" alt="" width="28" height="28" />
-          <span>Aspire Test</span>
-        </a>
-        <nav aria-label="Main" class="order-3 w-full sm:order-none sm:w-auto sm:flex-1">
-          <ul class="flex flex-wrap gap-1 text-sm">
+  <body class="flex min-h-screen flex-col bg-background text-foreground antialiased">
+    <a href="#main" class="sr-only z-50 bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2">
+      Skip to content
+    </a>
+    {/* .dark flips the tokens inside the header: an ink bar whose inputs, buttons and mini cart follow along. */}
+    <header class="dark sticky top-0 z-10 border-b-4 border-primary bg-background text-foreground">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-2 px-4 sm:px-6">
+        <a href="/" class="font-wide py-3 text-xl font-extrabold focus-visible:outline-2 focus-visible:outline-ring">Aspire Test</a>
+        <nav aria-label="Main" class="order-3 -mx-1 w-full overflow-x-auto sm:order-none sm:mx-0 sm:w-auto sm:flex-1">
+          <ul class="flex text-[0.95rem] font-semibold">
             {
               links.map((item) => (
                 <li>
@@ -54,8 +54,10 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
                     href={item.path}
                     aria-current={isActive(item.path) ? 'page' : undefined}
                     class={cn(
-                      buttonVariants({ variant: isActive(item.path) ? 'secondary' : 'ghost' }),
-                      !isActive(item.path) && 'text-muted-foreground',
+                      'block px-3 py-4 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                      isActive(item.path)
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
                     {item.name}
@@ -65,28 +67,28 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
             }
           </ul>
         </nav>
-        <form action="/search" method="get" role="search" class="ml-auto">
+        <form action="/search" method="get" role="search" class="ml-auto py-3">
           <label for="site-search" class="sr-only">Search</label>
-          <SearchInput
-            id="site-search"
-            value={q}
-            placeholder="Search…"
-            class="w-40 sm:w-56"
-          />
+          <SearchInput id="site-search" value={q} placeholder="Search" class="w-40 sm:w-60" />
         </form>
         {/* Pages are shared-cached: the count and mini cart are fetched per visitor in the browser. */}
         <MiniCart client:load active={current === '/cart'} />
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 sm:py-14">
+    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 sm:py-16">
       <slot />
     </main>
 
-    <footer class="border-t bg-background">
-      <div class="mx-auto max-w-5xl px-4 py-6 text-sm text-muted-foreground sm:px-6">
-        Content from Umbraco, products from Drupal Commerce, search by Meilisearch, served by Astro.
-        <a href="/status" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-1')}>System status</a>
+    <footer class="dark bg-background text-muted-foreground">
+      <div class="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+        <p class="font-wide text-4xl font-extrabold text-foreground sm:text-6xl">Aspire Test</p>
+        <p class="max-w-sm text-sm">
+          Content from Umbraco, products from Drupal Commerce, search by Meilisearch, served by Astro.
+          <a href="/status" class="font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:text-primary">
+            System status
+          </a>
+        </p>
       </div>
     </footer>
   </body>
