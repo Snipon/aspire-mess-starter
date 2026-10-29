@@ -1,3 +1,4 @@
+using Api.Commerce;
 using Api.Content;
 using Api.Contracts;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -40,7 +41,7 @@ public static class ContentEndpoints
     }
 
     private static async Task<Results<Ok<Page>, NotFound<ProblemDetails>, BadRequest<ProblemDetails>>> GetByPath(
-        IContentSource content, string? path, string? culture, CancellationToken ct)
+        IContentSource content, IServiceProvider services, string? path, string? culture, CancellationToken ct)
     {
         if (!RequestValidation.IsValidPath(path))
         {
@@ -54,11 +55,13 @@ public static class ContentEndpoints
         }
 
         var page = await content.GetByPathAsync(path, culture, ct);
-        return page is null ? TypedResults.NotFound(Problems.NotFound($"No page at path '{path}'.")) : TypedResults.Ok(page);
+        return page is null
+            ? TypedResults.NotFound(Problems.NotFound($"No page at path '{path}'."))
+            : TypedResults.Ok(await WithProductAsync(page, services, ct));
     }
 
     private static async Task<Results<Ok<Page>, NotFound<ProblemDetails>, BadRequest<ProblemDetails>>> GetById(
-        IContentSource content, string id, string? culture, CancellationToken ct)
+        IContentSource content, IServiceProvider services, string id, string? culture, CancellationToken ct)
     {
         if (!RequestValidation.IsValidCulture(culture))
         {
@@ -66,7 +69,34 @@ public static class ContentEndpoints
         }
 
         var page = await content.GetByIdAsync(id, culture, ct);
-        return page is null ? TypedResults.NotFound(Problems.NotFound($"No page with id '{id}'.")) : TypedResults.Ok(page);
+        return page is null
+            ? TypedResults.NotFound(Problems.NotFound($"No page with id '{id}'."))
+            : TypedResults.Ok(await WithProductAsync(page, services, ct));
+    }
+
+    /// <summary>
+    /// Fills <see cref="Article.Product"/> live from the shop. The article is returned without it when the shop is off
+    /// (no <see cref="ICommerceSource"/>), the product is gone or the commerce backend fails.
+    /// </summary>
+    private static async Task<Page> WithProductAsync(Page page, IServiceProvider services, CancellationToken ct)
+    {
+        if (page.Article is not { ProductSku: { Length: > 0 } sku } article || services.GetService<ICommerceSource>() is not { } commerce)
+        {
+            return page;
+        }
+
+        try
+        {
+            return await commerce.GetProductBySkuAsync(sku, ct) is { } product
+                ? page with { Article = article with { Product = ProductSummary.From(product) } }
+                : page;
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(ContentEndpoints))
+                .LogWarning(ex, "Could not load product {Sku} for page {PageId}", sku, page.Id);
+            return page;
+        }
     }
 
     private static async Task<Results<Ok<Paged<ArticleSummary>>, BadRequest<ProblemDetails>>> GetArticles(

@@ -268,6 +268,24 @@ public sealed class DeliveryApiMapperTests
         Assert.Empty(article.Tags);
         Assert.Equal(string.Empty, article.BodyHtml);
         Assert.Equal(1, article.ReadingTimeMinutes);
+        Assert.Null(article.ProductSku);
+    }
+
+    [Theory]
+    [InlineData("\" SKU-00042 \"", "SKU-00042")]
+    [InlineData("\"  \"", null)]
+    [InlineData("null", null)]
+    public async Task Article_product_sku_is_trimmed_and_empty_is_null(string productJson, string? expected)
+    {
+        var item = Parse<ApiContentResponseModel>($$"""
+            { "id": "00000000-0000-0000-0000-000000000001", "contentType": "article", "name": "A", "createDate": "2026-03-04T22:07:19.57Z",
+              "route": { "path": "/articles/a/" }, "properties": { "product": {{productJson}} } }
+            """);
+
+        var article = Assert.IsType<Article>((await MapAsync(item)).Article);
+
+        Assert.Equal(expected, article.ProductSku);
+        Assert.Null(article.Product); // filled by the content endpoints, not the mapper
     }
 
     // A blog post as the Delivery API returns it with expand=properties[relatedArticle] (the related article is the

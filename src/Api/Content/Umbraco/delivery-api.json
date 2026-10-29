@@ -1324,6 +1324,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "product": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

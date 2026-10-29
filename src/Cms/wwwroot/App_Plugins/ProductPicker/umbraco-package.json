@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../umbraco-package-schema.json",
+  "name": "Product picker",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "propertyEditorUi",
+      "alias": "Headless.PropertyEditorUi.ProductPicker",
+      "name": "Product picker",
+      "element": "/App_Plugins/ProductPicker/product-picker.js",
+      "meta": {
+        "label": "Product picker",
+        "icon": "icon-shopping-basket",
+        "group": "pickers",
+        "propertyEditorSchemaAlias": "Umbraco.Plain.String"
+      }
+    }
+  ]
+}

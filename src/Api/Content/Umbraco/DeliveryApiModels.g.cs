@@ -82,6 +82,9 @@ public sealed record ArticleContentPropertiesModel
     [JsonPropertyName("publishDate")]
     public DateTimeOffset? PublishDate { get; init; }
 
+    [JsonPropertyName("product")]
+    public string? Product { get; init; }
+
     /// <summary>Properties the spec does not know yet.</summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; init; }

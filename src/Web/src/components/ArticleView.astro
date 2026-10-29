@@ -1,6 +1,7 @@
 ---
 import { ArrowLeftIcon } from 'lucide-react';
 import ArticleCard from '@/components/ArticleCard';
+import ProductCard from '@/components/ProductCard';
 import ResponsiveImage from '@/components/ResponsiveImage';
 import TagList from '@/components/TagList';
 import { buttonVariants } from '@/components/ui/button';
@@ -18,6 +19,7 @@ interface Props {
 const { page, article } = Astro.props;
 const tags = 'tags' in article ? article.tags : [];
 const related = 'relatedArticle' in article ? article.relatedArticle : null;
+const product = 'product' in article ? article.product : null;
 // Articles live below their listing page (e.g. /articles/my-post → /articles).
 const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
 ---
@@ -55,6 +57,17 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
     class="prose prose-lg prose-neutral dark:prose-invert mx-auto mt-10 max-w-3xl prose-headings:tracking-tight prose-a:text-primary prose-a:decoration-primary/40 prose-a:underline-offset-2 prose-a:hover:decoration-primary prose-pre:rounded-xl prose-pre:bg-neutral-900 prose-img:rounded-lg"
     set:html={article.bodyHtml}
   />
+
+  {
+    product && (
+      <aside aria-labelledby="featured-product" class="mx-auto mt-14 max-w-3xl">
+        <h2 id="featured-product" class="text-xl font-bold tracking-tight">Featured product</h2>
+        <div class="mt-4 flex max-w-xs">
+          <ProductCard product={product} />
+        </div>
+      </aside>
+    )
+  }
 
   {
     related && (
