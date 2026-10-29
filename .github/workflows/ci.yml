@@ -72,6 +72,55 @@ jobs:
             exit 1
           fi
 
+      - name: Fail on Delivery API models drift
+        run: |
+          node scripts/gen-delivery-api.mjs
+          if ! git diff --exit-code -- src/Api/Content/Umbraco/DeliveryApiModels.g.cs; then
+            echo "::error file=src/Api/Content/Umbraco/DeliveryApiModels.g.cs::DeliveryApiModels.g.cs is out of date with delivery-api.json. Run 'node scripts/gen-delivery-api.mjs' and commit the result."
+            exit 1
+          fi
+
+  architecture:
+    name: Architecture diagram
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # commits the regenerated diagram on main
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.*.props', 'apphost.cs') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # Runs the AppHost with the manifest publisher and rewrites the Mermaid block in README.md.
+      - name: Generate diagram
+        run: node scripts/gen-architecture.mjs
+
+      - name: Warn on drift (pull requests)
+        if: github.event_name == 'pull_request'
+        run: |
+          if ! git diff --exit-code -- README.md; then
+            echo "::warning file=README.md::The architecture diagram is out of date; it is regenerated on merge to main (or run 'node scripts/gen-architecture.mjs')."
+          fi
+
+      # Pushes made with GITHUB_TOKEN do not trigger workflows, so this cannot loop.
+      - name: Commit diagram (main)
+        if: github.event_name == 'push'
+        run: |
+          git diff --quiet -- README.md && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update architecture diagram" -- README.md
+          git push
+
   web:
     name: Web (Astro) gen, check, build
     runs-on: ubuntu-latest

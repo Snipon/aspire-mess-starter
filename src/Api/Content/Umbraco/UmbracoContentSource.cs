@@ -1,6 +1,7 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
+using Api.Content.Umbraco.Delivery;
 using Api.Contracts;
 
 namespace Api.Content.Umbraco;
@@ -36,8 +37,7 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
         var nodes = new List<NavNode>();
         await foreach (var item in QueryAllAsync($"filter=contentType:!{DeliveryApiMapper.ArticleType}", culture, ct))
         {
-            nodes.Add(new NavNode(item.GetProperty("id").GetString()!, item.GetProperty("name").GetString() ?? string.Empty,
-                DeliveryApiMapper.GetPath(item)));
+            nodes.Add(new NavNode(item.Id.ToString("D"), item.Name ?? string.Empty, DeliveryApiMapper.GetPath(item)));
         }
 
         // Items arrive in sort order, so appending to the parent keeps sibling order.
@@ -77,11 +77,8 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
         using var request = CreateRequest(
             $"{ContentApi}?{ArticlesFilter(tag)}&sort=publishDate:desc&skip={(page - 1) * pageSize}&take={pageSize}", culture);
         using var response = await http.SendAsync(request, ct);
-        response.EnsureSuccessStatusCode();
-        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-
-        var items = json.RootElement.GetProperty("items").EnumerateArray().Select(mapper.ToArticleSummary).ToArray();
-        return new Paged<ArticleSummary>(page, pageSize, json.RootElement.GetProperty("total").GetInt32(), items);
+        var result = await ReadAsync<PagedApiContentResponseModel>(response, ct);
+        return new Paged<ArticleSummary>(page, pageSize, (int)result.Total, result.Items.Select(mapper.ToArticleSummary).ToArray());
     }
 
     public async Task<TagCount[]> GetTagsAsync(string? culture, CancellationToken ct)
@@ -116,9 +113,7 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
             return null;
         }
 
-        response.EnsureSuccessStatusCode();
-        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        return await mapper.ToPageAsync(json.RootElement, culture, LatestArticlesAsync, ct);
+        return await mapper.ToPageAsync(await ReadAsync<ApiContentResponseModel>(response, ct), culture, LatestArticlesAsync, ct);
 
         async Task<ArticleSummary[]> LatestArticlesAsync(string? tag, int count, CancellationToken token) =>
             (await GetArticlesAsync(tag, page: 1, pageSize: count, culture, token)).Items;
@@ -128,27 +123,31 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
     /// Pages through all published content matching <paramref name="filter"/> (no <c>fetch</c> selector returns
     /// everything), in sort order.
     /// </summary>
-    private async IAsyncEnumerable<JsonElement> QueryAllAsync(string? filter, string? culture, [EnumeratorCancellation] CancellationToken ct)
+    private async IAsyncEnumerable<ApiContentResponseModel> QueryAllAsync(string? filter, string? culture, [EnumeratorCancellation] CancellationToken ct)
     {
         var prefix = filter is null ? null : filter + "&";
         for (var skip = 0; ; skip += PageSize)
         {
             using var request = CreateRequest($"{ContentApi}?{prefix}sort=sortOrder:asc&skip={skip}&take={PageSize}", culture);
             using var response = await http.SendAsync(request, ct);
-            response.EnsureSuccessStatusCode();
-            using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-
-            var items = json.RootElement.GetProperty("items");
-            foreach (var item in items.EnumerateArray())
+            var result = await ReadAsync<PagedApiContentResponseModel>(response, ct);
+            foreach (var item in result.Items)
             {
-                yield return item.Clone();
+                yield return item;
             }
 
-            if (items.GetArrayLength() < PageSize || skip + PageSize >= json.RootElement.GetProperty("total").GetInt32())
+            if (result.Items.Length < PageSize || skip + PageSize >= result.Total)
             {
                 yield break;
             }
         }
+    }
+
+    private static async Task<T> ReadAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    {
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<T>(ct)
+            ?? throw new InvalidOperationException($"The Delivery API returned no {typeof(T).Name}.");
     }
 
     private static HttpRequestMessage CreateRequest(string uri, string? culture)

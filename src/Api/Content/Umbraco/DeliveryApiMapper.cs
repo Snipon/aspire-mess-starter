@@ -1,10 +1,11 @@
 using System.Text.Json;
+using Api.Content.Umbraco.Delivery;
 using Api.Contracts;
 using Api.Endpoints;
 
 namespace Api.Content.Umbraco;
 
-/// <summary>Maps Umbraco Delivery API v2 content JSON to contract types.</summary>
+/// <summary>Maps Umbraco Delivery API v2 content (models generated from its OpenAPI document) to contract types.</summary>
 public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signer, int[] renditionWidths)
 {
     public const string ArticleType = "article";
@@ -20,79 +21,77 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
     /// <summary>Resolves the articles of a latestArticles block (newest first, optionally only those with a tag).</summary>
     public delegate Task<ArticleSummary[]> LatestArticlesResolver(string? tag, int count, CancellationToken ct);
 
-    private static readonly HashSet<string> MappedProperties = ["title", "summary", "image", "blocks", "body", "tags", "publishDate"];
-
     private readonly string _publicBaseUrl = publicBaseUrl.TrimEnd('/');
 
     /// <param name="latestArticles">Fills latestArticles blocks; when <c>null</c> they are left empty (e.g. for indexing).</param>
-    public async Task<Page> ToPageAsync(JsonElement item, string? culture, LatestArticlesResolver? latestArticles, CancellationToken ct)
+    public async Task<Page> ToPageAsync(ApiContentResponseModel item, string? culture, LatestArticlesResolver? latestArticles, CancellationToken ct)
     {
-        var name = item.GetProperty("name").GetString() ?? string.Empty;
-        var contentType = item.GetProperty("contentType").GetString()!;
-        var properties = GetProperties(item);
-
-        var extra = new Dictionary<string, JsonElement>();
-        if (properties.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var property in properties.EnumerateObject())
-            {
-                if (!MappedProperties.Contains(property.Name))
-                {
-                    extra[property.Name] = property.Value.Clone();
-                }
-            }
-        }
-
+        var name = item.Name ?? string.Empty;
+        string? title = null;
+        string? summary = null;
+        Image? image = null;
+        ApiBlockListModel? blocks = null;
         Article? article = null;
-        var summary = GetString(properties, "summary");
-        if (contentType == ArticleType)
+        Dictionary<string, JsonElement>? extra = null;
+
+        switch (item)
         {
-            var body = MarkdownText.Parse(GetString(properties, "body"));
-            article = new Article(
-                GetPublishDate(item, properties),
-                GetTagsOf(properties),
-                MarkdownText.ToHtml(body, ToPublicMediaUrl),
-                MarkdownText.ReadingTimeMinutes(body));
-            summary ??= MarkdownText.Excerpt(body);
+            case ArticleContentResponseModel { Properties: var props }:
+                var body = MarkdownText.Parse(props?.Body);
+                title = props?.Title;
+                summary = MarkdownText.Excerpt(body);
+                image = GetImage(props?.Image);
+                article = new Article(
+                    GetPublishDate(item, props),
+                    GetTags(props),
+                    MarkdownText.ToHtml(body, ToPublicMediaUrl),
+                    MarkdownText.ReadingTimeMinutes(body));
+                extra = props?.Additional;
+                break;
+            case PageContentResponseModel { Properties: var props }:
+                (title, blocks, extra) = (props?.Title, props?.Blocks, props?.Additional);
+                break;
+            case SiteContentResponseModel { Properties: var props }:
+                (blocks, extra) = (props?.Blocks, props?.Additional);
+                break;
+            case UnknownApiContentResponseModel { Properties: { ValueKind: JsonValueKind.Object } props }:
+                // A content type the spec does not know yet: its properties pass through raw.
+                extra = props.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone());
+                break;
         }
 
         return new Page(
-            Id: item.GetProperty("id").GetString()!,
-            ContentType: contentType,
+            Id: item.Id.ToString("D"),
+            ContentType: item.ContentType,
             Path: GetPath(item),
             Name: name,
-            Title: GetTitle(properties, name),
+            Title: string.IsNullOrWhiteSpace(title) ? name : title,
             Summary: summary,
-            Image: GetImage(properties, "image"),
-            Blocks: await GetBlocksAsync(properties, latestArticles, ct),
+            Image: image,
+            Blocks: await GetBlocksAsync(blocks, latestArticles, ct),
             Article: article,
             Culture: culture,
-            UpdatedAt: item.TryGetProperty("updateDate", out var updated) ? updated.GetDateTimeOffset() : default,
-            Properties: extra);
+            UpdatedAt: item.UpdateDate,
+            Properties: extra ?? []);
     }
 
-    public ArticleSummary ToArticleSummary(JsonElement item)
+    public ArticleSummary ToArticleSummary(ApiContentResponseModel item)
     {
-        var properties = GetProperties(item);
+        var props = (item as ArticleContentResponseModel)?.Properties;
+        var name = item.Name ?? string.Empty;
         return new ArticleSummary(
-            Id: item.GetProperty("id").GetString()!,
+            Id: item.Id.ToString("D"),
             Path: GetPath(item),
-            Title: GetTitle(properties, item.GetProperty("name").GetString() ?? string.Empty),
-            Summary: GetString(properties, "summary") ?? MarkdownText.Excerpt(MarkdownText.Parse(GetString(properties, "body"))),
-            Image: GetImage(properties, "image"),
-            PublishDate: GetPublishDate(item, properties),
-            Tags: GetTagsOf(properties));
+            Title: string.IsNullOrWhiteSpace(props?.Title) ? name : props.Title,
+            Summary: MarkdownText.Excerpt(MarkdownText.Parse(props?.Body)),
+            Image: GetImage(props?.Image),
+            PublishDate: GetPublishDate(item, props),
+            Tags: GetTags(props));
     }
 
-    public static string[] GetTags(JsonElement item) => GetTagsOf(GetProperties(item));
+    public static string[] GetTags(ApiContentResponseModel item) => GetTags((item as ArticleContentResponseModel)?.Properties);
 
-    public static string GetPath(JsonElement item)
-    {
-        var path = item.TryGetProperty("route", out var route) && route.TryGetProperty("path", out var p)
-            ? p.GetString()
-            : null;
-        return NormalizePath(path);
-    }
+    public static string GetPath(ApiContentResponseModel item) => NormalizePath(item.Route?.Path);
 
     /// <summary>Normalises to a leading slash and no trailing slash (root is <c>/</c>).</summary>
     public static string NormalizePath(string? path)
@@ -111,52 +110,27 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
     private static bool IsHttpUrl(string url) =>
         url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-    private static JsonElement GetProperties(JsonElement item) =>
-        item.TryGetProperty("properties", out var props) && props.ValueKind == JsonValueKind.Object ? props : default;
-
-    private static string GetTitle(JsonElement properties, string name)
+    private async Task<Block[]> GetBlocksAsync(ApiBlockListModel? list, LatestArticlesResolver? latestArticles, CancellationToken ct)
     {
-        var title = GetString(properties, "title");
-        return string.IsNullOrWhiteSpace(title) ? name : title;
-    }
-
-    private async Task<Block[]> GetBlocksAsync(JsonElement properties, LatestArticlesResolver? latestArticles, CancellationToken ct)
-    {
-        // Block List: { "items": [ { "content": { "contentType", "id", "properties" }, "settings": ... } ] }
-        if (properties.ValueKind != JsonValueKind.Object
-            || !properties.TryGetProperty("blocks", out var value)
-            || value.ValueKind != JsonValueKind.Object
-            || !value.TryGetProperty("items", out var items)
-            || items.ValueKind != JsonValueKind.Array)
-        {
-            return [];
-        }
-
         var blocks = new List<Block>();
-        foreach (var entry in items.EnumerateArray())
+        foreach (var entry in list?.Items ?? [])
         {
-            if (!entry.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Object)
+            Block? block = entry.Content switch
             {
-                continue;
-            }
-
-            var props = GetProperties(content);
-            Block? block = GetString(content, "contentType") switch
-            {
-                "heroBlock" => new HeroBlock(
-                    GetString(props, "heading") ?? string.Empty,
-                    GetString(props, "subheading"),
-                    GetImage(props, "image"),
-                    GetLink(props, "ctaLink", title: GetString(props, "ctaLabel"))),
-                "ctaBlock" => new CtaBlock(
-                    GetString(props, "heading") ?? string.Empty,
-                    GetString(props, "text"),
-                    GetLink(props, "link"),
-                    GetString(props, "style") == "secondary" ? CtaStyle.Secondary : CtaStyle.Primary),
-                "latestArticlesBlock" => await GetLatestArticlesAsync(props, latestArticles, ct),
-                "articleListBlock" => new ArticleListBlock(
-                    GetString(props, "heading"),
-                    Math.Clamp(GetInt(props, "pageSize") ?? DefaultArticleListPageSize, 1, RequestValidation.MaxPageSize)),
+                HeroBlockElementModel { Properties: var p } => new HeroBlock(
+                    p?.Heading ?? string.Empty,
+                    p?.Subheading,
+                    GetImage(p?.Image),
+                    GetLink(p?.CtaLink, title: p?.CtaLabel)),
+                CtaBlockElementModel { Properties: var p } => new CtaBlock(
+                    p?.Heading ?? string.Empty,
+                    p?.Text,
+                    GetLink(p?.Link),
+                    p?.Style == "secondary" ? CtaStyle.Secondary : CtaStyle.Primary),
+                LatestArticlesBlockElementModel { Properties: var p } => await GetLatestArticlesAsync(p, latestArticles, ct),
+                ArticleListBlockElementModel { Properties: var p } => new ArticleListBlock(
+                    p?.Heading,
+                    Math.Clamp(p?.PageSize ?? DefaultArticleListPageSize, 1, RequestValidation.MaxPageSize)),
                 _ => null, // Unknown block types are skipped, so new CMS blocks never break existing clients.
             };
             if (block is not null)
@@ -169,34 +143,30 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
     }
 
     private static async Task<LatestArticlesBlock> GetLatestArticlesAsync(
-        JsonElement props, LatestArticlesResolver? latestArticles, CancellationToken ct)
+        LatestArticlesBlockElementPropertiesModel? props, LatestArticlesResolver? latestArticles, CancellationToken ct)
     {
-        var tag = GetString(props, "tag");
         // A free-text Textstring: anything but a single tag (e.g. "a, b" or "!a" in tag filter syntax) is ignored,
         // the same rule the API applies to the tag its "All articles" link leads to.
-        tag = string.IsNullOrWhiteSpace(tag) ? null : tag.Trim();
+        var tag = string.IsNullOrWhiteSpace(props?.Tag) ? null : props.Tag.Trim();
         tag = RequestValidation.IsValidTag(tag) ? tag : null;
-        var count = Math.Clamp(GetInt(props, "count") ?? DefaultLatestArticles, 1, MaxLatestArticles);
+        var count = Math.Clamp(props?.Count ?? DefaultLatestArticles, 1, MaxLatestArticles);
         var articles = latestArticles is null ? [] : await latestArticles(tag, count, ct);
-        return new LatestArticlesBlock(GetString(props, "heading"), tag, articles);
+        return new LatestArticlesBlock(props?.Heading, tag, articles);
     }
 
-    /// <summary>Maps the first link of a Multi URL Picker (an array, or <c>null</c> when empty).</summary>
-    private Link? GetLink(JsonElement properties, string name, string? title = null)
+    /// <summary>Maps the first link of a Multi URL Picker.</summary>
+    private Link? GetLink(ApiLinkModel[]? links, string? title = null)
     {
-        var link = FirstObject(properties, name);
-        if (link.ValueKind != JsonValueKind.Object)
+        if (links is not [var link, ..])
         {
             return null;
         }
 
-        var url = GetString(link, "linkType") switch
+        var url = link.LinkType switch
         {
-            "Content" => link.TryGetProperty("route", out var route) && route.ValueKind == JsonValueKind.Object
-                ? NormalizePath(GetString(route, "path"))
-                : null,
-            "Media" => GetString(link, "url") is { Length: > 0 } media ? ToAbsoluteUrl(media) : null,
-            _ => GetString(link, "url"),
+            "Content" => link.Route is null ? null : NormalizePath(link.Route.Path),
+            "Media" => link.Url is { Length: > 0 } media ? ToAbsoluteUrl(media) : null,
+            _ => link.Url,
         };
         if (string.IsNullOrWhiteSpace(url) || !MarkdownText.IsSafeUrl(url))
         {
@@ -204,100 +174,35 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
         }
 
         // Umbraco keeps "?query" / "#anchor" apart from the URL.
-        return new Link(url + GetString(link, "queryString"), string.IsNullOrWhiteSpace(title) ? GetString(link, "title") : title,
-            GetString(link, "target"));
+        return new Link(url + link.QueryString, string.IsNullOrWhiteSpace(title) ? link.Title : title, link.Target);
     }
 
-    private static DateOnly GetPublishDate(JsonElement item, JsonElement properties)
+    private static DateOnly GetPublishDate(ApiContentResponseModel item, ArticleContentPropertiesModel? props) =>
+        // Date picker values have no offset ("2026-10-28T00:00:00"), so take the date as written. Fall back to the
+        // create date like the CMS's publishDate sort does.
+        props?.PublishDate is { } date ? DateOnly.FromDateTime(date.DateTime) : DateOnly.FromDateTime(item.CreateDate.UtcDateTime);
+
+    private static string[] GetTags(ArticleContentPropertiesModel? props) =>
+        props?.Tags?.Where(t => !string.IsNullOrWhiteSpace(t)).ToArray() ?? [];
+
+    private Image? GetImage(ApiMediaWithCropsModel[]? media)
     {
-        // Date picker values have no offset ("2026-10-28T00:00:00"). Fall back to the create date like the CMS's
-        // publishDate sort does.
-        if (properties.ValueKind == JsonValueKind.Object
-            && properties.TryGetProperty("publishDate", out var value)
-            && value.ValueKind == JsonValueKind.String
-            && value.TryGetDateTime(out var date))
-        {
-            return DateOnly.FromDateTime(date);
-        }
-
-        return item.TryGetProperty("createDate", out var created) && created.TryGetDateTimeOffset(out var createDate)
-            ? DateOnly.FromDateTime(createDate.UtcDateTime)
-            : default;
-    }
-
-    private static string[] GetTagsOf(JsonElement properties) =>
-        properties.ValueKind == JsonValueKind.Object
-        && properties.TryGetProperty("tags", out var tags)
-        && tags.ValueKind == JsonValueKind.Array
-            ? tags.EnumerateArray()
-                .Where(t => t.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(t.GetString()))
-                .Select(t => t.GetString()!)
-                .ToArray()
-            : [];
-
-    private static string? GetString(JsonElement properties, string name) =>
-        properties.ValueKind == JsonValueKind.Object
-        && properties.TryGetProperty(name, out var value)
-        && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
-
-    /// <summary>Pickers return an array of items (or a single item, depending on configuration).</summary>
-    private static JsonElement FirstObject(JsonElement properties, string name)
-    {
-        if (properties.ValueKind != JsonValueKind.Object || !properties.TryGetProperty(name, out var value))
-        {
-            return default;
-        }
-
-        return value.ValueKind switch
-        {
-            JsonValueKind.Array when value.GetArrayLength() > 0 => value[0],
-            JsonValueKind.Object => value,
-            _ => default,
-        };
-    }
-
-    private Image? GetImage(JsonElement properties, string name)
-    {
-        var media = FirstObject(properties, name);
-        if (media.ValueKind != JsonValueKind.Object
-            || !media.TryGetProperty("url", out var urlElement)
-            || urlElement.GetString() is not { Length: > 0 } url)
+        if (media is not [{ Url: { Length: > 0 } url } first, ..])
         {
             return null;
         }
 
-        var width = GetInt(media, "width");
-        var height = GetInt(media, "height");
-
-        FocalPoint? focalPoint = null;
-        if (media.TryGetProperty("focalPoint", out var fp) && fp.ValueKind == JsonValueKind.Object)
-        {
-            focalPoint = new FocalPoint(fp.GetProperty("left").GetDouble(), fp.GetProperty("top").GetDouble());
-        }
-
-        var alt = media.TryGetProperty("properties", out var mediaProps)
-            ? GetString(mediaProps, "altText") ?? GetString(mediaProps, "alt")
-            : null;
-        alt ??= media.TryGetProperty("name", out var mediaName) ? mediaName.GetString() : null;
+        var focalPoint = first.FocalPoint is { } fp ? new FocalPoint(fp.Left, fp.Top) : null;
 
         // Only CMS-hosted (relative) media can be resized by the CMS's ImageSharp middleware.
         var srcset = !IsHttpUrl(url)
             ? renditionWidths
-                .Where(w => width is null || w <= width)
+                .Where(w => first.Width is null || w <= first.Width)
                 .Select(w => new ImageRendition(w, ToAbsoluteUrl(signer.Resize(url, w))))
                 .ToArray()
             : [];
 
-        return new Image(ToAbsoluteUrl(url), alt, width, height, focalPoint, srcset);
+        // The Image media type has no alt text property, so the media name serves as alt text.
+        return new Image(ToAbsoluteUrl(url), first.Name, first.Width, first.Height, focalPoint, srcset);
     }
-
-    private static int? GetInt(JsonElement element, string name) =>
-        element.ValueKind == JsonValueKind.Object
-        && element.TryGetProperty(name, out var value)
-        && value.ValueKind == JsonValueKind.Number
-        && value.TryGetInt32(out var number)
-            ? number
-            : null;
 }

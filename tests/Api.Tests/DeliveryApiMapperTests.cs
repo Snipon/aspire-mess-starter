@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Api.Content.Umbraco;
+using Api.Content.Umbraco.Delivery;
 using Api.Contracts;
 using Api.Endpoints;
 
@@ -13,34 +14,37 @@ public sealed class DeliveryApiMapperTests
     private static readonly DeliveryApiMapper Mapper =
         new("https://cms.example.com/", new ImageUrlSigner(Secret), [480, 960, 1440, 1920]);
 
-    internal static JsonDocument Fixture(string name) =>
-        JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name)));
+    // The web defaults ReadFromJsonAsync uses in UmbracoContentSource.
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private static Task<Page> MapAsync(JsonDocument json, DeliveryApiMapper.LatestArticlesResolver? latest = null) =>
-        Mapper.ToPageAsync(json.RootElement, culture: null, latest, TestContext.Current.CancellationToken);
+    internal static T Fixture<T>(string name) =>
+        Parse<T>(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", name)));
+
+    private static T Parse<T>(string json) => JsonSerializer.Deserialize<T>(json, Json)!;
+
+    private static Task<Page> MapAsync(ApiContentResponseModel item, DeliveryApiMapper.LatestArticlesResolver? latest = null) =>
+        Mapper.ToPageAsync(item, culture: null, latest, TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task Maps_image_with_focal_point_and_signed_renditions()
     {
-        using var json = Fixture("delivery-api-page.json");
-
-        var page = await MapAsync(json);
+        var page = await MapAsync(Fixture<ApiContentResponseModel>("delivery-api-article.json"));
 
         Assert.Equal("8d0f2b1e-6a3c-4b9a-9e47-0f0f6a1d2c33", page.Id);
         Assert.Equal("/about-us", page.Path);
         Assert.Equal("About Us", page.Title);
         Assert.Equal("Who we are and what we do.", page.Summary);
         Assert.Equal(new DateTimeOffset(2026, 10, 20, 10, 30, 0, TimeSpan.Zero), page.UpdatedAt);
-        Assert.Null(page.Article);
+        Assert.Equal(new DateOnly(2026, 10, 1), page.Article?.PublishDate);
         Assert.Empty(page.Blocks);
 
-        // Only unmapped properties are passed through raw.
+        // Only properties the spec does not know are passed through raw.
         Assert.Equal(["showInFooter"], page.Properties.Keys);
         Assert.True(page.Properties["showInFooter"].GetBoolean());
 
         var image = Assert.IsType<Image>(page.Image);
         Assert.Equal("https://cms.example.com/media/abc123/Team Photo.jpg", image.Url);
-        Assert.Equal("Team photo", image.Alt);
+        Assert.Equal("Team photo", image.Alt); // the media name
         Assert.Equal((1500, 1000), (image.Width, image.Height));
         Assert.Equal(new FocalPoint(0.3, 0.6), image.FocalPoint);
 
@@ -56,11 +60,11 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Maps_site_blocks_and_resolves_latest_articles()
     {
-        using var json = Fixture("delivery/site.json");
+        var item = Fixture<ApiContentResponseModel>("delivery/site.json");
         var requested = new List<(string? Tag, int Count)>();
         ArticleSummary[] latest = [new("a1", "/articles/a1", "A1", null, null, new DateOnly(2026, 10, 1), ["css"])];
 
-        var page = await MapAsync(json, (tag, count, _) =>
+        var page = await MapAsync(item, (tag, count, _) =>
         {
             requested.Add((tag, count));
             return Task.FromResult(latest);
@@ -103,10 +107,10 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Maps_articles_page_with_empty_cta_link()
     {
-        using var json = Fixture("delivery/articles-page.json");
+        var item = Fixture<ApiContentResponseModel>("delivery/articles-page.json");
         var requested = new List<(string? Tag, int Count)>();
 
-        var page = await MapAsync(json, (tag, count, _) =>
+        var page = await MapAsync(item, (tag, count, _) =>
         {
             requested.Add((tag, count));
             return Task.FromResult<ArticleSummary[]>([]);
@@ -123,9 +127,9 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Unresolved_latest_articles_are_empty()
     {
-        using var json = Fixture("delivery/site.json");
+        var item = Fixture<ApiContentResponseModel>("delivery/site.json");
 
-        var page = await MapAsync(json, latest: null);
+        var page = await MapAsync(item, latest: null);
 
         Assert.Empty(Assert.Single(page.Blocks.OfType<LatestArticlesBlock>()).Articles);
     }
@@ -133,9 +137,9 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Maps_article_with_rendered_markdown()
     {
-        using var json = Fixture("delivery/article.json");
+        var item = Fixture<ApiContentResponseModel>("delivery/article.json");
 
-        var page = await MapAsync(json);
+        var page = await MapAsync(item);
 
         Assert.Equal("article", page.ContentType);
         Assert.Equal("/articles/getting-started-with-net-aspire-for-local-development", page.Path);
@@ -163,9 +167,7 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public void Maps_query_items_to_article_summaries_in_order()
     {
-        using var json = Fixture("delivery/articles-query.json");
-
-        var summaries = json.RootElement.GetProperty("items").EnumerateArray().Select(Mapper.ToArticleSummary).ToArray();
+        var summaries = Fixture<PagedApiContentResponseModel>("delivery/articles-query.json").Items.Select(Mapper.ToArticleSummary).ToArray();
 
         Assert.Equal(6, summaries.Length);
         Assert.Equal(summaries.OrderByDescending(s => s.PublishDate).Select(s => s.Id), summaries.Select(s => s.Id));
@@ -186,8 +188,8 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Maps_link_kinds_and_drops_unsafe_or_empty_links()
     {
-        using var json = JsonDocument.Parse("""
-            { "id": "1", "contentType": "page", "name": "P", "route": { "path": "/p/" }, "properties": { "blocks": { "items": [
+        var item = Parse<ApiContentResponseModel>("""
+            { "id": "00000000-0000-0000-0000-000000000001", "contentType": "page", "name": "P", "route": { "path": "/p/" }, "properties": { "blocks": { "items": [
               { "content": { "contentType": "ctaBlock", "properties": { "heading": "Media", "style": "secondary", "link": [
                 { "url": "/media/x/file.pdf", "title": "PDF", "target": "_blank", "linkType": "Media", "queryString": null } ] } } },
               { "content": { "contentType": "ctaBlock", "properties": { "heading": "Anchor", "link": [
@@ -199,7 +201,7 @@ public sealed class DeliveryApiMapperTests
             ] } } }
             """);
 
-        var page = await MapAsync(json);
+        var page = await MapAsync(item);
 
         var ctas = page.Blocks.Cast<CtaBlock>().ToArray(); // the unknown block type is skipped
         Assert.Equal(["Media", "Anchor", "Script", "Empty"], ctas.Select(c => c.Heading));
@@ -214,8 +216,8 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Latest_articles_count_defaults_to_6_is_clamped_and_tag_must_be_a_single_tag()
     {
-        using var json = JsonDocument.Parse("""
-            { "id": "1", "contentType": "page", "name": "P", "route": { "path": "/p/" }, "properties": { "blocks": { "items": [
+        var item = Parse<ApiContentResponseModel>("""
+            { "id": "00000000-0000-0000-0000-000000000001", "contentType": "page", "name": "P", "route": { "path": "/p/" }, "properties": { "blocks": { "items": [
               { "content": { "contentType": "latestArticlesBlock", "properties": { "heading": null, "count": null, "tag": " css " } } },
               { "content": { "contentType": "latestArticlesBlock", "properties": { "count": 500, "tag": "" } } },
               { "content": { "contentType": "latestArticlesBlock", "properties": { "count": 1, "tag": "C#" } } },
@@ -225,7 +227,7 @@ public sealed class DeliveryApiMapperTests
             """);
         var requested = new List<(string? Tag, int Count)>();
 
-        await MapAsync(json, (tag, count, _) =>
+        await MapAsync(item, (tag, count, _) =>
         {
             requested.Add((tag, count));
             return Task.FromResult<ArticleSummary[]>([]);
@@ -237,15 +239,15 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Article_list_page_size_defaults_to_12_and_is_clamped()
     {
-        using var json = JsonDocument.Parse("""
-            { "id": "1", "contentType": "page", "name": "P", "route": { "path": "/p/" }, "properties": { "blocks": { "items": [
+        var item = Parse<ApiContentResponseModel>("""
+            { "id": "00000000-0000-0000-0000-000000000001", "contentType": "page", "name": "P", "route": { "path": "/p/" }, "properties": { "blocks": { "items": [
               { "content": { "contentType": "articleListBlock", "properties": { "heading": "All", "pageSize": null } } },
               { "content": { "contentType": "articleListBlock", "properties": { "pageSize": 500 } } },
               { "content": { "contentType": "articleListBlock", "properties": { "pageSize": 0 } } }
             ] } } }
             """);
 
-        var page = await MapAsync(json);
+        var page = await MapAsync(item);
 
         Assert.Equal(
             [new ArticleListBlock("All", 12), new ArticleListBlock(null, RequestValidation.MaxPageSize), new ArticleListBlock(null, 1)],
@@ -255,12 +257,12 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Article_without_publish_date_falls_back_to_create_date()
     {
-        using var json = JsonDocument.Parse("""
-            { "id": "1", "contentType": "article", "name": "A", "createDate": "2026-03-04T22:07:19.57Z",
+        var item = Parse<ApiContentResponseModel>("""
+            { "id": "00000000-0000-0000-0000-000000000001", "contentType": "article", "name": "A", "createDate": "2026-03-04T22:07:19.57Z",
               "route": { "path": "/articles/a/" }, "properties": { "body": null, "tags": null, "publishDate": null } }
             """);
 
-        var article = Assert.IsType<Article>((await MapAsync(json)).Article);
+        var article = Assert.IsType<Article>((await MapAsync(item)).Article);
 
         Assert.Equal(new DateOnly(2026, 3, 4), article.PublishDate);
         Assert.Empty(article.Tags);
@@ -271,12 +273,12 @@ public sealed class DeliveryApiMapperTests
     [Fact]
     public async Task Falls_back_to_name_when_title_missing_and_tolerates_missing_properties()
     {
-        using var json = JsonDocument.Parse("""
-            { "id": "1", "contentType": "page", "name": "Home", "updateDate": "2026-01-01T00:00:00Z",
-              "route": { "path": "/" }, "properties": { "image": [] } }
+        var item = Parse<ApiContentResponseModel>("""
+            { "id": "00000000-0000-0000-0000-000000000001", "contentType": "page", "name": "Home", "updateDate": "2026-01-01T00:00:00Z",
+              "route": { "path": "/" }, "properties": { "title": " " } }
             """);
 
-        var page = await MapAsync(json);
+        var page = await MapAsync(item);
 
         Assert.Equal("/", page.Path);
         Assert.Equal("Home", page.Title);
@@ -285,6 +287,23 @@ public sealed class DeliveryApiMapperTests
         Assert.Null(page.Article);
         Assert.Empty(page.Blocks);
         Assert.Empty(page.Properties);
+    }
+
+    [Fact]
+    public async Task Content_type_unknown_to_the_spec_passes_its_properties_through()
+    {
+        var item = Parse<ApiContentResponseModel>("""
+            { "id": "00000000-0000-0000-0000-000000000001", "contentType": "event", "name": "Launch",
+              "route": { "path": "/launch/" }, "properties": { "venue": "Online", "blocks": null } }
+            """);
+
+        var page = await MapAsync(item);
+
+        Assert.IsType<UnknownApiContentResponseModel>(item);
+        Assert.Equal(("event", "/launch", "Launch"), (page.ContentType, page.Path, page.Title));
+        Assert.Equal(["venue", "blocks"], page.Properties.Keys);
+        Assert.Equal("Online", page.Properties["venue"].GetString());
+        Assert.Empty(page.Blocks);
     }
 
     [Theory]
