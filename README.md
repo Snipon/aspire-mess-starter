@@ -141,6 +141,7 @@ aspire secret list                             # or: aspire secret get Parameter
 | `commerce-admin-password` | 32 random alphanumeric characters (Drupal user `admin`) |
 | `commerce-api-key`, `commerce-hash-salt` | 32 random alphanumeric characters (the API's key for Drupal; Drupal's hash salt) |
 | `seq-proxy-cookie-secret` | 32 random alphanumeric characters (oauth2-proxy's cookie key for the Seq login) |
+| `web-staff-oidc-secret` | 32 random alphanumeric characters (client secret of `web-staff`, the website's staff sign-in) |
 | `web-session-secret` | 32 random alphanumeric characters (encrypts the web's customer session cookie; rotating it signs every customer out) |
 | `sql-password`, `meilisearch-masterKey`, `commerce-postgres-password` | 32 random alphanumeric characters (Aspire's own parameters for `sql`, `meilisearch` and `commerce-postgres`) |
 
@@ -501,6 +502,28 @@ guest. Turn both on or both off.
   creates a Drupal user named `shop-<hash of the subject>` (blocked, no roles or password, the email only as its
   initial email because shop emails are self-asserted) and makes it the order's customer.
   `GET /headless/orders?customer=<subject>&offset=&limit=` lists that user's placed orders, newest first.
+
+### Staff bar
+
+Signed-in staff see a bar above the site header with shortcuts into the back offices for the page they are on. Staff
+sign in on the website at the identity provider's `staff` realm (client `web-staff`; Entra ID in production) through
+the "Staff sign-in" link in the footer (`/auth/staff/login`). Off without `STAFF_OIDC_AUTHORITY`.
+
+| Role (`roles` claim) | Shortcuts |
+| --- | --- |
+| `editor` | Edit page (this page in the Umbraco backoffice), Content |
+| `admin` | the editor's, plus Edit product (on product pages), Shop admin, Logs (Seq), Users (identity provider console), System status |
+
+- **Code**: `src/Web/src/lib/oidc.ts` is the provider-neutral OIDC client shared with customer sign-in;
+  `lib/staff.ts` keeps the staff session (subject, name and known roles only, no tokens, 8 hours, so role changes apply
+  at the next sign-in; accounts without `admin` or `editor` are refused); `lib/staff-shortcuts.ts` maps roles and the
+  page to shortcuts (unit tests: `npm test`). Back-office URLs come from `CMS_BACKOFFICE_URL`, `COMMERCE_ADMIN_URL`,
+  `LOGS_URL` and `IDP_ADMIN_URL`; a shortcut without a URL is left out.
+- **Caching**: the bar is the `StaffBar` island, fed by `/api/staff` (`no-store`). Pages only carry what they show
+  (`data-cms-id`, `data-sku` on `<body>`), which is the same for every visitor.
+- **Edit product** links to `/admin/commerce/products/sku/{sku}` in Drupal (`AdminController`), which redirects to the
+  product's edit form for users allowed to administer products.
+- Hiding a shortcut is not access control: each back office checks the user's roles itself at its own sign-in.
 
 ## Adapters: how the API stays CMS/search-engine neutral
 

@@ -1,0 +1,20 @@
+---
+import { buttonVariants } from '@/components/ui/button';
+import Layout from '../layouts/Layout.astro';
+
+interface Props {
+  /** Where "Try again" starts a new sign-in. */
+  retryHref: string;
+  detail: string;
+}
+
+const { retryHref, detail } = Astro.props;
+---
+
+<Layout title="Sign-in failed">
+  <section class="mx-auto max-w-xl">
+    <h1 class="font-wide text-4xl font-extrabold">Sign-in did not complete</h1>
+    <p class="mt-4 text-lg text-muted-foreground">{detail}</p>
+    <a href={retryHref} class={buttonVariants({ size: 'lg', className: 'mt-8' })}>Try again</a>
+  </section>
+</Layout>

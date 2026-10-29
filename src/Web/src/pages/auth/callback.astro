@@ -1,7 +1,5 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import { buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import SignInFailed from '@/components/SignInFailed.astro';
 import { authEnabled, completeSignIn } from '../../lib/auth';
 import { log } from '../../lib/log';
 
@@ -20,10 +18,4 @@ try {
 if (returnTo) return Astro.redirect(returnTo, 303);
 ---
 
-<Layout title="Sign-in failed">
-  <section class="mx-auto max-w-xl text-center">
-    <h1 class="text-3xl font-bold tracking-tight">Sign-in did not complete</h1>
-    <p class="mt-3 text-muted-foreground">It was cancelled or took too long. Your cart is still there.</p>
-    <a href="/auth/login" class={cn(buttonVariants(), 'mt-8')}>Try again</a>
-  </section>
-</Layout>
+<SignInFailed retryHref="/auth/login" detail="It was cancelled or took too long. Your cart is still there." />

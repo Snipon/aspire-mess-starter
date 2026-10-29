@@ -35,7 +35,7 @@ const stats = product
 
 {
   product ? (
-    <Layout title={`${product.title} – Shop`} description={product.summary}>
+    <Layout title={`${product.title} – Shop`} description={product.summary} sku={product.sku}>
       <nav aria-label="Breadcrumb">
         <a href="/shop" class="font-narrow inline-flex min-h-10 items-center text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           Shop

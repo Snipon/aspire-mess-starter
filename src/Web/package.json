@@ -12,7 +12,8 @@
     "preview": "astro preview",
     "start": "node --import ./otel.mjs ./dist/server/entry.mjs",
     "check": "astro check",
-    "gen:api": "openapi-typescript ../Api/openapi/Api.json -o src/lib/api/schema.d.ts"
+    "gen:api": "openapi-typescript ../Api/openapi/Api.json -o src/lib/api/schema.d.ts",
+    "test": "node --test src/"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.9",

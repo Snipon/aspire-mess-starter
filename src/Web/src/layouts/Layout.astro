@@ -3,16 +3,21 @@ import '../styles/global.css';
 import AccountMenu from '../components/AccountMenu';
 import MiniCart from '../components/MiniCart';
 import SearchInput from '../components/SearchInput.astro';
+import StaffBar from '../components/StaffBar';
 import { cn } from '@/lib/utils';
 import { getNavigation, type NavItem } from '../lib/api/client';
 import { authEnabled } from '../lib/auth';
+import { staffEnabled } from '../lib/staff';
 
 interface Props {
   title: string;
   description?: string | null;
+  /** What the page shows, for the staff bar's "Edit page" / "Edit product" (the same for every visitor). */
+  cmsId?: string;
+  sku?: string;
 }
 
-const { title, description } = Astro.props;
+const { title, description, cmsId, sku } = Astro.props;
 const nav = await getNavigation();
 
 // Show each root (normally just Home) followed by its direct children as top-level links.
@@ -39,10 +44,11 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     {description && <meta name="description" content={description} />}
     <slot name="head" />
   </head>
-  <body class="flex min-h-screen flex-col bg-background text-foreground antialiased">
+  <body class="flex min-h-screen flex-col bg-background text-foreground antialiased" data-cms-id={cmsId} data-sku={sku}>
     <a href="#main" class="sr-only z-50 bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2">
       Skip to content
     </a>
+    {staffEnabled() && <StaffBar client:load />}
     {/* .dark flips the tokens inside the header: an ink bar whose inputs, buttons and mini cart follow along. */}
     <header class="dark sticky top-0 z-10 border-b-4 border-primary bg-background text-foreground">
       <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-0 px-4 sm:gap-x-8 sm:px-6">
@@ -91,6 +97,16 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
           <a href="/status" class="font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:text-primary">
             System status
           </a>
+          {
+            staffEnabled() && (
+              <>
+                {' '}
+                <a href={`/auth/staff/login?returnTo=${encodeURIComponent(Astro.url.pathname)}`} class="underline underline-offset-4 hover:text-foreground">
+                  Staff sign-in
+                </a>
+              </>
+            )
+          }
         </p>
       </div>
     </footer>

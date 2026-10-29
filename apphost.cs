@@ -46,6 +46,8 @@ var seqOidcSecret = builder.AddParameter("seq-oidc-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 var webOidcSecret = builder.AddParameter("web-oidc-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var webStaffOidcSecret = builder.AddParameter("web-staff-oidc-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 var seqProxyCookieSecret = builder.AddParameter("seq-proxy-cookie-secret", // oauth2-proxy: 16, 24 or 32 bytes
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 var webSessionSecret = builder.AddParameter("web-session-secret",
@@ -98,7 +100,8 @@ var keycloak = builder.AddKeycloak("keycloak", port: 8080)
     .WithEnvironment("CMS_OIDC_SECRET", cmsOidcSecret)
     .WithEnvironment("COMMERCE_OIDC_SECRET", commerceOidcSecret)
     .WithEnvironment("SEQ_OIDC_SECRET", seqOidcSecret)
-    .WithEnvironment("WEB_OIDC_SECRET", webOidcSecret);
+    .WithEnvironment("WEB_OIDC_SECRET", webOidcSecret)
+    .WithEnvironment("WEB_STAFF_OIDC_SECRET", webStaffOidcSecret);
 
 // Seq UI behind a staff login (oauth2-proxy, generic OIDC): only the "admin" value of the "roles" claim gets in; the
 // session is refreshed (roles re-checked) every 5 minutes and sign-out also ends the IdP session. The browser signs in
@@ -219,8 +222,9 @@ cms.WithEnvironment("ContentWebhook__TargetUrl",
     ReferenceExpression.Create($"{api.GetEndpoint("http")}/api/webhooks/content"))
     .WithEnvironment("ProductPicker__ApiUrl", api.GetEndpoint("http"));
 
-// Astro SSR front end; only its server talks to the API. Customers sign in at the shop realm (client "web"); Aspire
-// points NODE_EXTRA_CA_CERTS at the dev certificate, so Node trusts https://localhost:8080.
+// Astro SSR front end; only its server talks to the API. Customers sign in at the shop realm (client "web"), staff at
+// the staff realm (client "web-staff") for the top bar with shortcuts into the back offices; Aspire points
+// NODE_EXTRA_CA_CERTS at the dev certificate, so Node trusts https://localhost:8080.
 var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithNpm()
     .WithHttpEndpoint(env: "PORT")
@@ -230,6 +234,13 @@ var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithEnvironment("OIDC_CLIENT_ID", "web")
     .WithEnvironment("OIDC_CLIENT_SECRET", webOidcSecret)
     .WithEnvironment("SESSION_SECRET", webSessionSecret)
+    .WithEnvironment("STAFF_OIDC_AUTHORITY", $"{KeycloakUrl}/realms/staff")
+    .WithEnvironment("STAFF_OIDC_CLIENT_ID", "web-staff")
+    .WithEnvironment("STAFF_OIDC_CLIENT_SECRET", webStaffOidcSecret)
+    .WithEnvironment("CMS_BACKOFFICE_URL", ReferenceExpression.Create($"{cms.GetEndpoint("https")}/umbraco"))
+    .WithEnvironment("COMMERCE_ADMIN_URL", commerce.GetEndpoint("http"))
+    .WithEnvironment("LOGS_URL", "http://localhost:5341") // seq-proxy (staff sign-in in front of Seq)
+    .WithEnvironment("IDP_ADMIN_URL", $"{KeycloakUrl}/admin/staff/console/")
     .WithEnvironment("ASTRO_TELEMETRY_DISABLED", "1") // Astro CLI usage pings would otherwise show up as fetch spans
     .WithReference(seq)
     .WaitFor(api);

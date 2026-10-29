@@ -60,3 +60,11 @@ headless_commerce.orders:
   defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::orders' }
   methods: [GET]
   requirements: { _access: 'TRUE' }
+
+# Admin UI shortcut (the website's staff bar links here); a signed-in user with product admin rights only.
+headless_commerce.admin_product_by_sku:
+  path: '/admin/commerce/products/sku/{sku}'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\AdminController::editProductBySku' }
+  methods: [GET]
+  requirements: { _permission: 'administer commerce_product', sku: '[A-Za-z0-9_-]+' }
+  options: { _admin_route: TRUE }
