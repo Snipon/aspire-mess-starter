@@ -388,7 +388,7 @@ How the API exposes it (`src/Api/Contracts`):
 ### Backoffice sign-in (OIDC)
 
 `src/Cms/Security/BackOfficeOidc.cs` adds a sign-in button to the backoffice login for any OpenID Connect provider
-(Keycloak realm `staff` locally; Entra ID works with the same settings, but the Terraform does not set them yet). It is
+(Keycloak realm `staff` locally; Entra ID in Azure, wired in `infra/terraform/identity.tf` and `containerapps.tf`). It is
 off unless `BackOfficeOidc:Authority`, `:ClientId` and `:ClientSecret` are set; the AppHost sets them (client `cms`,
 secret parameter `cms-oidc-secret`). Code flow with PKCE, callback `/umbraco-signin-oidc`, scopes `openid profile email`.
 
@@ -406,8 +406,11 @@ secret parameter `cms-oidc-secret`). Code flow with PKCE, callback `/umbraco-sig
   default: add the optional ID token claims `email` and `xms_edov` and set `BackOfficeOidc:EmailVerifiedClaim=xms_edov`
   (true only for a domain verified by the tenant); otherwise sign-ins can create users but never link to existing
   ones. `preferred_username` is deliberately not used as a fallback: it is not a verified email.
-- **Realm changes**: Keycloak imports `infra/keycloak` only into an empty data volume. After changing a realm file,
-  apply the change in the admin console or delete the realm there and restart the `keycloak` resource.
+- **Realm changes**: Aspire copies `infra/keycloak` into the container when it is created, into
+  `/opt/keycloak/data/import` inside the persistent data volume, and Keycloak skips realms that already exist. A changed
+  realm file therefore reaches an existing install only by hand: apply the change in the admin console, or copy the
+  file in (`podman cp infra/keycloak/<realm>-realm.json <keycloak container>:/opt/keycloak/data/import/`), delete the
+  realm in the admin console and restart the container. Deleting a realm deletes its users (shop customers).
 
 ## Commerce (Drupal)
 
