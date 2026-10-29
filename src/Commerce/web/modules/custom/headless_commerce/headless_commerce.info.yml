@@ -1,0 +1,13 @@
+name: Headless Commerce
+type: module
+description: 'Store, product schema and fake card gateway in code, the demo catalog seeder, and the JSON endpoints the API uses (catalog, carts, checkout).'
+package: Custom
+core_version_requirement: ^11
+dependencies:
+  - commerce:commerce_cart
+  - commerce:commerce_checkout
+  - commerce:commerce_payment
+  - commerce:commerce_product
+  - drupal:datetime
+  - drupal:image
+  - drupal:taxonomy

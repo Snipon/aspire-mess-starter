@@ -483,10 +483,422 @@
           }
         }
       }
+    },
+    "/api/products": {
+      "get": {
+        "tags": [
+          "Commerce"
+        ],
+        "summary": "Search and list products",
+        "description": "Full-text search over title, brand, category, SKU and specs. `category`, `brand`, `minRating` (whole stars) and `inStock` narrow the results; `facets` counts each, ignoring that facet's own filter. `sort`: relevance (default; popular when `q` is empty), popular, price-asc, price-desc, rating, newest. Stock and sales come from the index (refreshed every few minutes and after each order); the product page has live values.",
+        "operationId": "SearchProducts",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "brand",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minRating",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "inStock",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSearchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/{slug}": {
+      "get": {
+        "tags": [
+          "Commerce"
+        ],
+        "summary": "Get a product by slug",
+        "description": "Live from the commerce backend. An outdated slug still finds the product (it ends in the SKU); redirect when `slug` differs from the requested one.",
+        "operationId": "GetProduct",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/carts": {
+      "post": {
+        "tags": [
+          "Commerce"
+        ],
+        "summary": "Create an empty cart",
+        "description": "Returns the cart and its token. Every other cart call needs the token in `X-Cart-Token`; a missing or wrong token answers 404, like an unknown cart.",
+        "operationId": "CreateCart",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedCart"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/carts/{cartId}": {
+      "get": {
+        "tags": [
+          "Commerce"
+        ],
+        "summary": "Get a cart",
+        "operationId": "GetCart",
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Cart-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cart"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/carts/{cartId}/items": {
+      "post": {
+        "tags": [
+          "Commerce"
+        ],
+        "summary": "Add a product to the cart",
+        "description": "Adds `quantity` (1–99) of the product with `sku`, merging with an existing line. 409 `out_of_stock` (with `available`) when the cart would hold more than is in stock.",
+        "operationId": "AddCartItem",
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Cart-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCartItem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cart"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/carts/{cartId}/items/{itemId}": {
+      "patch": {
+        "tags": [
+          "Commerce"
+        ],
+        "summary": "Change the quantity of a cart line",
+        "description": "`quantity` 0–99; 0 removes the line.",
+        "operationId": "UpdateCartItem",
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Cart-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCartItem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cart"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Commerce"
+        ],
+        "summary": "Remove a cart line",
+        "operationId": "RemoveCartItem",
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Cart-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cart"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/carts/{cartId}/checkout": {
+      "post": {
+        "tags": [
+          "Commerce"
+        ],
+        "summary": "Pay with the fake card processor and place the order",
+        "description": "Demo payment, no money moves. Card 4242 4242 4242 4242 (or any other valid number) is approved; 4000 0000 0000 0002 is declined (`card_declined`), 4000 0000 0000 9995 `insufficient_funds`, 4000 0000 0000 0069 `expired_card` (402). 400 `invalid_checkout` lists field errors in `fields`; 409 for an empty cart, missing stock or a cart that was already checked out.",
+        "operationId": "Checkout",
+        "parameters": [
+          {
+            "name": "cartId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Cart-Token",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderReceipt"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AddCartItem": {
+        "required": [
+          "sku"
+        ],
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "default": 1
+          }
+        }
+      },
       "Article": {
         "required": [
           "publishDate",
@@ -877,6 +1289,115 @@
           }
         }
       },
+      "Cart": {
+        "required": [
+          "id",
+          "items",
+          "itemCount",
+          "subtotal",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartItem"
+            }
+          },
+          "itemCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "subtotal": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "CartItem": {
+        "required": [
+          "id",
+          "sku",
+          "path",
+          "title",
+          "image",
+          "unitPrice",
+          "quantity",
+          "total",
+          "stock"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Image"
+              }
+            ]
+          },
+          "unitPrice": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "stock": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CheckoutRequest": {
+        "required": [
+          "email",
+          "name",
+          "address",
+          "card"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/CustomerName"
+          },
+          "address": {
+            "$ref": "#/components/schemas/PostalAddress"
+          },
+          "card": {
+            "$ref": "#/components/schemas/PaymentCard"
+          }
+        }
+      },
       "ComponentStatus": {
         "required": [
           "name",
@@ -927,11 +1448,41 @@
           }
         }
       },
+      "CreatedCart": {
+        "required": [
+          "token",
+          "cart"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "cart": {
+            "$ref": "#/components/schemas/Cart"
+          }
+        }
+      },
       "CtaStyle": {
         "enum": [
           "primary",
           "secondary"
         ]
+      },
+      "CustomerName": {
+        "required": [
+          "given",
+          "family"
+        ],
+        "type": "object",
+        "properties": {
+          "given": {
+            "type": "string"
+          },
+          "family": {
+            "type": "string"
+          }
+        }
       },
       "FacetCount": {
         "required": [
@@ -1066,6 +1617,22 @@
           }
         }
       },
+      "Money": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
       "NavItem": {
         "required": [
           "id",
@@ -1089,6 +1656,50 @@
             "items": {
               "$ref": "#/components/schemas/NavItem"
             }
+          }
+        }
+      },
+      "OrderReceipt": {
+        "required": [
+          "orderNumber",
+          "placedAt",
+          "email",
+          "paymentReference",
+          "cardLast4",
+          "items",
+          "itemCount",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "orderNumber": {
+            "type": "string"
+          },
+          "placedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "email": {
+            "type": "string"
+          },
+          "paymentReference": {
+            "type": "string"
+          },
+          "cardLast4": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartItem"
+            }
+          },
+          "itemCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },
@@ -1212,6 +1823,68 @@
           }
         }
       },
+      "PaymentCard": {
+        "required": [
+          "number",
+          "expMonth",
+          "expYear",
+          "cvc"
+        ],
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string"
+          },
+          "expMonth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "expYear": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cvc": {
+            "type": "string"
+          }
+        }
+      },
+      "PostalAddress": {
+        "required": [
+          "line1",
+          "line2",
+          "locality",
+          "postalCode",
+          "administrativeArea",
+          "countryCode"
+        ],
+        "type": "object",
+        "properties": {
+          "line1": {
+            "type": "string"
+          },
+          "line2": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "locality": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string"
+          },
+          "administrativeArea": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "countryCode": {
+            "type": "string"
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -1245,6 +1918,298 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "Product": {
+        "required": [
+          "sku",
+          "slug",
+          "path",
+          "title",
+          "descriptionHtml",
+          "summary",
+          "category",
+          "brand",
+          "image",
+          "price",
+          "stock",
+          "specs",
+          "stats",
+          "weightGrams",
+          "warrantyMonths",
+          "releaseDate",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "descriptionHtml": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Image"
+              }
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "stock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "specs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductSpec"
+            }
+          },
+          "stats": {
+            "$ref": "#/components/schemas/ProductStats"
+          },
+          "weightGrams": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "warrantyMonths": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "releaseDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProductFacets": {
+        "required": [
+          "categories",
+          "brands",
+          "ratings",
+          "availability"
+        ],
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            }
+          },
+          "brands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            }
+          },
+          "ratings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            }
+          },
+          "availability": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            }
+          }
+        }
+      },
+      "ProductSearchResult": {
+        "required": [
+          "query",
+          "sort",
+          "page",
+          "pageSize",
+          "total",
+          "items",
+          "facets"
+        ],
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "sort": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductSummary"
+            }
+          },
+          "facets": {
+            "$ref": "#/components/schemas/ProductFacets"
+          }
+        }
+      },
+      "ProductSpec": {
+        "required": [
+          "label",
+          "value",
+          "unit"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "unit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ProductStats": {
+        "required": [
+          "rating",
+          "reviewCount",
+          "unitsSold",
+          "returnRate"
+        ],
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "number",
+            "format": "double"
+          },
+          "reviewCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitsSold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "returnRate": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ProductSummary": {
+        "required": [
+          "sku",
+          "slug",
+          "path",
+          "title",
+          "category",
+          "brand",
+          "image",
+          "price",
+          "inStock",
+          "rating",
+          "reviewCount",
+          "unitsSold"
+        ],
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Image"
+              }
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "inStock": {
+            "type": "boolean"
+          },
+          "rating": {
+            "type": "number",
+            "format": "double"
+          },
+          "reviewCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitsSold": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -1433,6 +2398,18 @@
             "format": "int32"
           }
         }
+      },
+      "UpdateCartItem": {
+        "required": [
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       }
     }
   },
@@ -1448,6 +2425,9 @@
     },
     {
       "name": "Search"
+    },
+    {
+      "name": "Commerce"
     }
   ]
 }

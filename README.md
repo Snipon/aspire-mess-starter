@@ -1,7 +1,8 @@
 # Aspire headless CMS demo
 
-An [Aspire](https://aspire.dev) solution with a headless **Umbraco 18** CMS, a typed **.NET 10 API** with
-swappable content and search adapters, **Meilisearch** for search, and an **Astro 7 + Tailwind 4 + shadcn/ui** SSR website.
+An [Aspire](https://aspire.dev) solution with a headless **Umbraco 18** CMS, a headless **Drupal 11 + Commerce 3**
+shop backend, a typed **.NET 10 API** with swappable content, commerce and search adapters, **Meilisearch** for search,
+and an **Astro 7 + Tailwind 4 + shadcn/ui** SSR website.
 Local development runs entirely from the Aspire AppHost (`apphost.cs`); Azure deployment uses Terraform
 (`infra/terraform`, see [docs/deployment.md](docs/deployment.md)).
 Guidance for coding agents (commands, generated files, how a change flows through the stack) is in
@@ -21,24 +22,31 @@ flowchart LR
         umbraco[("<b>umbraco</b><br/>database")]
         meilisearch[("<b>meilisearch</b><br/>container<br/>docker.io/getmeili/meilisearch:v1.54.0")]
         seq[("<b>seq</b><br/>container<br/>docker.io/datalust/seq:2025.2")]
+        commerce_postgres[("<b>commerce-postgres</b><br/>container<br/>docker.io/library/postgres:18.3")]
+        commercedb[("<b>commercedb</b><br/>database")]
         cms["<b>cms</b><br/>.NET project<br/>src/Cms/Cms.csproj"]
         api["<b>api</b><br/>.NET project<br/>src/Api/Api.csproj"]
+        commerce["<b>commerce</b><br/>built container<br/>src/Commerce"]
         web["<b>web</b><br/>built container<br/>src/Web"]
         web_cache["<b>web-cache</b><br/>container<br/>nginx:1.29-alpine"]
     end
 
     browser -.-> cms
     browser -.-> api
+    browser -.-> commerce
     browser -.-> web
     browser -.-> web_cache
     umbraco --> sql
+    commercedb --> commerce_postgres
     cms -- "connection string: umbracoDbDSN" --> umbraco
     cms -- "connection string: seq" --> seq
     cms -- "ContentWebhook:TargetUrl" --> api
     api -- "Umbraco:PublicBaseUrl<br/>service discovery" --> cms
     api -- "connection string: meilisearch" --> meilisearch
     api -- "connection string: seq" --> seq
+    api -- "Drupal:BaseUrl<br/>Drupal:PublicBaseUrl" --> commerce
     api -- "WebCache:PurgeUrl" --> web_cache
+    commerce -- "connection string: commercedb" --> commercedb
     web -- "API_URL" --> api
     web -- "connection string: seq" --> seq
     web_cache -- "WEB_UPSTREAM" --> web
@@ -65,6 +73,9 @@ manifest): `node scripts/gen-architecture.mjs` rewrites it, and CI commits the u
   it purges the web cache.
 - **web** – Astro server-side rendering only; the browser never calls the API directly. The API client is
   generated from the API's OpenAPI document.
+- **commerce** – Drupal 11 + Commerce 3 (`src/Commerce`, PostgreSQL in `commerce-postgres`): catalog, carts, orders
+  and a fake card payment, used only through the JSON endpoints of its `headless_commerce` module. See
+  [Commerce](#commerce-drupal).
 - **web-cache** – nginx reverse proxy cache in front of the web, the site's entry point locally (see
   [Reverse proxy cache](#reverse-proxy-cache)).
 
@@ -100,8 +111,11 @@ What happens on start:
    [Changing the schema](#changing-the-schema-usync-workflow)), seeds the demo content (`DemoContent:Enabled`) and
    registers the webhook. A fresh install takes about a minute; Umbraco's Delivery API query index fills about a
    minute after that.
-3. `api` waits for Meilisearch, then reindexes in the background once the CMS returns content.
-4. `web` runs `npm install` + `npm run dev` (Astro dev server on Aspire's `PORT`) once the api is healthy, and
+3. `commerce-postgres` starts (persistent) and `commerce` builds its image, installs Drupal into the empty database
+   on first start, installs the `headless_commerce` module and seeds 2000 demo products (about two minutes the first
+   time; later starts only check). Its admin UI is at `<commerce url>/user/login`.
+4. `api` waits for Meilisearch, then reindexes content and products in the background once the CMS and Drupal answer.
+5. `web` runs `npm install` + `npm run dev` (Astro dev server on Aspire's `PORT`) once the api is healthy, and
    `web-cache` (nginx) starts in front of it.
 
 ### Local secrets
@@ -124,7 +138,9 @@ aspire secret list                             # or: aspire secret get Parameter
 | `umbraco-admin-email` | `admin@example.com` |
 | `umbraco-admin-password`, `delivery-api-key`, `webhook-secret`, `reindex-secret`, `cache-purge-secret` | 32 random alphanumeric characters |
 | `hmac-secret` | base64 of 64 random bytes |
-| `sql-password`, `meilisearch-masterKey` | 32 random alphanumeric characters (Aspire's own parameters for `sql` and `meilisearch`) |
+| `commerce-admin-password` | 32 random alphanumeric characters (Drupal user `admin`) |
+| `commerce-api-key`, `commerce-hash-salt` | 32 random alphanumeric characters (the API's key for Drupal; Drupal's hash salt) |
+| `sql-password`, `meilisearch-masterKey`, `commerce-postgres-password` | 32 random alphanumeric characters (Aspire's own parameters for `sql`, `meilisearch` and `commerce-postgres`) |
 
 The script is idempotent and never changes an existing value: the persistent containers depend on them. It uses
 `openssl rand`, `jq` and the Aspire CLI (`aspire secret`). Local Seq runs without authentication, so it has no password.
@@ -147,13 +163,14 @@ existing `sql` volume. The script then warns and prints the command that restore
 
 uSync's first-boot import only runs against an empty database, and the seeder only tops up its own demo content on an
 existing one. To reinstall from scratch, for example after pulling a schema change that conflicts with your local
-data, stop the AppHost and remove this AppHost's `sql`/`meilisearch` containers and volumes plus local media and
-Examine indexes (the hash in the names is per AppHost path; check with `podman ps -a` / `podman volume ls`):
+data, stop the AppHost and remove this AppHost's `sql`/`meilisearch`/`commerce-postgres` containers and volumes plus
+local media, Drupal's files and Examine indexes (the hash in the names is per AppHost path; check with `podman ps -a` /
+`podman volume ls`):
 
 ```sh
 aspire stop
-podman rm -f sql-<hash> meilisearch-<hash>
-podman volume rm apphost-<hash>-sql-data apphost-<hash>-meilisearch-data
+podman rm -f sql-<hash> meilisearch-<hash> commerce-postgres-<hash>
+podman volume rm apphost-<hash>-sql-data apphost-<hash>-meilisearch-data apphost-<hash>-commerce-postgres-data commerce-files
 rm -rf src/Cms/wwwroot/media src/Cms/umbraco/Data/TEMP
 aspire start
 ```
@@ -166,6 +183,7 @@ aspire start
 | Seq (log search) | `http://localhost:5341` (no login locally) |
 | Website | shown on the `web-cache` resource in the dashboard (random port; the reverse proxy cache, see below). The `web` resource's own URL bypasses the cache |
 | Umbraco backoffice | `https://localhost:44350/umbraco` (or `http://localhost:28048/umbraco`) |
+| Drupal admin | `<commerce url>/user/login` (the `commerce` resource in the dashboard), user `admin`, password = `Parameters:commerce-admin-password` |
 | Backoffice login | user `admin@example.com` (parameter `umbraco-admin-email`), password = `Parameters:umbraco-admin-password` from the user secrets |
 | API reference (Scalar) | `http://localhost:5194/scalar` |
 | OpenAPI document | `http://localhost:5194/openapi/v1.json` |
@@ -185,6 +203,13 @@ Scalar and the OpenAPI document are mapped in every environment on purpose for t
 | GET | `/api/search?q=&page=1&pageSize=10&contentType=&tag=&year=` | `SearchResult`, highlights wrapped in `<mark>`; hits carry tags, date, image; `facets` counts types, tags and years (each ignoring its own filter); empty `q` lists everything newest first |
 | POST | `/api/search/reindex` | full reindex; header `X-Reindex-Secret` (parameter `reindex-secret`) |
 | POST | `/api/webhooks/content` | Umbraco webhook (`{"id": ...}` or `[{"id": ...}]`); header `X-Webhook-Secret` |
+| GET | `/api/products?q=&category=&brand=&minRating=&inStock=&sort=&page=1&pageSize=24` | `ProductSearchResult` with facets (categories, brands, ratings, availability); `sort` = relevance, popular, price-asc, price-desc, rating, newest |
+| GET | `/api/products/{slug}` | `Product`, live from Drupal; an outdated slug still finds it (compare `slug` and redirect) |
+| POST | `/api/carts` | `CreatedCart` (`token` + `cart`); every other cart call needs `X-Cart-Token` |
+| GET | `/api/carts/{cartId}` | `Cart`; 404 for unknown carts and wrong tokens alike |
+| POST | `/api/carts/{cartId}/items` | `{sku, quantity}`; 409 `out_of_stock` with `available` |
+| PATCH / DELETE | `/api/carts/{cartId}/items/{itemId}` | `{quantity}` (0 removes) / remove |
+| POST | `/api/carts/{cartId}/checkout` | `CheckoutRequest` → `OrderReceipt`; 400 field errors, 402 declined card, 409 empty cart / stock / already checked out |
 | GET | `/api/status` | `StatusReport` (`status` + `components[]` of `{name, displayName, status, durationMs}`), always 200; see below |
 
 `/api/status` runs the health checks tagged `dependency`. Each adapter registers its own inside its `AddXxx` method
@@ -204,7 +229,8 @@ The webhook secret is deliberately not accepted there: it is stored on the Umbra
 with Settings access can read it.
 
 Website routes: `/`, `/articles` and `/blog` (block pages), `/articles/<slug>` (article), `/blog/<slug>` (blog post,
-with a card linking its related article), `/tags/<tag>` (paged listing),
+with a card linking its related article), `/shop` (products with facets and sorting), `/shop/<slug>` (product with
+stats and specs), `/cart` and `/checkout` (per visitor, `no-store`), `/tags/<tag>` (paged listing),
 `/search?q=&tag=`, `/status` (system status: Web, API round trip and each `/api/status` component; `no-store`, a
 Refresh link instead of auto-reload, and still renders with "API Down / Dependencies Unknown" when the API fails or
 takes longer than 3 s). `/status` is a web route, so a CMS page at that path is hidden behind it.
@@ -336,6 +362,46 @@ How the API exposes it (`src/Api/Contracts`):
    database, import it in the backoffice: Settings > uSync > Import (or reset the local database, see
    [Start from a clean database](#start-from-a-clean-database)).
 
+## Commerce (Drupal)
+
+`src/Commerce` builds a Drupal 11 + Commerce 3 image (`Dockerfile`, Composer lock in the repo, PHP bcmath for
+Commerce). Nothing about it is configured by hand or exported as YAML:
+
+- `entrypoint.sh` runs on every start and is idempotent: waits for PostgreSQL (creating the `pg_trgm` extension Drupal
+  needs), runs `drush site:install minimal` only on an empty database, installs/updates the module, seeds when
+  `DEMO_CONTENT=true`, then starts Apache. `settings.php` reads the database (`COMMERCEDB_*` from the Aspire
+  reference), hash salt and trusted hosts from the environment.
+- `web/modules/custom/headless_commerce` holds everything else. `Schema.php` creates the USD store, the
+  `product_category`/`product_brand` vocabularies, the product fields (description in Markdown, image, category,
+  brand, specs as JSON rows, rating, review count, units sold, return rate, weight, warranty, release date), a stock
+  field on the variation and the `fake_card` payment gateway (Commerce's manual gateway); receipt emails are off.
+  To add a field, add a line there and an update hook that calls `Schema::ensure()`.
+- `DemoCatalog.php` generates 2000 deterministic products (fixed seed) in ten categories (laptops, monitors,
+  keyboards, mice, headphones, docks, chairs, standing desks, webcams, microphones) from twelve fictional brands, with
+  7–10 category-specific specs and performance stats each, plus 30 generated placeholder images. It only creates
+  missing SKUs (`DG00001`–`DG02000`), so it is safe on every start.
+- The JSON endpoints (`headless_commerce.routing.yml`, all but `/headless/health` need `X-Api-Key` =
+  `COMMERCE_API_KEY`): `GET /headless/products?offset=&limit=`, `GET /headless/products/{sku}`, and carts as Commerce
+  draft orders addressed by UUID plus a random token (stored hashed; wrong tokens look like unknown carts).
+  Responses are `no-store` and bypass Drupal's page cache.
+
+**Fake payment.** Checkout validates the card like a form would (Luhn, expiry not in the past, 3–4 digit CVC) and then
+decides by number: `4242 4242 4242 4242` (and any other valid number) is approved, `4000 0000 0000 0002` is declined,
+`4000 0000 0000 9995` has insufficient funds, `4000 0000 0000 0069` is expired (`FakeCard.php`). On approval, in one
+transaction: the billing profile and a completed payment (reference `FAKE-…-<last4>`, nothing else of the card is
+stored) are saved, stock goes down, units sold go up, and the order is placed. Orders, payments and customers are
+visible in the Drupal admin (Commerce > Orders).
+
+**Search and freshness.** The API indexes all products into the Meilisearch index `products` on startup and every
+`Commerce:ReindexInterval` (10 minutes), and re-indexes the products of each order right after checkout. Listings
+(`/api/products`) come from the index; product pages and carts are read live from Drupal. Product and shop pages are
+shared-cached by `web-cache` like other pages (stock shown there can be up to a minute old; checkout checks stock
+again), while `/cart` and `/checkout` are `no-store`. The header has no cart count for the same reason.
+
+**Web.** The cart is an httpOnly, `SameSite=Lax` cookie with the cart id and token, set by the Astro server; adding,
+updating and removing are plain form posts to `/cart` (POST/redirect/GET), and `/checkout` posts to itself and shows
+the receipt. No JavaScript is needed; Astro's origin check rejects cross-site form posts.
+
 ## Adapters: how the API stays CMS/search-engine neutral
 
 The endpoints only depend on two ports and the contract records:
@@ -343,6 +409,9 @@ The endpoints only depend on two ports and the contract records:
 - `src/Api/Content/IContentSource.cs` – `GetByPathAsync`, `GetByIdAsync`, `GetNavigationAsync`,
   `GetArticlesAsync`, `GetTagsAsync`, plus the enumeration used for indexing.
 - `src/Api/Search/ISearchIndex.cs` – `SearchAsync`, `ReplaceAllAsync`, `CountAsync`, upsert/delete and path lookups.
+- `src/Api/Commerce/ICommerceSource.cs` – products (by slug, by SKU, all for indexing), carts and checkout, returning
+  `CommerceResult<T>` (a value or a typed refusal: invalid, not found, conflict, payment declined).
+- `src/Api/Commerce/IProductIndex.cs` – product search with facets and sorting.
 
 Implementations live in adapter folders and never leak their types into `Contracts/` or `Endpoints/`:
 
@@ -350,9 +419,14 @@ Implementations live in adapter folders and never leak their types into `Contrac
   [generated Delivery API models](#umbraco-delivery-api-models) to `Page`, `ImageUrlSigner` signs renditions with
   ImageSharp.Web's `HMACUtilities`).
 - `src/Api/Search/Meilisearch/` – Meilisearch client (`AddMeilisearchClient("meilisearch")`), index `content`.
+- `src/Api/Commerce/Drupal/` – typed `HttpClient` against the `headless_commerce` endpoints (`X-Api-Key`), retrying
+  GETs only (adding to a cart or paying must not happen twice).
+- `src/Api/Commerce/Meilisearch/` – index `products` on the same Meilisearch client.
 
-The adapter is chosen at startup from configuration (`Providers:Content`, `Providers:Search`); an unknown value
-throws at startup. The AppHost sets `Providers__Content=Umbraco` and `Providers__Search=Meilisearch`.
+The adapter is chosen at startup from configuration (`Providers:Content`, `Providers:Search`, `Providers:Commerce`); an
+unknown value throws at startup. The AppHost sets `Providers__Content=Umbraco`, `Providers__Search=Meilisearch` and
+`Providers__Commerce=Drupal`. `Providers:Commerce` = `None` (or empty) turns the shop off: no commerce services or
+endpoints (the website's `/shop` then shows "temporarily unavailable").
 
 ### Umbraco Delivery API models
 
@@ -454,5 +528,6 @@ Keep these green locally:
 ## Deployment
 
 Azure (Container Apps, Azure SQL, Blob Storage for media, Azure Files for Meilisearch, Key Vault, ACR) is described
-in Terraform under `infra/terraform`. See **[docs/deployment.md](docs/deployment.md)** for the architecture, building
+in Terraform under `infra/terraform`. Drupal Commerce is local-only for now: Terraform sets
+`Providers__Commerce=None` on the API, so the shop is off there. See **[docs/deployment.md](docs/deployment.md)** for the architecture, building
 and pushing images, `terraform apply`, the first run and secret rotation.

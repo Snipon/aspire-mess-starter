@@ -1,0 +1,159 @@
+---
+import { XIcon } from 'lucide-react';
+import Layout from '../../layouts/Layout.astro';
+import FacetFilters, { type FacetGroup } from '@/components/FacetFilters';
+import Pager from '@/components/Pager';
+import ProductCard from '@/components/ProductCard';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { api } from '../../lib/api/client';
+import { log } from '../../lib/log';
+
+const PAGE_SIZE = 24;
+const SORTS = [
+  ['popular', 'Popular'],
+  ['price-asc', 'Price: low to high'],
+  ['price-desc', 'Price: high to low'],
+  ['rating', 'Top rated'],
+  ['newest', 'Newest'],
+] as const;
+
+const params = Astro.url.searchParams;
+const q = params.get('q')?.trim() ?? '';
+const category = params.get('category') || undefined;
+const brand = params.get('brand') || undefined;
+const ratingParam = Number.parseInt(params.get('rating') ?? '', 10);
+const minRating = ratingParam >= 1 && ratingParam <= 5 ? ratingParam : undefined;
+const inStock = params.get('stock') === 'in' ? true : undefined;
+const sortParam = params.get('sort');
+const sort = SORTS.some(([value]) => value === sortParam) ? sortParam! : q ? 'relevance' : 'popular';
+const requestedPage = Number.parseInt(params.get('page') ?? '1', 10);
+const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+const search = await api()
+  .GET('/api/products', { params: { query: { q, category, brand, minRating, inStock, sort, page, pageSize: PAGE_SIZE } } })
+  .catch((cause: unknown) => {
+    log.error('Product search unreachable', cause);
+    return undefined;
+  });
+const result = search?.data;
+if (search && !result) log.error('Product search failed', undefined, { status: search.response.status });
+if (!result) Astro.response.status = 503;
+
+type Overrides = { q?: string; category?: string | null; brand?: string | null; rating?: string | null; stock?: string | null; sort?: string; page?: number };
+const shopHref = (o: Overrides) => {
+  const next = new URLSearchParams();
+  const set = (key: string, value: string | null | undefined) => value && next.set(key, value);
+  set('q', o.q ?? q);
+  set('category', o.category === undefined ? category : o.category);
+  set('brand', o.brand === undefined ? brand : o.brand);
+  set('rating', o.rating === undefined ? minRating?.toString() : o.rating);
+  set('stock', o.stock === undefined ? (inStock ? 'in' : null) : o.stock);
+  set('sort', o.sort ?? sortParam);
+  if (o.page && o.page > 1) next.set('page', String(o.page));
+  const query = next.toString();
+  return `/shop${query ? `?${query}` : ''}`;
+};
+
+// Ratings are counted per whole star; shown cumulatively as "4★ & up", which is what minRating filters.
+const ratingCounts = result?.facets.ratings ?? [];
+const ratingFacet = [4, 3, 2]
+  .map((stars) => ({
+    value: `${stars}★ & up`,
+    count: ratingCounts.filter((c) => Number(c.value) >= stars).reduce((sum, c) => sum + c.count, 0),
+  }))
+  .filter((c) => c.count > 0);
+const inStockCount = result?.facets.availability.find((c) => c.value === 'inStock')?.count ?? 0;
+
+const groups: FacetGroup[] = result
+  ? [
+      { label: 'Category', values: result.facets.categories, selected: category, href: (value) => shopHref({ category: value, page: 1 }) },
+      { label: 'Brand', values: result.facets.brands, selected: brand, href: (value) => shopHref({ brand: value, page: 1 }) },
+      {
+        label: 'Rating',
+        values: ratingFacet,
+        selected: minRating ? `${minRating}★ & up` : undefined,
+        href: (value) => shopHref({ rating: value ? value[0] : null, page: 1 }),
+      },
+      {
+        label: 'Availability',
+        values: inStockCount ? [{ value: 'In stock', count: inStockCount }] : [],
+        selected: inStock ? 'In stock' : undefined,
+        href: (value) => shopHref({ stock: value ? 'in' : null, page: 1 }),
+      },
+    ]
+  : [];
+const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
+const filtered = Boolean(category || brand || minRating || inStock);
+---
+
+<Layout title="Shop" description="Developer gear: laptops, monitors, keyboards and more, with specs and real-world stats.">
+  <header class="mb-8 max-w-3xl">
+    <h1 class="text-4xl font-bold tracking-tight text-balance sm:text-5xl">Shop</h1>
+    <p class="mt-4 text-lg text-muted-foreground">Developer gear with full specs and how it actually performs for customers.</p>
+  </header>
+
+  <form action="/shop" method="get" role="search" class="flex max-w-xl gap-2">
+    <label for="shop-search" class="sr-only">Search products</label>
+    <Input id="shop-search" type="search" name="q" value={q} placeholder="Search products, brands, specs…" className="flex-1" />
+    <button type="submit" class={cn(buttonVariants({ variant: 'secondary' }))}>Search</button>
+    {category && <input type="hidden" name="category" value={category} />}
+    {brand && <input type="hidden" name="brand" value={brand} />}
+  </form>
+
+  {
+    !result ? (
+      <Alert variant="destructive" className="mt-8">
+        <AlertDescription>The shop is temporarily unavailable. Please try again shortly.</AlertDescription>
+      </Alert>
+    ) : (
+      <div class="mt-8 flex flex-col gap-8 lg:flex-row">
+        <FacetFilters groups={groups} />
+        <div class="min-w-0 flex-1" aria-live="polite">
+          <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p>
+                {result.total.toLocaleString('en-US')} product{result.total === 1 ? '' : 's'}
+                {q && ` matching “${q}”`}
+                {totalPages > 1 && ` · page ${result.page} of ${totalPages}`}
+              </p>
+              {filtered && (
+                <a
+                  href={shopHref({ category: null, brand: null, rating: null, stock: null, page: 1 })}
+                  class={cn(buttonVariants({ variant: 'outline', size: 'xs' }))}
+                >
+                  <XIcon aria-hidden="true" /> Clear filters
+                </a>
+              )}
+            </div>
+            <nav aria-label="Sort" class="flex flex-wrap gap-1">
+              {(q ? [['relevance', 'Best match'] as const, ...SORTS] : SORTS).map(([value, label]) => (
+                <a
+                  href={shopHref({ sort: value, page: 1 })}
+                  aria-current={sort === value ? 'true' : undefined}
+                  class={cn(buttonVariants({ variant: sort === value ? 'secondary' : 'ghost', size: 'xs' }), sort !== value && 'text-muted-foreground')}
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          </div>
+          {result.items.length > 0 ? (
+            <ul class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {result.items.map((product) => (
+                <li class="flex">
+                  <ProductCard product={product} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="mt-4 rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">No products match.</p>
+          )}
+          <Pager page={result.page} totalPages={totalPages} href={(n) => shopHref({ page: n })} />
+        </div>
+      </div>
+    )
+  }
+</Layout>

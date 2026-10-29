@@ -1,0 +1,15 @@
+<?php
+
+/**
+ * @file
+ * Creates the store, product fields and fake card gateway (see Schema; idempotent).
+ */
+
+use Drupal\headless_commerce\Schema;
+
+/**
+ * Implements hook_install().
+ */
+function headless_commerce_install(): void {
+  \Drupal::service(Schema::class)->ensure();
+}

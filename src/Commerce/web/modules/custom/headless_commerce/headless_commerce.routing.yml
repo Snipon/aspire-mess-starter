@@ -1,0 +1,55 @@
+# JSON endpoints for the API. All but /headless/health require the X-Api-Key header (COMMERCE_API_KEY); carts also
+# need their X-Cart-Token. See Controller\ApiControllerBase.
+headless_commerce.health:
+  path: '/headless/health'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\ProductController::health' }
+  methods: [GET]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.products:
+  path: '/headless/products'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\ProductController::list' }
+  methods: [GET]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.product:
+  path: '/headless/products/{sku}'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\ProductController::get' }
+  methods: [GET]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.cart_create:
+  path: '/headless/carts'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::createCart' }
+  methods: [POST]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.cart:
+  path: '/headless/carts/{cart}'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::get' }
+  methods: [GET]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.cart_add:
+  path: '/headless/carts/{cart}/items'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::addItem' }
+  methods: [POST]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.cart_update:
+  path: '/headless/carts/{cart}/items/{item}'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::updateItem' }
+  methods: [PATCH]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.cart_remove:
+  path: '/headless/carts/{cart}/items/{item}'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::removeItem' }
+  methods: [DELETE]
+  requirements: { _access: 'TRUE' }
+
+headless_commerce.checkout:
+  path: '/headless/carts/{cart}/checkout'
+  defaults: { _controller: '\Drupal\headless_commerce\Controller\CartController::checkout' }
+  methods: [POST]
+  requirements: { _access: 'TRUE' }

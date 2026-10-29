@@ -5,6 +5,17 @@ const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'long', timeZone: 
 
 export const formatDate = (date: string) => dateFormat.format(new Date(date));
 
+const moneyFormats = new Map<string, Intl.NumberFormat>();
+
+/** "$1,487.99"; one formatter per currency. */
+export const formatMoney = (money: { amount: number; currency: string }) => {
+  let format = moneyFormats.get(money.currency);
+  if (!format) moneyFormats.set(money.currency, (format = new Intl.NumberFormat('en-US', { style: 'currency', currency: money.currency })));
+  return format.format(money.amount);
+};
+
+export const formatNumber = (value: number) => value.toLocaleString('en-US');
+
 export const tagHref = (tag: string) => `/tags/${encodeURIComponent(tag)}`;
 
 /** Anchor attributes for a CMS link; new-window links get rel="noopener noreferrer". */

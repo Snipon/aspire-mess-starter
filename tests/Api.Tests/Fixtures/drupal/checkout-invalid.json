@@ -1,0 +1,1 @@
+{"error":"invalid_checkout","message":"Some fields are missing or invalid.","fields":{"email":"Enter a valid email address.","number":"Enter a valid card number.","expiry":"Enter an expiry date that is not in the past.","cvc":"Enter the 3 or 4 digit security code."}}

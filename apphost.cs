@@ -2,6 +2,7 @@
 #:property AspireUseCliBundle=true
 #:property UserSecretsId=aspire-test-apphost
 #:package Aspire.Hosting.SqlServer@13.6.4
+#:package Aspire.Hosting.PostgreSQL@13.6.4
 #:package Aspire.Hosting.JavaScript@13.6.4
 #:package Aspire.Hosting.Seq@13.6.4
 #:package CommunityToolkit.Aspire.Hosting.Meilisearch@13.6.1
@@ -28,6 +29,12 @@ var reindexSecret = builder.AddParameter("reindex-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 var cachePurgeSecret = builder.AddParameter("cache-purge-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var commerceAdminPassword = builder.AddParameter("commerce-admin-password",
+    new GenerateParameterDefault { MinLength = 16, Special = false }, secret: true, persist: true);
+var commerceApiKey = builder.AddParameter("commerce-api-key",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var commerceHashSalt = builder.AddParameter("commerce-hash-salt",
+    new GenerateParameterDefault { MinLength = 64, Special = false }, secret: true, persist: true);
 
 // Infrastructure containers (persistent so data and startup time survive AppHost restarts).
 var sql = builder.AddSqlServer("sql")
@@ -44,6 +51,12 @@ var meilisearch = builder.AddMeilisearch("meilisearch")
 var seq = builder.AddSeq("seq", port: 5341)
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume();
+
+// Commerce database (Drupal on PostgreSQL), persistent like the CMS database.
+var commerceDb = builder.AddPostgres("commerce-postgres")
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume()
+    .AddDatabase("commercedb", "commerce");
 
 // Headless Umbraco CMS.
 var cms = builder.AddProject<Projects.Cms>("cms")
@@ -79,6 +92,26 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithEnvironment("Search__ReindexSecret", reindexSecret)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
+
+// Drupal Commerce (src/Commerce): catalog, carts, orders and the fake card payment, behind the API. The image installs
+// Drupal into the empty database on first start and seeds 2000 demo products (DEMO_CONTENT); admin UI at /user/login.
+var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
+    .WithReference(commerceDb) // COMMERCEDB_HOST/_PORT/_USERNAME/_PASSWORD/_DATABASENAME, read by settings.php
+    .WaitFor(commerceDb)
+    .WithVolume("commerce-files", "/opt/drupal/web/sites/default/files")
+    .WithEnvironment("DRUPAL_HASH_SALT", commerceHashSalt)
+    .WithEnvironment("DRUPAL_ADMIN_EMAIL", adminEmail)
+    .WithEnvironment("DRUPAL_ADMIN_PASSWORD", commerceAdminPassword)
+    .WithEnvironment("COMMERCE_API_KEY", commerceApiKey)
+    .WithEnvironment("DEMO_CONTENT", "true") // 2000 demo products; remove for a real project
+    .WithHttpEndpoint(targetPort: 80)
+    .WithHttpHealthCheck("/headless/health")
+    .WithExternalHttpEndpoints();
+
+api.WithEnvironment("Providers__Commerce", "Drupal")
+    .WithEnvironment("Drupal__BaseUrl", commerce.GetEndpoint("http"))
+    .WithEnvironment("Drupal__PublicBaseUrl", commerce.GetEndpoint("http"))
+    .WithEnvironment("Drupal__ApiKey", commerceApiKey);
 
 // The CMS pushes content changes to the API (endpoint reference only, no startup dependency).
 cms.WithEnvironment("ContentWebhook__TargetUrl",
