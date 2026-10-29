@@ -118,3 +118,41 @@ variable "seq_retention" {
   type        = string
   default     = "30d"
 }
+
+variable "seq_proxy_image" {
+  description = "oauth2-proxy image in front of the Seq UI (staff sign-in). Keep in step with the AppHost's seq-proxy."
+  type        = string
+  default     = "quay.io/oauth2-proxy/oauth2-proxy:v7.15.5"
+}
+
+# --- identity providers (identity.tf) --------------------------------------------------------------
+
+variable "staff_admin_object_ids" {
+  description = "Entra ID object IDs of users (or groups, needs Entra ID P1) given the app role 'admin' on the staff apps (cms, Seq). Include yourself (az ad signed-in-user show --query id -o tsv), or nobody can sign in through Entra ID."
+  type        = list(string)
+  default     = []
+}
+
+variable "staff_editor_object_ids" {
+  description = "Entra ID object IDs of users (or groups, needs Entra ID P1) given the app role 'editor' on the staff apps (Umbraco editors; Seq lets only admins in)."
+  type        = list(string)
+  default     = []
+}
+
+variable "cms_deny_local_login" {
+  description = "Hide the Umbraco backoffice's local login and redirect straight to Entra ID. Enable only after an Entra ID admin has signed in."
+  type        = bool
+  default     = false
+}
+
+variable "customer_tenant_id" {
+  description = "Tenant ID of the Entra External ID (CIAM) tenant for shop customers. Empty: no customer sign-in (web and API run without it)."
+  type        = string
+  default     = ""
+}
+
+variable "customer_authority" {
+  description = "Override of the customer issuer URL (default https://<customer_tenant_id>.ciamlogin.com/<customer_tenant_id>/v2.0). It must equal the issuer in its discovery document and the tokens' iss."
+  type        = string
+  default     = ""
+}

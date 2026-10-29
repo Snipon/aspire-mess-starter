@@ -6,6 +6,11 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.81"
     }
+    # Entra ID / External ID app registrations (identity.tf).
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 3.10"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.7"
@@ -43,4 +48,14 @@ provider "azurerm" {
 
 provider "azapi" {
   subscription_id = var.subscription_id
+}
+
+# Staff app registrations: the tenant Terraform signs in to (az login / ARM_TENANT_ID).
+provider "azuread" {}
+
+# Customer app registrations: the Entra External ID tenant. Only used when customer_tenant_id is set; sign in to it
+# first (az login --tenant <id> --allow-no-subscriptions).
+provider "azuread" {
+  alias     = "customers"
+  tenant_id = var.customer_tenant_id != "" ? var.customer_tenant_id : null
 }

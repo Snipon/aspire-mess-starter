@@ -49,8 +49,18 @@ output "aspire_dashboard_url" {
 }
 
 output "seq_url" {
-  description = "Seq UI (user admin; first-run password is the 'seq-admin-password' Key Vault secret)."
+  description = "Seq UI through seq-proxy: Entra ID sign-in (app role admin), then Seq's own login (user admin; first-run password is the 'seq-admin-password' Key Vault secret)."
   value       = local.seq_url
+}
+
+output "staff_app_client_ids" {
+  description = "Client IDs of the staff app registrations in Entra ID (assign app roles admin/editor in Enterprise applications)."
+  value       = { for k, app in azuread_application.staff : k => app.client_id }
+}
+
+output "customer_app_client_ids" {
+  description = "Client IDs of the web and API app registrations in the Entra External ID tenant (empty without customer sign-in)."
+  value       = local.customer_auth ? { web = local.customer_web_id, shop_api = local.customer_api_id } : {}
 }
 
 output "seq_retention" {

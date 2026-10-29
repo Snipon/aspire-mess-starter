@@ -1,4 +1,4 @@
-# --- Seq (log search, external UI) ----------------------------------------------------------------
+# --- Seq (log search; UI only through seq-proxy) ---------------------------------------------------
 #
 # Datalust only supports Seq on local-disk-equivalent storage: Azure Disks or *Premium* Azure Files
 # (standard Azure Files leads to storage corruption). Container Apps cannot mount Azure Disks, so Seq
@@ -49,10 +49,10 @@ resource "azurerm_container_app" "seq" {
     key_vault_secret_id = local.kv_secret_ids["seq-admin-password"]
   }
 
-  # External: the Seq UI (login required). Apps ship logs over the same ingress by FQDN, which stays
-  # inside the environment; ingestion is locked to the API key once bootstrapped (see the docs).
+  # Internal only: the apps ship logs to https://seq.internal.<domain> (ingestion is locked to the API key once
+  # bootstrapped, see the docs); people reach the UI and API through seq-proxy below.
   ingress {
-    external_enabled = true
+    external_enabled = false
     target_port      = 80
     transport        = "http"
 
@@ -102,4 +102,96 @@ resource "azurerm_container_app" "seq" {
   }
 
   depends_on = [time_sleep.rbac_propagation]
+}
+
+# --- seq-proxy (staff sign-in in front of the Seq UI, external) -----------------------------------
+#
+# oauth2-proxy with generic OIDC against Entra ID (app registration "seq" in identity.tf), the same flags as the
+# AppHost's seq-proxy except that discovery works here (one host for browser and server). Only the "admin" value of
+# the "roles" claim gets in; the session is refreshed (roles re-checked) every 5 minutes and lasts 8 hours. Seq keeps
+# its own login behind it. Its HTTP API (/api/) skips the proxy and stays protected by Seq itself (API keys, Seq
+# login), so seqcli and infra/seq/alerts.sh keep working from outside the environment.
+
+resource "azurerm_container_app" "seq_proxy" {
+  name                         = "seq-proxy"
+  container_app_environment_id = azurerm_container_app_environment.this.id
+  resource_group_name          = azurerm_resource_group.this.name
+  revision_mode                = "Single"
+  tags                         = var.tags
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.apps.id]
+  }
+
+  dynamic "secret" {
+    for_each = toset(["seq-oidc-secret", "seq-proxy-cookie-secret"])
+    content {
+      name                = secret.value
+      identity            = azurerm_user_assigned_identity.apps.id
+      key_vault_secret_id = local.kv_secret_ids[secret.value]
+    }
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 4180
+    transport        = "http"
+
+    traffic_weight {
+      latest_revision = true
+      percentage      = 100
+    }
+  }
+
+  template {
+    min_replicas = 1
+    max_replicas = 1
+
+    container {
+      name   = "seq-proxy"
+      image  = var.seq_proxy_image
+      cpu    = 0.25
+      memory = "0.5Gi"
+      args = [
+        "--http-address=0.0.0.0:4180",
+        "--upstream=${local.seq_ingest_url}",
+        "--pass-host-header=false", # the environment's ingress routes the upstream call by its Host
+        "--reverse-proxy=true",     # behind the Container Apps ingress
+        "--provider=oidc",
+        "--client-id=${azuread_application.staff["seq"].client_id}",
+        "--oidc-issuer-url=${local.staff_authority}",
+        "--scope=openid email profile offline_access", # offline_access: refresh tokens for --cookie-refresh
+        "--code-challenge-method=S256",
+        "--redirect-url=${local.seq_url}/oauth2/callback",
+        "--oidc-groups-claim=roles",
+        "--allowed-group=admin",
+        "--email-domain=*",
+        "--skip-provider-button",
+        "--cookie-name=_seq_proxy",
+        "--cookie-secure=true",
+        "--cookie-expire=8h",
+        "--cookie-refresh=5m",
+        "--skip-auth-route=GET=^/health$",
+        "--skip-auth-route=^/api/", # Seq's API authenticates itself (API key or Seq login)
+      ]
+
+      env {
+        name        = "OAUTH2_PROXY_CLIENT_SECRET"
+        secret_name = "seq-oidc-secret"
+      }
+      env {
+        name        = "OAUTH2_PROXY_COOKIE_SECRET"
+        secret_name = "seq-proxy-cookie-secret"
+      }
+
+      liveness_probe {
+        transport = "HTTP"
+        port      = 4180
+        path      = "/ping"
+      }
+    }
+  }
+
+  depends_on = [time_sleep.rbac_propagation, azurerm_container_app.seq]
 }
