@@ -134,6 +134,7 @@ locals {
     web         = azurerm_container_app.web
     meilisearch = azurerm_container_app.meilisearch
     seq         = azurerm_container_app.seq
+    seq-proxy   = azurerm_container_app.seq_proxy
   }
 
   # Apps with external ingress (5xx alert) and apps that autoscale (replicas-at-max alert).

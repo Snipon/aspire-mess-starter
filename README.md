@@ -626,5 +626,7 @@ Keep these green locally:
 
 Azure (Container Apps, Azure SQL, Blob Storage for media, Azure Files for Meilisearch, Key Vault, ACR) is described
 in Terraform under `infra/terraform`. Drupal Commerce is local-only for now: Terraform sets
-`Providers__Commerce=None` on the API, so the shop is off there. See **[docs/deployment.md](docs/deployment.md)** for the architecture, building
-and pushing images, `terraform apply`, the first run and secret rotation.
+`Providers__Commerce=None` on the API, so the shop is off there. Staff sign in with Entra ID (Umbraco backoffice, Seq
+behind oauth2-proxy) and, optionally, customers with Entra External ID; Terraform creates the app registrations
+(`infra/terraform/identity.tf`). See **[docs/deployment.md](docs/deployment.md)** for the architecture, building
+and pushing images, `terraform apply`, sign-in, the first run and secret rotation.

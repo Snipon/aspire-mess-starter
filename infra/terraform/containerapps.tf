@@ -120,6 +120,7 @@ resource "azurerm_container_app" "cms" {
       "webhook-secret",
       "media-storage-connection-string",
       "seq-ingestion-api-key",
+      "cms-oidc-secret",
     ])
     content {
       name                = secret.value
@@ -237,10 +238,33 @@ resource "azurerm_container_app" "cms" {
         name        = "ContentWebhook__Secret"
         secret_name = "webhook-secret"
       }
+      # Backoffice sign-in with Entra ID (src/Cms/Security/BackOfficeOidc.cs; identity.tf). The callback is
+      # <cms url>/umbraco-signin-oidc; app roles admin/editor arrive as "roles".
+      env {
+        name  = "BackOfficeOidc__Authority"
+        value = local.staff_authority
+      }
+      env {
+        name  = "BackOfficeOidc__ClientId"
+        value = azuread_application.staff["cms"].client_id
+      }
+      env {
+        name        = "BackOfficeOidc__ClientSecret"
+        secret_name = "cms-oidc-secret"
+      }
+      env {
+        # Entra's optional claim for "the email's domain is verified by the tenant"; required to link existing users.
+        name  = "BackOfficeOidc__EmailVerifiedClaim"
+        value = "xms_edov"
+      }
+      env {
+        name  = "BackOfficeOidc__DenyLocalLogin"
+        value = tostring(var.cms_deny_local_login)
+      }
       # Logs/traces to Seq (ServiceDefaults AddSeqEndpoint), same keys Aspire injects locally.
       env {
         name  = "ConnectionStrings__seq"
-        value = local.seq_url
+        value = local.seq_ingest_url
       }
       env {
         name        = "Aspire__Seq__ApiKey"
@@ -379,10 +403,23 @@ resource "azurerm_container_app" "api" {
         name        = "Search__ReindexSecret"
         secret_name = "reindex-secret"
       }
+      # Customer access tokens from the web (src/Api/Auth/CustomerAuth.cs), only with customer sign-in (identity.tf).
+      # Entra's "sub" differs per app, so customers are keyed on "oid".
+      dynamic "env" {
+        for_each = local.customer_auth ? {
+          CustomerAuth__Authority    = local.customer_authority
+          CustomerAuth__Audience     = local.customer_api_id
+          CustomerAuth__SubjectClaim = "oid"
+        } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
       # Logs/traces to Seq (ServiceDefaults AddSeqEndpoint), same keys Aspire injects locally.
       env {
         name  = "ConnectionStrings__seq"
-        value = local.seq_url
+        value = local.seq_ingest_url
       }
       env {
         name        = "Aspire__Seq__ApiKey"
@@ -420,10 +457,13 @@ resource "azurerm_container_app" "web" {
     identity = azurerm_user_assigned_identity.apps.id
   }
 
-  secret {
-    name                = "seq-ingestion-api-key"
-    identity            = azurerm_user_assigned_identity.apps.id
-    key_vault_secret_id = local.kv_secret_ids["seq-ingestion-api-key"]
+  dynamic "secret" {
+    for_each = toset(concat(["seq-ingestion-api-key"], local.customer_auth ? local.customer_secrets : []))
+    content {
+      name                = secret.value
+      identity            = azurerm_user_assigned_identity.apps.id
+      key_vault_secret_id = local.kv_secret_ids[secret.value]
+    }
   }
 
   ingress {
@@ -459,10 +499,34 @@ resource "azurerm_container_app" "web" {
         name  = "API_URL"
         value = local.api_url
       }
+      # Customer sign-in (src/Web/src/lib/auth.ts), only with an Entra External ID tenant (identity.tf). The scope adds
+      # a refresh token and an access token for the API.
+      dynamic "env" {
+        for_each = local.customer_auth ? {
+          OIDC_AUTHORITY = local.customer_authority
+          OIDC_CLIENT_ID = local.customer_web_id
+          OIDC_SCOPE     = "openid profile email offline_access api://${local.customer_api_id}/access"
+          SITE_URL       = local.web_url
+        } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = local.customer_auth ? {
+          OIDC_CLIENT_SECRET = "web-oidc-secret"
+          SESSION_SECRET     = "web-session-secret"
+        } : {}
+        content {
+          name        = env.key
+          secret_name = env.value
+        }
+      }
       # Logs/traces to Seq (otel.mjs), same keys Aspire injects locally.
       env {
         name  = "ConnectionStrings__seq"
-        value = local.seq_url
+        value = local.seq_ingest_url
       }
       env {
         name        = "Aspire__Seq__ApiKey"
@@ -471,5 +535,6 @@ resource "azurerm_container_app" "web" {
     }
   }
 
-  depends_on = [time_sleep.rbac_propagation, azurerm_container_app.api]
+  # The API scope in OIDC_SCOPE is named by the API's identifier URI.
+  depends_on = [time_sleep.rbac_propagation, azurerm_container_app.api, azuread_application_identifier_uri.shop_api]
 }

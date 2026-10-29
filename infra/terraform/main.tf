@@ -17,7 +17,9 @@ locals {
   api_url         = "https://api.${azurerm_container_app_environment.this.default_domain}"
   web_url         = "https://web.${azurerm_container_app_environment.this.default_domain}"
   meilisearch_url = "https://meilisearch.internal.${azurerm_container_app_environment.this.default_domain}"
-  seq_url         = "https://seq.${azurerm_container_app_environment.this.default_domain}"
+  # Seq's UI is public only through seq-proxy (staff sign-in); the apps ingest logs over Seq's internal ingress.
+  seq_url        = "https://seq-proxy.${azurerm_container_app_environment.this.default_domain}"
+  seq_ingest_url = "https://seq.internal.${azurerm_container_app_environment.this.default_domain}"
 }
 
 resource "azurerm_resource_group" "this" {
