@@ -23,7 +23,7 @@ function PaginationContent({
   return (
     <ul
       data-slot="pagination-content"
-      className={cn("flex items-center gap-0.5", className)}
+      className={cn("flex items-center gap-1", className)}
       {...props}
     />
   )
@@ -47,9 +47,9 @@ function PaginationLink({
   return (
     <Button
       asChild
-      variant={isActive ? "outline" : "ghost"}
+      variant={isActive ? "default" : "ghost"}
       size={size}
-      className={cn(className)}
+      className={cn("tabular-nums", isActive && "bg-primary text-primary-foreground", className)}
     >
       <a
         aria-current={isActive ? "page" : undefined}
@@ -106,7 +106,7 @@ function PaginationEllipsis({
       aria-hidden
       data-slot="pagination-ellipsis"
       className={cn(
-        "flex size-8 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
+        "flex size-10 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}

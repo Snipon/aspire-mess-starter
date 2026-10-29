@@ -90,15 +90,15 @@ const filtered = Boolean(category || brand || minRating || inStock);
 ---
 
 <Layout title="Shop" description="Developer gear: laptops, monitors, keyboards and more, with specs and real-world stats.">
-  <header class="mb-8 max-w-3xl">
-    <h1 class="text-4xl font-bold tracking-tight text-balance sm:text-5xl">Shop</h1>
-    <p class="mt-4 text-lg text-muted-foreground">Developer gear with full specs and how it actually performs for customers.</p>
+  <header class="mb-8 border-b border-ink pb-8">
+    <h1 class="font-wide text-5xl leading-[0.95] font-extrabold sm:text-7xl">Shop</h1>
+    <p class="mt-6 max-w-2xl text-xl leading-relaxed text-pretty text-muted-foreground">Developer gear with full specs and how it actually performs for customers.</p>
   </header>
 
   <form action="/shop" method="get" role="search" class="flex max-w-xl gap-2">
     <label for="shop-search" class="sr-only">Search products</label>
-    <Input id="shop-search" type="search" name="q" value={q} placeholder="Search products, brands, specs…" className="flex-1" />
-    <button type="submit" class={cn(buttonVariants({ variant: 'secondary' }))}>Search</button>
+    <Input id="shop-search" type="search" name="q" value={q} placeholder="Search products, brands, specs" className="flex-1" />
+    <button type="submit" class={cn(buttonVariants())}>Search</button>
     {category && <input type="hidden" name="category" value={category} />}
     {brand && <input type="hidden" name="brand" value={brand} />}
   </form>
@@ -109,15 +109,15 @@ const filtered = Boolean(category || brand || minRating || inStock);
         <AlertDescription>The shop is temporarily unavailable. Please try again shortly.</AlertDescription>
       </Alert>
     ) : (
-      <div class="mt-8 flex flex-col gap-8 lg:flex-row">
+      <div class="mt-10 flex flex-col gap-8 lg:flex-row lg:gap-10">
         <FacetFilters groups={groups} />
         <div class="min-w-0 flex-1" aria-live="polite">
           <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div class="font-narrow flex flex-wrap items-center gap-x-3 gap-y-2">
               <p>
                 {result.total.toLocaleString('en-US')} product{result.total === 1 ? '' : 's'}
                 {q && ` matching “${q}”`}
-                {totalPages > 1 && ` · page ${result.page} of ${totalPages}`}
+                {totalPages > 1 && `, page ${result.page} of ${totalPages}`}
               </p>
               {filtered && (
                 <a
@@ -133,7 +133,10 @@ const filtered = Boolean(category || brand || minRating || inStock);
                 <a
                   href={shopHref({ sort: value, page: 1 })}
                   aria-current={sort === value ? 'true' : undefined}
-                  class={cn(buttonVariants({ variant: sort === value ? 'secondary' : 'ghost', size: 'xs' }), sort !== value && 'text-muted-foreground')}
+                  class={cn(
+                    buttonVariants({ variant: 'ghost', size: 'sm' }),
+                    sort === value ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground' : 'text-muted-foreground',
+                  )}
                 >
                   {label}
                 </a>
@@ -149,7 +152,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
               ))}
             </ul>
           ) : (
-            <p class="mt-4 rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">No products match.</p>
+            <p class="mt-4 border border-dashed border-input px-6 py-10 text-center text-muted-foreground">No products match.</p>
           )}
           <Pager page={result.page} totalPages={totalPages} href={(n) => shopHref({ page: n })} />
         </div>

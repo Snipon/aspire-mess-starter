@@ -43,7 +43,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     </a>
     {/* .dark flips the tokens inside the header: an ink bar whose inputs, buttons and mini cart follow along. */}
     <header class="dark sticky top-0 z-10 border-b-4 border-primary bg-background text-foreground">
-      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-2 px-4 sm:px-6">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-0 px-4 sm:gap-x-8 sm:px-6">
         <a href="/" class="font-wide py-3 text-xl font-extrabold focus-visible:outline-2 focus-visible:outline-ring">Aspire Test</a>
         <nav aria-label="Main" class="order-3 -mx-1 w-full overflow-x-auto sm:order-none sm:mx-0 sm:w-auto sm:flex-1">
           <ul class="flex text-[0.95rem] font-semibold">
@@ -69,7 +69,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
         </nav>
         <form action="/search" method="get" role="search" class="ml-auto py-3">
           <label for="site-search" class="sr-only">Search</label>
-          <SearchInput id="site-search" value={q} placeholder="Search" class="w-40 sm:w-60" />
+          <SearchInput id="site-search" value={q} placeholder="Search" class="w-32 sm:w-60" />
         </form>
         {/* Pages are shared-cached: the count and mini cart are fetched per visitor in the browser. */}
         <MiniCart client:load active={current === '/cart'} />

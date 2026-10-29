@@ -11,12 +11,12 @@ interface Props {
 
 export default function SearchHitCard({ hit, tagHref }: Props) {
   return (
-    <Card className="relative flex-row gap-5 px-5 transition hover:shadow-md focus-within:ring-2 focus-within:ring-ring">
+    <Card className="group relative flex-row gap-5 px-5 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
       <div className="min-w-0 flex-1 space-y-2">
         <CardHeader className="px-0">
-          <CardTitle className="flex items-baseline justify-between gap-4 text-lg font-semibold">
+          <CardTitle className="flex items-baseline justify-between gap-4 text-lg leading-snug font-bold">
             <h2>
-              <a href={hit.path} className="after:absolute after:inset-0 focus-visible:outline-none">
+              <a href={hit.path} className="decoration-primary decoration-2 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
                 {hit.title}
               </a>
             </h2>

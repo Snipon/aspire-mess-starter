@@ -10,9 +10,9 @@ log.error('Unhandled error while rendering a page', Astro.props.error);
 ---
 
 <Layout title="Something went wrong">
-  <section class="mx-auto max-w-xl py-16 text-center">
-    <p class="text-sm font-semibold tracking-wide text-primary uppercase">Error</p>
-    <h1 class="mt-2 text-4xl font-bold tracking-tight">Something went wrong</h1>
-    <p class="mt-4 text-muted-foreground">The content service is unavailable right now. Please try again in a moment.</p>
+  <section class="py-6 sm:py-12">
+    <p class="font-wide text-[clamp(5rem,20vw,13rem)] leading-[0.85] font-extrabold text-primary tabular-nums">500</p>
+    <h1 class="font-wide mt-8 border-t border-ink pt-4 text-4xl font-extrabold sm:text-5xl">Something went wrong</h1>
+    <p class="mt-4 max-w-xl text-lg text-muted-foreground">The content service is unavailable right now. Please try again in a moment.</p>
   </section>
 </Layout>

@@ -75,9 +75,9 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 
 <Layout title={q ? `Search: ${q}` : 'Search'}>
   <div class="max-w-3xl">
-    <h1 class="text-3xl font-bold tracking-tight">Search</h1>
+    <h1 class="font-wide text-5xl font-extrabold sm:text-6xl">Search</h1>
 
-    <form action="/search" method="get" role="search" class="mt-6 flex flex-col gap-2 sm:flex-row">
+    <form action="/search" method="get" role="search" class="mt-8 flex flex-col gap-2 sm:flex-row">
       <label for="q" class="sr-only">Search terms</label>
       <div class="min-w-0 flex-1">
         <SearchInput
@@ -85,12 +85,12 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
           value={q}
           autofocus={!q}
           placeholder="What are you looking for?"
-          class="h-10 w-full bg-background"
+          class="h-12 w-full text-base md:text-base"
         />
       </div>
       {tag && <input type="hidden" name="tag" value={tag} />}
       {contentType && <input type="hidden" name="contentType" value={contentType} />}
-      <Button type="submit" className="h-10 px-5">Search</Button>
+      <Button type="submit" size="lg">Search</Button>
     </form>
 
     {
@@ -104,8 +104,8 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
     {
       !q && topics.length > 0 && (
         <section class="mt-10">
-          <h2 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Browse by topic</h2>
-          <TagList tags={topics} className="mt-3" />
+          <h2 class="font-wide border-t border-ink pt-3 text-xl font-extrabold">Browse by topic</h2>
+          <TagList tags={topics} className="mt-4" />
         </section>
       )
     }
@@ -113,7 +113,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
     {
       tag && !q && (
         <p class="mt-8 text-muted-foreground">
-          Enter a search term, or <a href={tagHref(tag)} class="font-medium text-primary underline-offset-4 hover:underline">browse all “{tag}” articles</a>.
+          Enter a search term, or <a href={tagHref(tag)} class="font-semibold text-primary underline decoration-2 underline-offset-4 hover:text-foreground">browse all “{tag}” articles</a>.
         </p>
       )
     }
@@ -121,11 +121,11 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 
   {
     q && result && (
-      <div class="mt-8 flex flex-col gap-8 lg:flex-row-reverse">
+      <div class="mt-10 flex flex-col gap-8 lg:flex-row-reverse lg:gap-10">
         <FacetFilters groups={facetGroups} />
 
         <section class="min-w-0 flex-1" aria-live="polite">
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+          <div class="font-narrow flex min-h-6 flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             <p>
               {result.total === 0
                 ? `No results for “${result.query}”`
