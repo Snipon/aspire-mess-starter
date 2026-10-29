@@ -26,6 +26,8 @@ var webhookSecret = builder.AddParameter("webhook-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 var reindexSecret = builder.AddParameter("reindex-secret",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var cachePurgeSecret = builder.AddParameter("cache-purge-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 
 // Infrastructure containers (persistent so data and startup time survive AppHost restarts).
 var sql = builder.AddSqlServer("sql")
@@ -82,7 +84,7 @@ cms.WithEnvironment("ContentWebhook__TargetUrl",
     ReferenceExpression.Create($"{api.GetEndpoint("http")}/api/webhooks/content"));
 
 // Astro SSR front end; only its server talks to the API.
-builder.AddJavaScriptApp("web", "./src/Web", "dev")
+var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithNpm()
     .WithHttpEndpoint(env: "PORT")
     .WithExternalHttpEndpoints()
@@ -90,6 +92,22 @@ builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithEnvironment("ASTRO_TELEMETRY_DISABLED", "1") // Astro CLI usage pings would otherwise show up as fetch spans
     .WithReference(seq)
     .WaitFor(api);
+
+// Reverse proxy cache in front of the web (nginx, infra/web-cache): the site's entry point. The web's Cache-Control
+// header decides what it keeps (src/Web/src/middleware.ts); the web stays reachable directly for debugging.
+var webCache = builder.AddContainer("web-cache", "nginx", "1.29-alpine")
+    .WithBindMount("infra/web-cache", "/etc/nginx/templates", isReadOnly: true)
+    .WithEnvironment("NGINX_ENVSUBST_OUTPUT_DIR", "/etc/nginx") // nginx.conf.template -> /etc/nginx/nginx.conf
+    .WithEnvironment("WEB_UPSTREAM", web.GetEndpoint("http"))
+    .WithEnvironment("CACHE_PURGE_SECRET", cachePurgeSecret)
+    .WithHttpEndpoint(targetPort: 8080)
+    .WithExternalHttpEndpoints()
+    .WaitFor(web);
+
+// The API purges the whole web cache after each content webhook (publish, unpublish, ...), once the search index is
+// updated (endpoint reference only, no startup dependency).
+api.WithEnvironment("WebCache__PurgeUrl", ReferenceExpression.Create($"{webCache.GetEndpoint("http")}/_purge"))
+    .WithEnvironment("WebCache__PurgeSecret", cachePurgeSecret);
 
 builder.Build().Run();
 

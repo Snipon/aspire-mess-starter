@@ -22,11 +22,13 @@ flowchart LR
         cms["<b>cms</b><br/>.NET project<br/>src/Cms/Cms.csproj"]
         api["<b>api</b><br/>.NET project<br/>src/Api/Api.csproj"]
         web["<b>web</b><br/>built container<br/>src/Web"]
+        web_cache["<b>web-cache</b><br/>container<br/>nginx:1.29-alpine"]
     end
 
     browser -.-> cms
     browser -.-> api
     browser -.-> web
+    browser -.-> web_cache
     umbraco --> sql
     cms -- "connection string: umbracoDbDSN" --> umbraco
     cms -- "connection string: seq" --> seq
@@ -36,6 +38,7 @@ flowchart LR
     api -- "connection string: seq" --> seq
     web -- "API_URL" --> api
     web -- "connection string: seq" --> seq
+    web_cache -- "WEB_UPSTREAM" --> web
 ```
 
 <!-- architecture:end -->
@@ -110,7 +113,7 @@ aspire secret list                             # or: aspire secret get Parameter
 | Parameter | Value |
 | --- | --- |
 | `umbraco-admin-email` | `admin@example.com` |
-| `umbraco-admin-password`, `delivery-api-key`, `webhook-secret`, `reindex-secret` | 32 random alphanumeric characters |
+| `umbraco-admin-password`, `delivery-api-key`, `webhook-secret`, `reindex-secret`, `cache-purge-secret` | 32 random alphanumeric characters |
 | `hmac-secret` | base64 of 64 random bytes |
 | `sql-password`, `meilisearch-masterKey` | 32 random alphanumeric characters (Aspire's own parameters for `sql` and `meilisearch`) |
 
@@ -119,7 +122,7 @@ The script is idempotent and never changes an existing value: the persistent con
 
 Rotating (`--rotate <name>`, then restart the AppHost):
 
-- `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`: just restart; the cms reconciles the
+- `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`, `cache-purge-secret`: just restart; the cms reconciles the
   webhook's secret header on start and the api re-signs image URLs.
 - `umbraco-admin-email`/`-password`: only used by the unattended install, so change the user in the backoffice too.
 - `sql-password`, `meilisearch-masterKey`: fixed when the persistent container and its volume are first created.
@@ -152,7 +155,7 @@ aspire start
 | --- | --- |
 | Aspire dashboard | `https://localhost:17039` (the login link with token is printed by `aspire run` / `aspire start`) |
 | Seq (log search) | `http://localhost:5341` (no login locally) |
-| Website | shown on the `web` resource in the dashboard (random port) |
+| Website | shown on the `web-cache` resource in the dashboard (random port; the reverse proxy cache, see below). The `web` resource's own URL bypasses the cache |
 | Umbraco backoffice | `https://localhost:44350/umbraco` (or `http://localhost:28048/umbraco`) |
 | Backoffice login | user `admin@example.com` (parameter `umbraco-admin-email`), password = `Parameters:umbraco-admin-password` from the user secrets |
 | API reference (Scalar) | `http://localhost:5194/scalar` |
@@ -167,7 +170,7 @@ Scalar and the OpenAPI document are mapped in every environment on purpose for t
 | --- | --- | --- |
 | GET | `/api/content?path=/articles&culture=` | `Page` or 404 ProblemDetails |
 | GET | `/api/content/{id}` | `Page` or 404 |
-| GET | `/api/navigation` | `NavItem[]` tree of site and pages (articles are excluded) |
+| GET | `/api/navigation` | `NavItem[]` tree of site and pages (articles and blog posts are excluded) |
 | GET | `/api/articles?tag=&page=1&pageSize=12&culture=` | `Paged<ArticleSummary>`, newest `publishDate` first |
 | GET | `/api/tags` | `TagCount[]` (`{tag, count}`), most used first |
 | GET | `/api/search?q=&page=1&pageSize=10&contentType=&tag=&year=` | `SearchResult`, highlights wrapped in `<mark>`; hits carry tags, date, image; `facets` counts types, tags and years (each ignoring its own filter); empty `q` lists everything newest first |
@@ -191,10 +194,42 @@ curl -X POST -H "X-Reindex-Secret: <reindex-secret>" http://localhost:5194/api/s
 The webhook secret is deliberately not accepted there: it is stored on the Umbraco webhook, where backoffice users
 with Settings access can read it.
 
-Website routes: `/` and `/articles` (block pages), `/articles/<slug>` (article), `/tags/<tag>` (paged listing),
+Website routes: `/`, `/articles` and `/blog` (block pages), `/articles/<slug>` (article), `/blog/<slug>` (blog post,
+with a card linking its related article), `/tags/<tag>` (paged listing),
 `/search?q=&tag=`, `/status` (system status: Web, API round trip and each `/api/status` component; `no-store`, a
 Refresh link instead of auto-reload, and still renders with "API Down / Dependencies Unknown" when the API fails or
 takes longer than 3 s). `/status` is a web route, so a CMS page at that path is hidden behind it.
+
+### Reverse proxy cache
+
+`web-cache` (nginx, `infra/web-cache/nginx.conf.template`) sits in front of `web`. The web app decides what is
+cached: `src/Web/src/middleware.ts` gives every 200 GET page that sets no `Cache-Control` of its own
+`public, max-age=0, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400`, so nginx serves a page for up to
+a minute, then refreshes it in the background, and keeps serving the last good copy for a day while the web app is
+down; browsers always revalidate. `/status` sends `no-store` and `/api/suggest` `max-age=60`; error responses,
+responses with `Set-Cookie` and the Vite dev assets (`no-cache`) are never cached. Concurrent misses for one URL
+are collapsed into a single upstream request (`proxy_cache_lock`).
+
+Invalidation on publish: the CMS's content webhook (publish, unpublish, delete, move to recycle bin, move) goes to
+the API, which updates the search index and then calls `POST /_purge` on `web-cache` with the `X-Purge-Secret`
+header (parameter `cache-purge-secret`; `src/Api/Caching/WebCachePurger.cs`). Purging after the index update keeps
+list pages, which read from search, from being re-cached with stale results. nginx (open source) cannot delete
+entries, so `infra/web-cache/cache.js` (njs) keeps a cache generation in shared memory that is part of the cache key:
+a purge bumps it, every cached page becomes a miss, and the orphaned entries age out (`inactive`/`max_size`). A
+manual reindex (`POST /api/search/reindex`) purges too; content seeded at startup reaches the same endpoint through
+`SearchIndexNotifier`. A failed purge is only logged, and the minute-long `s-maxage` stays as the safety net.
+Browsers are unaffected (`max-age=0`, except `/api/suggest`, which they may keep for a minute).
+
+```sh
+curl -X POST -H "X-Purge-Secret: <cache-purge-secret>" http://localhost:<web-cache port>/_purge   # 204
+```
+
+A purge empties the whole cache, so after a publish the first request for every page goes to the web app. Right
+after a purge there is no stale copy to fall back on if the web app is down. A page that rendered with a degraded
+section (for example "Articles are temporarily unavailable") can be served until the next purge or for up to a
+minute. Check the cache with the `X-Cache-Status` response header (`MISS`, `HIT`, `STALE`, `UPDATING`, ...);
+`curl -H 'Pragma: no-cache'` bypasses it. The cache lives in the container, so it is empty after every restart.
+The Azure deployment (`infra/terraform`) has no cache in front of the web yet.
 
 ## Observability (local)
 
@@ -235,13 +270,20 @@ database uSync imports it on first boot (`uSync:Settings:ImportOnFirstBoot`), be
 | `ctaBlock` | element | `heading`, `text`, `link` (one link), `style` (`primary`/`secondary`) | Content Blocks |
 | `latestArticlesBlock` | element | `heading`, `count` (1–50, empty = 6), `tag` (optional, a single tag; a list or `!tag` is ignored); a slider on the web | Content Blocks |
 | `articleListBlock` | element | `heading`, `pageSize` (1–50, empty = 12); all articles with topic/year filters and a pager, read by the web from `/api/search` | Content Blocks |
+| `blogPost` | document | `title`, `image` (single image), `body` (Markdown), `relatedArticle` (Content Picker; anything but an article is ignored), `publishDate` (optional; falls back to the create date) | `page` |
+| `latestBlogPostsBlock` | element | `heading`, `count` (1–50, empty = 6); the newest blog posts as a slider on the web | Content Blocks |
+| `blogPostListBlock` | element | `heading`, `pageSize` (1–50, empty = 12); all blog posts with a year filter and a pager, read by the web from `/api/search` | Content Blocks |
 
 Seeded demo content (`ContentSeeder.cs`, idempotent, deterministic seed, one transaction so a failed seed leaves
-nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, CTA) → **Articles** (`page`, `/articles`, blocks hero, article list) → 1500 articles with
-Markdown bodies, 2–4 of 12 tags each, about one publish date a day going back four years, and 12 generated 1600×900 JPEG
-placeholder images in the media library. An install seeded with fewer articles is topped up on boot (by name), and an
-Articles page still holding the old seeded latest-articles block is switched to the article list (once
-`articleListBlock` has been imported, see below). Whatever the seeder creates is posted straight to the API's content
+nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, latest blog
+posts ×8, CTA) → **Articles** (`page`, `/articles`, blocks hero, article list) → 1500 articles with Markdown bodies,
+2–4 of 12 tags each, about one publish date a day going back four years; **Blog** (`page`, `/blog`, blocks hero, blog
+post list) → 500 blog posts (`DemoBlogPosts.cs`), each referring to an article on the same subject, about one every
+three days; and 12 generated 1600×900 JPEG placeholder images in the media library. An install seeded with fewer
+articles or blog posts is topped up on boot (by name), an Articles page still holding the old seeded latest-articles
+block is switched to the article list (once `articleListBlock` has been imported, see below), and a Home page still
+in the layout seeded before blog posts existed gets the blog slider and a Blog page (once the blog types have been
+imported; deleting the Blog page afterwards is respected). Whatever the seeder creates is posted straight to the API's content
 webhook endpoint (`SearchIndexNotifier.cs`), because Umbraco's own webhook queue does not reliably fire for content
 published during startup. Content is created in C#, not via uSync content import, so the repo
 only holds schema and no media files.
@@ -251,13 +293,19 @@ only holds schema and no media files.
 
 How the API exposes it (`src/Api/Contracts`):
 
-- `Page.blocks` is a polymorphic `Block[]` with discriminator `type` (`hero` | `cta` | `latestArticles`; OpenAPI
-  `oneOf` + discriminator, a TypeScript discriminated union in the web). `latestArticles` blocks arrive resolved
-  (`articles: ArticleSummary[]`). Links are `{url, title?, target?}`; content links become site paths
+- `Page.blocks` is a polymorphic `Block[]` with discriminator `type` (`hero` | `cta` | `latestArticles` |
+  `articleList` | `latestBlogPosts` | `blogPostList`; OpenAPI `oneOf` + discriminator, a TypeScript discriminated
+  union in the web). `latestArticles` and `latestBlogPosts` blocks arrive resolved (`articles: ArticleSummary[]`,
+  `posts: BlogPostSummary[]`). Links are `{url, title?, target?}`; content links become site paths
   (`/articles`).
 - `Page.article` is non-null exactly when `contentType == "article"`: `{publishDate, tags, bodyHtml,
   readingTimeMinutes}`. The Markdown is rendered by Markdig with raw HTML disabled and only http(s)/mailto/tel/
   relative URLs allowed, so `bodyHtml` can be inserted as-is. `Page.summary` is a ~160-character plain-text excerpt.
+- `Page.blogPost` is non-null exactly when `contentType == "blogPost"`: `{publishDate, bodyHtml, readingTimeMinutes,
+  relatedArticle}` (an `ArticleSummary`, or `null` when unset or not an article). Item requests ask the Delivery API
+  for `expand=properties[relatedArticle]`, so the related article arrives with its title, image and body.
+- Blog posts are indexed like articles (`contentType: blogPost`, with `publishYear`), so `/api/search?contentType=blogPost`
+  lists them newest first.
 
 ### Changing the schema (uSync workflow)
 

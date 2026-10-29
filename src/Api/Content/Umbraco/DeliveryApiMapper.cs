@@ -10,7 +10,12 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
 {
     public const string ArticleType = "article";
 
-    /// <summary>The latestArticles block's <c>count</c> has no default in Umbraco; this is the documented one.</summary>
+    public const string BlogPostType = "blogPost";
+
+    /// <summary>The blog post property holding the related article, expanded on item requests.</summary>
+    public const string RelatedArticleProperty = "relatedArticle";
+
+    /// <summary>The latestArticles and latestBlogPosts blocks' <c>count</c> has no default in Umbraco; this is the documented one.</summary>
     public const int DefaultLatestArticles = 6;
 
     public const int MaxLatestArticles = 50;
@@ -21,10 +26,16 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
     /// <summary>Resolves the articles of a latestArticles block (newest first, optionally only those with a tag).</summary>
     public delegate Task<ArticleSummary[]> LatestArticlesResolver(string? tag, int count, CancellationToken ct);
 
+    /// <summary>Resolves the posts of a latestBlogPosts block (newest first).</summary>
+    public delegate Task<BlogPostSummary[]> LatestBlogPostsResolver(int count, CancellationToken ct);
+
     private readonly string _publicBaseUrl = publicBaseUrl.TrimEnd('/');
 
     /// <param name="latestArticles">Fills latestArticles blocks; when <c>null</c> they are left empty (e.g. for indexing).</param>
-    public async Task<Page> ToPageAsync(ApiContentResponseModel item, string? culture, LatestArticlesResolver? latestArticles, CancellationToken ct)
+    /// <param name="latestBlogPosts">Fills latestBlogPosts blocks; when <c>null</c> they are left empty.</param>
+    public async Task<Page> ToPageAsync(
+        ApiContentResponseModel item, string? culture, LatestArticlesResolver? latestArticles, LatestBlogPostsResolver? latestBlogPosts,
+        CancellationToken ct)
     {
         var name = item.Name ?? string.Empty;
         string? title = null;
@@ -32,6 +43,7 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
         Image? image = null;
         ApiBlockListModel? blocks = null;
         Article? article = null;
+        BlogPost? blogPost = null;
         Dictionary<string, JsonElement>? extra = null;
 
         switch (item)
@@ -42,10 +54,22 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
                 summary = MarkdownText.Excerpt(body);
                 image = GetImage(props?.Image);
                 article = new Article(
-                    GetPublishDate(item, props),
+                    GetPublishDate(item.CreateDate, props?.PublishDate),
                     GetTags(props),
                     MarkdownText.ToHtml(body, ToPublicMediaUrl),
                     MarkdownText.ReadingTimeMinutes(body));
+                extra = props?.Additional;
+                break;
+            case BlogPostContentResponseModel { Properties: var props }:
+                var postBody = MarkdownText.Parse(props?.Body);
+                title = props?.Title;
+                summary = MarkdownText.Excerpt(postBody);
+                image = GetImage(props?.Image);
+                blogPost = new BlogPost(
+                    GetPublishDate(item.CreateDate, props?.PublishDate),
+                    MarkdownText.ToHtml(postBody, ToPublicMediaUrl),
+                    MarkdownText.ReadingTimeMinutes(postBody),
+                    props?.RelatedArticle is ArticleContentModel related ? ToArticleSummary(related) : null);
                 extra = props?.Additional;
                 break;
             case PageContentResponseModel { Properties: var props }:
@@ -68,25 +92,42 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
             Title: string.IsNullOrWhiteSpace(title) ? name : title,
             Summary: summary,
             Image: image,
-            Blocks: await GetBlocksAsync(blocks, latestArticles, ct),
+            Blocks: await GetBlocksAsync(blocks, latestArticles, latestBlogPosts, ct),
             Article: article,
+            BlogPost: blogPost,
             Culture: culture,
             UpdatedAt: item.UpdateDate,
             Properties: extra ?? []);
     }
 
-    public ArticleSummary ToArticleSummary(ApiContentResponseModel item)
+    public ArticleSummary ToArticleSummary(ApiContentResponseModel item) =>
+        ToArticleSummary(item.Id, item.Route, item.Name, item.CreateDate, (item as ArticleContentResponseModel)?.Properties);
+
+    /// <summary>An article referenced from another item (e.g. an expanded content picker).</summary>
+    private ArticleSummary ToArticleSummary(ArticleContentModel item) =>
+        ToArticleSummary(item.Id, item.Route, item.Name, item.CreateDate, item.Properties);
+
+    private ArticleSummary ToArticleSummary(
+        Guid id, ApiContentRouteModel? route, string? name, DateTimeOffset createDate, ArticleContentPropertiesModel? props) => new(
+            Id: id.ToString("D"),
+            Path: NormalizePath(route?.Path),
+            Title: string.IsNullOrWhiteSpace(props?.Title) ? name ?? string.Empty : props.Title,
+            Summary: MarkdownText.Excerpt(MarkdownText.Parse(props?.Body)),
+            Image: GetImage(props?.Image),
+            PublishDate: GetPublishDate(createDate, props?.PublishDate),
+            Tags: GetTags(props));
+
+    public BlogPostSummary ToBlogPostSummary(ApiContentResponseModel item)
     {
-        var props = (item as ArticleContentResponseModel)?.Properties;
+        var props = (item as BlogPostContentResponseModel)?.Properties;
         var name = item.Name ?? string.Empty;
-        return new ArticleSummary(
+        return new BlogPostSummary(
             Id: item.Id.ToString("D"),
             Path: GetPath(item),
             Title: string.IsNullOrWhiteSpace(props?.Title) ? name : props.Title,
             Summary: MarkdownText.Excerpt(MarkdownText.Parse(props?.Body)),
             Image: GetImage(props?.Image),
-            PublishDate: GetPublishDate(item, props),
-            Tags: GetTags(props));
+            PublishDate: GetPublishDate(item.CreateDate, props?.PublishDate));
     }
 
     public static string[] GetTags(ApiContentResponseModel item) => GetTags((item as ArticleContentResponseModel)?.Properties);
@@ -110,7 +151,8 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
     private static bool IsHttpUrl(string url) =>
         url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-    private async Task<Block[]> GetBlocksAsync(ApiBlockListModel? list, LatestArticlesResolver? latestArticles, CancellationToken ct)
+    private async Task<Block[]> GetBlocksAsync(
+        ApiBlockListModel? list, LatestArticlesResolver? latestArticles, LatestBlogPostsResolver? latestBlogPosts, CancellationToken ct)
     {
         var blocks = new List<Block>();
         foreach (var entry in list?.Items ?? [])
@@ -129,6 +171,14 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
                     p?.Style == "secondary" ? CtaStyle.Secondary : CtaStyle.Primary),
                 LatestArticlesBlockElementModel { Properties: var p } => await GetLatestArticlesAsync(p, latestArticles, ct),
                 ArticleListBlockElementModel { Properties: var p } => new ArticleListBlock(
+                    p?.Heading,
+                    Math.Clamp(p?.PageSize ?? DefaultArticleListPageSize, 1, RequestValidation.MaxPageSize)),
+                LatestBlogPostsBlockElementModel { Properties: var p } => new LatestBlogPostsBlock(
+                    p?.Heading,
+                    latestBlogPosts is null
+                        ? []
+                        : await latestBlogPosts(Math.Clamp(p?.Count ?? DefaultLatestArticles, 1, MaxLatestArticles), ct)),
+                BlogPostListBlockElementModel { Properties: var p } => new BlogPostListBlock(
                     p?.Heading,
                     Math.Clamp(p?.PageSize ?? DefaultArticleListPageSize, 1, RequestValidation.MaxPageSize)),
                 _ => null, // Unknown block types are skipped, so new CMS blocks never break existing clients.
@@ -177,10 +227,10 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
         return new Link(url + link.QueryString, string.IsNullOrWhiteSpace(title) ? link.Title : title, link.Target);
     }
 
-    private static DateOnly GetPublishDate(ApiContentResponseModel item, ArticleContentPropertiesModel? props) =>
+    private static DateOnly GetPublishDate(DateTimeOffset createDate, DateTimeOffset? publishDate) =>
         // Date picker values have no offset ("2026-10-28T00:00:00"), so take the date as written. Fall back to the
         // create date like the CMS's publishDate sort does.
-        props?.PublishDate is { } date ? DateOnly.FromDateTime(date.DateTime) : DateOnly.FromDateTime(item.CreateDate.UtcDateTime);
+        publishDate is { } date ? DateOnly.FromDateTime(date.DateTime) : DateOnly.FromDateTime(createDate.UtcDateTime);
 
     private static string[] GetTags(ArticleContentPropertiesModel? props) =>
         props?.Tags?.Where(t => !string.IsNullOrWhiteSpace(t)).ToArray() ?? [];

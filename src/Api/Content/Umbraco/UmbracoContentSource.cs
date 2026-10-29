@@ -12,6 +12,9 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
     internal const string ContentApi = "umbraco/delivery/api/v2/content";
     private const int PageSize = 100;
 
+    // A blog post's related article arrives with its properties (title, image, body), not only its name and route.
+    private const string ItemExpand = $"expand=properties[{DeliveryApiMapper.RelatedArticleProperty}]";
+
     public Task<Page?> GetByPathAsync(string path, string? culture, CancellationToken ct)
     {
         // item/{*path}: an empty path resolves to the root ("/").
@@ -24,18 +27,20 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
             return Task.FromResult<Page?>(null);
         }
 
-        return GetItemAsync($"{ContentApi}/item/{string.Join('/', segments.Select(Uri.EscapeDataString))}", culture, ct);
+        return GetItemAsync($"{ContentApi}/item/{string.Join('/', segments.Select(Uri.EscapeDataString))}?{ItemExpand}", culture, ct);
     }
 
     public Task<Page?> GetByIdAsync(string id, string? culture, CancellationToken ct) =>
         Guid.TryParse(id, out var key)
-            ? GetItemAsync($"{ContentApi}/item/{key:D}", culture, ct)
+            ? GetItemAsync($"{ContentApi}/item/{key:D}?{ItemExpand}", culture, ct)
             : Task.FromResult<Page?>(null);
 
     public async Task<NavItem[]> GetNavigationAsync(string? culture, CancellationToken ct)
     {
         var nodes = new List<NavNode>();
-        await foreach (var item in QueryAllAsync($"filter=contentType:!{DeliveryApiMapper.ArticleType}", culture, ct))
+        // Separate filter parameters are ANDed: neither articles nor blog posts.
+        var filter = $"filter=contentType:!{DeliveryApiMapper.ArticleType}&filter=contentType:!{DeliveryApiMapper.BlogPostType}";
+        await foreach (var item in QueryAllAsync(filter, culture, ct))
         {
             nodes.Add(new NavNode(item.Id.ToString("D"), item.Name ?? string.Empty, DeliveryApiMapper.GetPath(item)));
         }
@@ -65,10 +70,10 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
 
     public async IAsyncEnumerable<SearchDocument> GetAllForIndexingAsync([EnumeratorCancellation] CancellationToken ct)
     {
-        // latestArticles blocks are left unresolved: their articles are indexed in their own right.
+        // latestArticles/latestBlogPosts blocks are left unresolved: their items are indexed in their own right.
         await foreach (var item in QueryAllAsync(filter: null, culture: null, ct))
         {
-            yield return SearchDocument.FromPage(await mapper.ToPageAsync(item, culture: null, latestArticles: null, ct));
+            yield return SearchDocument.FromPage(await mapper.ToPageAsync(item, culture: null, latestArticles: null, latestBlogPosts: null, ct));
         }
     }
 
@@ -113,10 +118,19 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
             return null;
         }
 
-        return await mapper.ToPageAsync(await ReadAsync<ApiContentResponseModel>(response, ct), culture, LatestArticlesAsync, ct);
+        return await mapper.ToPageAsync(
+            await ReadAsync<ApiContentResponseModel>(response, ct), culture, LatestArticlesAsync, LatestBlogPostsAsync, ct);
 
         async Task<ArticleSummary[]> LatestArticlesAsync(string? tag, int count, CancellationToken token) =>
             (await GetArticlesAsync(tag, page: 1, pageSize: count, culture, token)).Items;
+
+        async Task<BlogPostSummary[]> LatestBlogPostsAsync(int count, CancellationToken token)
+        {
+            using var postsRequest = CreateRequest(
+                $"{ContentApi}?filter=contentType:{DeliveryApiMapper.BlogPostType}&sort=publishDate:desc&skip=0&take={count}", culture);
+            using var postsResponse = await http.SendAsync(postsRequest, token);
+            return (await ReadAsync<PagedApiContentResponseModel>(postsResponse, token)).Items.Select(mapper.ToBlogPostSummary).ToArray();
+        }
     }
 
     /// <summary>

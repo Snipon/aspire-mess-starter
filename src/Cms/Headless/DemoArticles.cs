@@ -2,8 +2,8 @@ using System.Text;
 
 namespace Cms.Headless;
 
-/// <summary>A generated demo article. <see cref="Body"/> is Markdown.</summary>
-internal sealed record DemoArticle(string Title, string Body, string[] Tags, DateTime PublishDate);
+/// <summary>A generated demo article. <see cref="Body"/> is Markdown; <see cref="Subject"/> is its topic's subject.</summary>
+internal sealed record DemoArticle(string Title, string Subject, string Body, string[] Tags, DateTime PublishDate);
 
 /// <summary>
 /// <see cref="Count"/> deterministic demo articles (fixed seed) about web development, design and cloud: the same titles,
@@ -196,7 +196,7 @@ internal static class DemoArticles
 
             // Roughly one article a day, newest first (about four years in all).
             DateTime publishDate = today.Date.AddDays(-(i + random.Next(0, 2)));
-            articles.Add(new DemoArticle(title, Body(random, subject, tags), [.. tags], publishDate));
+            articles.Add(new DemoArticle(title, subject, Body(random, subject, tags), [.. tags], publishDate));
         }
 
         return articles;
@@ -260,7 +260,7 @@ internal static class DemoArticles
         return md.ToString().TrimEnd() + "\n";
     }
 
-    private static string Paragraph(Random random, string? first, int sentences)
+    internal static string Paragraph(Random random, string? first, int sentences)
     {
         IEnumerable<string> picked = Sentences.OrderBy(_ => random.Next()).Take(sentences);
         return string.Join(' ', first is null ? picked : picked.Prepend(first));

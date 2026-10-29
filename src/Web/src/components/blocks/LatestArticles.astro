@@ -6,27 +6,31 @@ import type { Block } from '../../lib/api/client';
 import { tagHref } from '../../lib/format';
 
 interface Props {
-  block: Extract<Block, { type: 'latestArticles' }>;
+  block: Extract<Block, { type: 'latestArticles' | 'latestBlogPosts' }>;
 }
 
+// One slider for both: articles (optionally of one tag) and blog posts.
 const { block } = Astro.props;
-const heading = block.heading ?? 'Latest articles';
+const posts = block.type === 'latestBlogPosts';
+const items = posts ? block.posts : block.articles;
+const heading = block.heading ?? (posts ? 'Latest blog posts' : 'Latest articles');
+const tag = posts ? null : block.tag;
 ---
 
 <section>
   <div class="flex items-baseline justify-between gap-4">
     <h2 class="text-2xl font-bold tracking-tight sm:text-3xl">{heading}</h2>
     {
-      block.tag && (
-        <a href={tagHref(block.tag)} class={buttonVariants({ variant: 'link' })}>
-          All “{block.tag}” articles <span aria-hidden="true">→</span>
+      tag && (
+        <a href={tagHref(tag)} class={buttonVariants({ variant: 'link' })}>
+          All “{tag}” articles <span aria-hidden="true">→</span>
         </a>
       )
     }
   </div>
   <div class="mt-6">
     {
-      block.articles.length > 0 ? (
+      items.length > 0 ? (
         <Swiper
           aria-label={heading}
           class="latest-articles -mx-2 px-2! pt-2! pb-12!"
@@ -41,7 +45,7 @@ const heading = block.heading ?? 'Latest articles';
           }}
         >
           <SwiperWrapper>
-            {block.articles.map((article) => (
+            {items.map((article) => (
               <SwiperSlide class="flex! h-auto!">
                 <ArticleCard article={article} />
               </SwiperSlide>
@@ -53,7 +57,7 @@ const heading = block.heading ?? 'Latest articles';
         </Swiper>
       ) : (
         <p class="rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
-          No articles published yet.
+          No {posts ? 'blog posts' : 'articles'} published yet.
         </p>
       )
     }

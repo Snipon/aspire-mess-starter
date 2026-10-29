@@ -28,12 +28,12 @@ public sealed partial record SearchDocument(
             page.Path,
             page.Title,
             page.Summary,
-            page.Article is { } article ? HtmlToText(article.BodyHtml) : BlocksToText(page.Blocks),
+            HtmlToText(page.Article?.BodyHtml ?? page.BlogPost?.BodyHtml) is { Length: > 0 } body ? body : BlocksToText(page.Blocks),
             page.ContentType,
             page.Culture,
             page.UpdatedAt,
             page.Article?.Tags ?? [],
-            page.Article?.PublishDate,
+            page.Article?.PublishDate ?? page.BlogPost?.PublishDate,
             image is null ? null : image.Srcset.FirstOrDefault()?.Url ?? image.Url,
             image);
     }
@@ -56,6 +56,8 @@ public sealed partial record SearchDocument(
             CtaBlock cta => [cta.Heading, cta.Text],
             LatestArticlesBlock latest => [latest.Heading],
             ArticleListBlock list => [list.Heading],
+            LatestBlogPostsBlock latest => [latest.Heading],
+            BlogPostListBlock list => [list.Heading],
             _ => [],
         })
         .Where(t => !string.IsNullOrWhiteSpace(t)));

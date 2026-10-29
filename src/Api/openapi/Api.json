@@ -12,7 +12,7 @@
           "Webhooks"
         ],
         "summary": "Content changed webhook",
-        "description": "Called by the CMS on publish/unpublish/delete/move with `{ \"id\": \"...\" }` (or an array of those, as sent for move and moved-to-recycle-bin). Each item is re-read from the content source and upserted if published, otherwise removed; when its path changed or it disappeared, the documents indexed below its old path are re-read as well. Requires the `X-Webhook-Secret` header.",
+        "description": "Called by the CMS on publish/unpublish/delete/move with `{ \"id\": \"...\" }` (or an array of those, as sent for move and moved-to-recycle-bin). Each item is re-read from the content source and upserted if published, otherwise removed; when its path changed or it disappeared, the documents indexed below its old path are re-read as well. Afterwards every page in the web cache is invalidated (`WebCache:PurgeUrl`), so the site shows the change at once; purging after the index update keeps list pages from being cached with stale results. Requires the `X-Webhook-Secret` header.",
         "operationId": "ContentWebhook",
         "parameters": [
           {
@@ -449,7 +449,7 @@
           "Search"
         ],
         "summary": "Rebuild the search index from the content source",
-        "description": "Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded. Requires the `X-Reindex-Secret` header (`Search:ReindexSecret`).",
+        "description": "Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded, then purges the web cache. Requires the `X-Reindex-Secret` header (`Search:ReindexSecret`).",
         "operationId": "Reindex",
         "parameters": [
           {
@@ -581,6 +581,12 @@
           },
           {
             "$ref": "#/components/schemas/BlockArticleListBlock"
+          },
+          {
+            "$ref": "#/components/schemas/BlockLatestBlogPostsBlock"
+          },
+          {
+            "$ref": "#/components/schemas/BlockBlogPostListBlock"
           }
         ],
         "discriminator": {
@@ -589,7 +595,9 @@
             "hero": "#/components/schemas/BlockHeroBlock",
             "cta": "#/components/schemas/BlockCtaBlock",
             "latestArticles": "#/components/schemas/BlockLatestArticlesBlock",
-            "articleList": "#/components/schemas/BlockArticleListBlock"
+            "articleList": "#/components/schemas/BlockArticleListBlock",
+            "latestBlogPosts": "#/components/schemas/BlockLatestBlogPostsBlock",
+            "blogPostList": "#/components/schemas/BlockBlogPostListBlock"
           }
         }
       },
@@ -604,6 +612,32 @@
           "type": {
             "enum": [
               "articleList"
+            ],
+            "type": "string"
+          },
+          "heading": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "BlockBlogPostListBlock": {
+        "required": [
+          "heading",
+          "pageSize",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "blogPostList"
             ],
             "type": "string"
           },
@@ -738,6 +772,108 @@
             "items": {
               "$ref": "#/components/schemas/ArticleSummary"
             }
+          }
+        }
+      },
+      "BlockLatestBlogPostsBlock": {
+        "required": [
+          "heading",
+          "posts",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "latestBlogPosts"
+            ],
+            "type": "string"
+          },
+          "heading": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlogPostSummary"
+            }
+          }
+        }
+      },
+      "BlogPost": {
+        "required": [
+          "publishDate",
+          "bodyHtml",
+          "readingTimeMinutes",
+          "relatedArticle"
+        ],
+        "type": "object",
+        "properties": {
+          "publishDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "bodyHtml": {
+            "type": "string"
+          },
+          "readingTimeMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "relatedArticle": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ArticleSummary"
+              }
+            ]
+          }
+        }
+      },
+      "BlogPostSummary": {
+        "required": [
+          "id",
+          "path",
+          "title",
+          "summary",
+          "image",
+          "publishDate"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Image"
+              }
+            ]
+          },
+          "publishDate": {
+            "type": "string",
+            "format": "date"
           }
         }
       },
@@ -967,6 +1103,7 @@
           "image",
           "blocks",
           "article",
+          "blogPost",
           "culture",
           "updatedAt",
           "properties"
@@ -1017,6 +1154,16 @@
               },
               {
                 "$ref": "#/components/schemas/Article"
+              }
+            ]
+          },
+          "blogPost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BlogPost"
               }
             ]
           },

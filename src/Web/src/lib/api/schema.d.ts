@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Content changed webhook
-         * @description Called by the CMS on publish/unpublish/delete/move with `{ "id": "..." }` (or an array of those, as sent for move and moved-to-recycle-bin). Each item is re-read from the content source and upserted if published, otherwise removed; when its path changed or it disappeared, the documents indexed below its old path are re-read as well. Requires the `X-Webhook-Secret` header.
+         * @description Called by the CMS on publish/unpublish/delete/move with `{ "id": "..." }` (or an array of those, as sent for move and moved-to-recycle-bin). Each item is re-read from the content source and upserted if published, otherwise removed; when its path changed or it disappeared, the documents indexed below its old path are re-read as well. Afterwards every page in the web cache is invalidated (`WebCache:PurgeUrl`), so the site shows the change at once; purging after the index update keeps list pages from being cached with stale results. Requires the `X-Webhook-Secret` header.
          */
         post: operations["ContentWebhook"];
         delete?: never;
@@ -172,7 +172,7 @@ export interface paths {
         put?: never;
         /**
          * Rebuild the search index from the content source
-         * @description Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded. Requires the `X-Reindex-Secret` header (`Search:ReindexSecret`).
+         * @description Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded, then purges the web cache. Requires the `X-Reindex-Secret` header (`Search:ReindexSecret`).
          */
         post: operations["Reindex"];
         delete?: never;
@@ -203,13 +203,23 @@ export interface components {
             publishDate: string;
             tags: string[];
         };
-        Block: components["schemas"]["BlockHeroBlock"] | components["schemas"]["BlockCtaBlock"] | components["schemas"]["BlockLatestArticlesBlock"] | components["schemas"]["BlockArticleListBlock"];
+        Block: components["schemas"]["BlockHeroBlock"] | components["schemas"]["BlockCtaBlock"] | components["schemas"]["BlockLatestArticlesBlock"] | components["schemas"]["BlockArticleListBlock"] | components["schemas"]["BlockLatestBlogPostsBlock"] | components["schemas"]["BlockBlogPostListBlock"];
         BlockArticleListBlock: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             type: "articleList";
+            heading: null | string;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        BlockBlogPostListBlock: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "blogPostList";
             heading: null | string;
             /** Format: int32 */
             pageSize: number;
@@ -245,6 +255,32 @@ export interface components {
             heading: null | string;
             tag: null | string;
             articles: components["schemas"]["ArticleSummary"][];
+        };
+        BlockLatestBlogPostsBlock: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "latestBlogPosts";
+            heading: null | string;
+            posts: components["schemas"]["BlogPostSummary"][];
+        };
+        BlogPost: {
+            /** Format: date */
+            publishDate: string;
+            bodyHtml: string;
+            /** Format: int32 */
+            readingTimeMinutes: number;
+            relatedArticle: null | components["schemas"]["ArticleSummary"];
+        };
+        BlogPostSummary: {
+            id: string;
+            path: string;
+            title: string;
+            summary: null | string;
+            image: null | components["schemas"]["Image"];
+            /** Format: date */
+            publishDate: string;
         };
         ComponentStatus: {
             name: string;
@@ -311,6 +347,7 @@ export interface components {
             image: null | components["schemas"]["Image"];
             blocks: components["schemas"]["Block"][];
             article: null | components["schemas"]["Article"];
+            blogPost: null | components["schemas"]["BlogPost"];
             culture: null | string;
             /** Format: date-time */
             updatedAt: string;

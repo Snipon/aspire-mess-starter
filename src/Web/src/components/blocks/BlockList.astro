@@ -21,8 +21,10 @@ const { blocks } = Astro.props;
         case 'cta':
           return <Cta block={block} />;
         case 'latestArticles':
+        case 'latestBlogPosts':
           return <LatestArticles block={block} />;
         case 'articleList':
+        case 'blogPostList':
           return <ArticleList block={block} />;
       }
     })

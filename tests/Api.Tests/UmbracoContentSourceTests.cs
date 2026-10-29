@@ -42,7 +42,7 @@ public sealed class UmbracoContentSourceTests
 
         Assert.Equal(
             [
-                "/umbraco/delivery/api/v2/content/item/",
+                "/umbraco/delivery/api/v2/content/item/?expand=properties[relatedArticle]",
                 "/umbraco/delivery/api/v2/content?filter=contentType:article&sort=publishDate:desc&skip=0&take=6",
             ],
             _handler.Requests);
@@ -65,13 +65,13 @@ public sealed class UmbracoContentSourceTests
     }
 
     [Fact]
-    public async Task Navigation_excludes_articles()
+    public async Task Navigation_excludes_articles_and_blog_posts()
     {
         _handler.Respond("delivery/articles-query.json");
 
         await _source.GetNavigationAsync(culture: null, Ct);
 
-        Assert.Equal("/umbraco/delivery/api/v2/content?filter=contentType:!article&sort=sortOrder:asc&skip=0&take=100",
+        Assert.Equal("/umbraco/delivery/api/v2/content?filter=contentType:!article&filter=contentType:!blogPost&sort=sortOrder:asc&skip=0&take=100",
             Assert.Single(_handler.Requests));
     }
 

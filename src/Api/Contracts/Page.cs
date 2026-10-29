@@ -7,6 +7,7 @@ namespace Api.Contracts;
 /// <param name="Image">The page's own image (articles); landing pages carry theirs in a <see cref="HeroBlock"/>.</param>
 /// <param name="Blocks">Page sections in display order; empty when the content type has none.</param>
 /// <param name="Article">Set when <c>contentType</c> is <c>article</c>, otherwise <c>null</c>.</param>
+/// <param name="BlogPost">Set when <c>contentType</c> is <c>blogPost</c>, otherwise <c>null</c>.</param>
 /// <param name="Properties">CMS properties that are not mapped to a typed field, passed through raw.</param>
 public sealed record Page(
     string Id,
@@ -18,6 +19,7 @@ public sealed record Page(
     Image? Image,
     Block[] Blocks,
     Article? Article,
+    BlogPost? BlogPost,
     string? Culture,
     DateTimeOffset UpdatedAt,
     Dictionary<string, JsonElement> Properties);

@@ -1,11 +1,12 @@
 import ResponsiveImage from '@/components/ResponsiveImage';
 import TagList from '@/components/TagList';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import type { ArticleSummary } from '@/lib/api/client';
+import type { ArticleSummary, BlogPostSummary } from '@/lib/api/client';
 import { formatDate } from '@/lib/format';
 
 interface Props {
-  article: ArticleSummary;
+  /** An article, or a blog post (which has no tags). */
+  article: ArticleSummary | BlogPostSummary;
   headingLevel?: 'h2' | 'h3';
 }
 
@@ -38,7 +39,7 @@ export default function ArticleCard({ article, headingLevel: Heading = 'h3' }: P
           <p className="line-clamp-3 text-base text-muted-foreground">{article.summary}</p>
         </CardContent>
       )}
-      {article.tags.length > 0 && (
+      {'tags' in article && article.tags.length > 0 && (
         <CardFooter className="mt-auto border-t-0 bg-transparent">
           <TagList tags={article.tags} />
         </CardFooter>
