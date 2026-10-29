@@ -1,63 +1,30 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/archivo/standard.css"; /* wght 100–900 and wdth 62–125 */
+@import "@fontsource-variable/source-serif-4/opsz.css"; /* wght 200–900, optical size 8–60 */
+@import "@fontsource-variable/source-serif-4/opsz-italic.css";
 
 @custom-variant dark (&:is(.dark *));
 @plugin "@tailwindcss/typography";
 
 @layer components {
   mark {
-    @apply bg-primary/15 px-0.5 text-foreground;
+    @apply bg-primary/10 px-0.5 text-foreground;
   }
 
-  /* Extra-wide display type: headings and the wordmark. */
-  .font-wide {
-    font-stretch: 125%;
-    letter-spacing: -0.02em;
-  }
-
-  /* Semi-condensed meta text (dates, counts, brands). */
-  .font-narrow {
-    font-stretch: 87.5%;
-  }
-
-  /* Page heading over an ink rule. Pair with .font-wide (@apply takes utilities only, not these classes). */
+  /* Page heading over a hairline rule. */
   .page-title {
-    @apply border-b border-ink pb-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl;
+    @apply border-b pb-6 text-4xl leading-tight font-medium sm:text-5xl;
   }
 
-  /* Back link above a page heading. Pair with .font-narrow. */
+  /* Back link above a page heading. */
   .back-link {
-    @apply inline-flex min-h-10 items-center text-sm font-semibold text-muted-foreground underline decoration-input decoration-2 underline-offset-4 hover:text-foreground hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
-  }
-
-  /* The machined top-right corner: the site's one signature shape. */
-  .chamfer {
-    clip-path: polygon(0 0, calc(100% - var(--cut, 1.25rem)) 0, 100% var(--cut, 1.25rem), 100% 100%, 0 100%);
-  }
-
-  /* With .chamfer on a bordered box: draws the 1px border along the cut, in the box's border colour. */
-  .chamfer-edge {
-    position: relative;
-  }
-  .chamfer-edge::before {
-    content: '';
-    position: absolute;
-    z-index: 1;
-    top: -1px;
-    left: calc(100% + 1px - var(--cut, 1.25rem));
-    width: calc(var(--cut, 1.25rem) * 1.4143);
-    border-top: 1px solid;
-    border-color: inherit;
-    transform: rotate(45deg);
-    transform-origin: 0 0;
-    pointer-events: none;
+    @apply inline-flex min-h-10 items-center text-sm text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
   }
 }
 
 /* Article bodies and product descriptions. The typography plugin sits in the utilities layer, so `html .prose`
-   outranks its `.prose` defaults: token colours, wide headings, signal links, ink code blocks. */
+   outranks its `.prose` defaults: token colours, quiet links, soft code blocks. */
 @layer utilities {
   html .prose {
     --tw-prose-body: var(--foreground);
@@ -69,46 +36,31 @@
     --tw-prose-bullets: var(--input);
     --tw-prose-hr: var(--border);
     --tw-prose-quotes: var(--foreground);
-    --tw-prose-quote-borders: var(--primary);
+    --tw-prose-quote-borders: var(--border);
     --tw-prose-captions: var(--muted-foreground);
     --tw-prose-kbd: var(--foreground);
     --tw-prose-code: var(--foreground);
-    --tw-prose-pre-code: var(--ink-foreground);
-    --tw-prose-pre-bg: var(--ink);
-    --tw-prose-th-borders: var(--ink);
+    --tw-prose-pre-code: var(--foreground);
+    --tw-prose-pre-bg: var(--muted);
+    --tw-prose-th-borders: var(--input);
     --tw-prose-td-borders: var(--border);
 
-    /* Wide like every h1-h3 (base layer). */
-    :is(h1, h2, h3) {
-      font-weight: 800;
-    }
-    h4 {
-      font-weight: 700;
-      font-stretch: 112.5%;
+    :is(h1, h2, h3, h4) {
+      font-weight: 500;
     }
     a {
-      font-weight: 600;
-      text-decoration-thickness: 2px;
-      text-underline-offset: 4px;
+      font-weight: inherit;
+      text-underline-offset: 3px;
     }
     a:hover {
       color: var(--foreground);
-      text-decoration-color: var(--primary);
-    }
-    pre {
-      border-radius: 0;
-      border-left: 4px solid var(--primary);
-    }
-    img {
-      border-radius: 0;
     }
     blockquote {
-      font-style: normal;
-      border-left-width: 4px;
+      font-weight: 400;
     }
-    /* Inline code: a flat chip instead of the plugin's backticks. */
+    /* Inline code: a soft chip instead of the plugin's backticks. */
     :not(pre) > code {
-      @apply rounded-sm bg-card px-1.5 py-0.5 font-medium;
+      @apply rounded-sm bg-muted px-1.5 py-0.5 font-normal;
 
       &::before,
       &::after {
@@ -119,8 +71,9 @@
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-serif);
+  --font-serif: 'Source Serif 4 Variable', 'Iowan Old Style', Georgia, serif;
+  --font-sans: var(--font-serif);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -164,33 +117,33 @@
 }
 
 :root {
-  /* Enclosure palette: chassis #E4E7EB, panel #F6F7F9, ink #111318, graphite #5A616C, line #C5CAD2, signal #2B2BFF. */
-  --background: #e4e7eb;
-  --foreground: #111318;
-  --card: #f6f7f9;
-  --card-foreground: #111318;
-  --popover: #f6f7f9;
-  --popover-foreground: #111318;
-  --primary: #2b2bff;
-  --primary-foreground: #f6f7f9;
-  --secondary: #d5d9df;
-  --secondary-foreground: #111318;
-  --muted: #d5d9df;
-  --muted-foreground: #5a616c;
-  --accent: #d5d9df;
-  --accent-foreground: #111318;
-  --destructive: #b3241a;
-  --border: #c5cad2;
-  --input: #b4bac3;
-  --ring: #2b2bff;
-  --ink: #111318;
-  --ink-foreground: #f6f7f9;
+  /* Paper palette: paper #FBFAF7, ink #1F1D1A, stone #6E6A63, rule #E5E1DA, accent navy #1E3A5F. */
+  --background: #fbfaf7;
+  --foreground: #1f1d1a;
+  --card: #ffffff;
+  --card-foreground: #1f1d1a;
+  --popover: #ffffff;
+  --popover-foreground: #1f1d1a;
+  --primary: #1e3a5f;
+  --primary-foreground: #fbfaf7;
+  --secondary: #f1eee8;
+  --secondary-foreground: #1f1d1a;
+  --muted: #f1eee8;
+  --muted-foreground: #6e6a63;
+  --accent: #f1eee8;
+  --accent-foreground: #1f1d1a;
+  --destructive: #a3261b;
+  --border: #e5e1da;
+  --input: #d6d1c8;
+  --ring: #1e3a5f;
+  --ink: #1f1d1a;
+  --ink-foreground: #fbfaf7;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.125rem;
+  --radius: 0.375rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -202,26 +155,26 @@
 }
 
 .dark {
-  --background: #111318;
-  --foreground: #e4e7eb;
-  --card: #1a1d24;
-  --card-foreground: #e4e7eb;
-  --popover: #1a1d24;
-  --popover-foreground: #e4e7eb;
-  --primary: #6b6bff;
-  --primary-foreground: #111318;
-  --secondary: #262a33;
-  --secondary-foreground: #e4e7eb;
-  --muted: #262a33;
-  --muted-foreground: #9aa1ac;
-  --accent: #262a33;
-  --accent-foreground: #e4e7eb;
-  --destructive: #ff6b5e;
-  --border: #2e333d;
-  --input: #3a404b;
-  --ring: #6b6bff;
-  --ink: #e4e7eb;
-  --ink-foreground: #111318;
+  --background: #1a1917;
+  --foreground: #ece9e3;
+  --card: #22211e;
+  --card-foreground: #ece9e3;
+  --popover: #22211e;
+  --popover-foreground: #ece9e3;
+  --primary: #9db8d9;
+  --primary-foreground: #1a1917;
+  --secondary: #2c2a26;
+  --secondary-foreground: #ece9e3;
+  --muted: #2c2a26;
+  --muted-foreground: #a8a39a;
+  --accent: #2c2a26;
+  --accent-foreground: #ece9e3;
+  --destructive: #f08a7e;
+  --border: #34322d;
+  --input: #45423c;
+  --ring: #9db8d9;
+  --ink: #ece9e3;
+  --ink-foreground: #1a1917;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -252,8 +205,7 @@
     font-size: 106.25%; /* 17px body */
   }
   h1, h2, h3 {
-    font-stretch: 125%;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
   ::selection {
     @apply bg-primary text-primary-foreground;

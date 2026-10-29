@@ -19,7 +19,7 @@ const tag = posts ? null : block.tag;
 
 <section>
   <div class="flex items-baseline justify-between gap-4">
-    <h2 class="font-wide text-3xl font-extrabold sm:text-4xl">{heading}</h2>
+    <h2 class="text-3xl font-medium sm:text-4xl">{heading}</h2>
     {
       tag && (
         <a href={tagHref(tag)} class={buttonVariants({ variant: 'link' })}>
@@ -88,16 +88,15 @@ const tag = posts ? null : block.tag;
     width: 2.5rem;
     height: 2.5rem;
     margin-top: 0;
-    border: 1px solid var(--foreground);
-    border-radius: var(--radius-sm);
+    border: 1px solid var(--input);
+    border-radius: var(--radius-md);
     background: var(--card);
     color: var(--foreground);
   }
-  /* Square outline icon buttons, like the pager: ink on hover, a solid signal outline on focus. */
+  /* Outline icon buttons, like the pager: muted on hover, a ring outline on focus. */
   :global(.latest-articles .swiper-button-prev:hover),
   :global(.latest-articles .swiper-button-next:hover) {
-    background: var(--ink);
-    color: var(--ink-foreground);
+    background: var(--muted);
   }
   :global(.latest-articles .swiper-button-prev:focus-visible),
   :global(.latest-articles .swiper-button-next:focus-visible) {

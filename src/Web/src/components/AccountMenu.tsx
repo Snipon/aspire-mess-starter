@@ -34,7 +34,7 @@ export default function AccountMenu({ active }: { active: boolean }) {
       href="/account"
       title={me.email ?? me.name}
       aria-current={active ? 'page' : undefined}
-      className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), active && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground')}
+      className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), active && 'bg-muted text-foreground hover:bg-muted')}
     >
       <UserRoundIcon aria-hidden="true" />
       <span className="sr-only">Account ({me.name})</span>

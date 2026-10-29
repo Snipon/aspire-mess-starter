@@ -23,13 +23,13 @@ export default function StaffBar() {
   return (
     <nav aria-label="Staff" className="bg-primary text-primary-foreground">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-1.5 text-sm sm:px-6">
-        <span className="font-narrow font-semibold">{bar.name}</span>
+        <span className="font-semibold">{bar.name}</span>
         <ul className="flex flex-wrap gap-x-4 gap-y-1">
           {bar.shortcuts.map((s) => (
             <li key={s.href}>
               <a
                 href={s.href}
-                className="underline decoration-primary-foreground/40 underline-offset-4 hover:decoration-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground"
+                className="underline decoration-primary-foreground/40 underline-offset-4 hover:decoration-foreground-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground"
               >
                 {s.label}
               </a>

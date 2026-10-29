@@ -26,7 +26,7 @@ const icons: Record<State, LucideIcon> = {
   unhealthy: CircleXIcon,
   unknown: CircleHelpIcon,
 };
-// Status colours have no Enclosure token: one strong hue per state for the edge bar and icon, on flat panel surfaces.
+// Status colours have no theme token: one strong hue per state for the edge bar and icon, on flat panel surfaces.
 // The icon hues are !important to beat the Alert's svg text-current.
 const bars: Record<State, string> = {
   healthy: 'border-l-emerald-600',
@@ -47,7 +47,7 @@ export default function StatusPanel({ overall, rows }: { overall: State; rows: R
     <>
       <Alert role="status" className={cn('mt-8 border-l-8 px-5 py-5 *:[svg]:translate-y-1', bars[overall])}>
         <OverallIcon aria-hidden="true" className={cn('size-6!', hues[overall])} />
-        <AlertTitle className="font-wide text-xl font-extrabold sm:text-2xl">{headlines[overall]}</AlertTitle>
+        <AlertTitle className="text-xl font-medium sm:text-2xl">{headlines[overall]}</AlertTitle>
       </Alert>
 
       <Card className="mt-6 gap-0 py-0">
@@ -57,8 +57,8 @@ export default function StatusPanel({ overall, rows }: { overall: State; rows: R
             return (
               <li key={row.name} className="flex items-center justify-between gap-4 px-5 py-4">
                 <div className="min-w-0">
-                  <p className="font-bold">{row.name}</p>
-                  <p className="font-narrow text-sm text-muted-foreground">{row.detail}</p>
+                  <p className="font-semibold">{row.name}</p>
+                  <p className="text-sm text-muted-foreground">{row.detail}</p>
                 </div>
                 <Badge variant="secondary" className="h-7 gap-1.5 px-2.5 text-sm">
                   <Icon aria-hidden="true" className={cn('size-4!', hues[row.state])} />

@@ -49,7 +49,7 @@ const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
       <NotFound />
     ) : (
       <>
-        <h1 class="font-wide page-title">{session.name ?? 'Your account'}</h1>
+        <h1 class="page-title">{session.name ?? 'Your account'}</h1>
         <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
           {session.email && <p class="text-muted-foreground">{session.email}</p>}
           <form method="post" action="/auth/logout" class="ml-auto">
@@ -59,7 +59,7 @@ const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
           </form>
         </div>
 
-        <h2 class="font-wide mt-12 text-2xl font-extrabold">Orders</h2>
+        <h2 class="mt-12 text-2xl font-medium">Orders</h2>
         {rejected ? (
           <p class="mt-4 text-muted-foreground">
             Your sign-in could not be verified.{' '}

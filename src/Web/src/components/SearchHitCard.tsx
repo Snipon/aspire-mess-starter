@@ -11,12 +11,12 @@ interface Props {
 
 export default function SearchHitCard({ hit, tagHref }: Props) {
   return (
-    <Card className="group relative flex-row gap-5 px-5 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+    <Card className="group relative flex-row gap-5 px-5 transition-colors hover:border-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
       <div className="min-w-0 flex-1 space-y-2">
         <CardHeader className="px-0">
-          <CardTitle className="flex items-baseline justify-between gap-4 text-lg leading-snug font-bold">
+          <CardTitle className="flex items-baseline justify-between gap-4 text-lg leading-snug font-medium">
             <h2>
-              <a href={hit.path} className="decoration-primary decoration-2 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
+              <a href={hit.path} className="decoration-primary decoration-1 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
                 {hit.title}
               </a>
             </h2>
@@ -24,7 +24,7 @@ export default function SearchHitCard({ hit, tagHref }: Props) {
               {contentTypeLabel(hit.contentType)}
             </Badge>
           </CardTitle>
-          <CardDescription className="font-narrow flex flex-wrap gap-x-3">
+          <CardDescription className="flex flex-wrap gap-x-3">
             <span className="text-primary">{hit.path}</span>
             {hit.publishDate && <time dateTime={hit.publishDate}>{formatDate(hit.publishDate)}</time>}
           </CardDescription>
@@ -47,7 +47,7 @@ export default function SearchHitCard({ hit, tagHref }: Props) {
           height={96}
           loading="lazy"
           decoding="async"
-          className="chamfer hidden size-24 shrink-0 self-center bg-muted object-cover [--cut:0.75rem] sm:block"
+          className="hidden size-24 shrink-0 self-center bg-muted object-cover sm:block"
         />
       )}
     </Card>
