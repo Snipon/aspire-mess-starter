@@ -27,8 +27,8 @@ export default function FacetFilters({ groups, className }: Props) {
       {groups
         .filter((group) => group.values.length > 0)
         .map((group) => (
-          <section key={group.label} className="mb-4 lg:mb-8 lg:border-t lg:border-ink lg:pt-3">
-            <h2 className="text-sm font-bold lg:px-3">{group.label}</h2>
+          <section key={group.label} className="mb-4 lg:mb-8 lg:border-t lg:border-border lg:pt-3">
+            <h2 className="text-sm font-semibold lg:px-3">{group.label}</h2>
             <ul className="-mx-1 mt-2 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:space-y-0.5 lg:px-0">
               {group.values.map((facet) => {
                 const selected = same(facet.value, group.selected);
@@ -39,7 +39,7 @@ export default function FacetFilters({ groups, className }: Props) {
                       aria-current={selected ? 'true' : undefined}
                       className={cn(
                         buttonVariants({ variant: selected ? 'default' : 'ghost', size: 'sm' }),
-                        'h-10 w-full justify-between gap-3 px-3 text-sm lg:h-9 font-medium [font-stretch:100%]',
+                        'h-10 w-full justify-between gap-3 px-3 text-sm lg:h-9 font-medium ',
                         // Chips below lg need an edge; the selected value is filled signal, like the active tab.
                         selected ? 'bg-primary text-primary-foreground' : 'border-border lg:border-transparent',
                       )}
@@ -48,7 +48,7 @@ export default function FacetFilters({ groups, className }: Props) {
                         {selected && <CheckIcon aria-hidden="true" />}
                         {group.format ? group.format(facet.value) : facet.value}
                       </span>
-                      <span className={cn('font-narrow tabular-nums', selected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                      <span className={cn('tabular-nums', selected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
                         {facet.count}
                       </span>
                     </a>

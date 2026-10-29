@@ -67,7 +67,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 ---
 
 <section id="articles" class="scroll-mt-24">
-  <h2 class="font-wide text-3xl font-extrabold sm:text-4xl">{heading}</h2>
+  <h2 class="text-3xl font-medium sm:text-4xl">{heading}</h2>
 
   {
     !result ? (
@@ -78,7 +78,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
       <div class="mt-8 flex flex-col gap-8 lg:flex-row lg:gap-10">
         <FacetFilters groups={groups} />
         <div class="min-w-0 flex-1" aria-live="polite">
-          <div class="font-narrow flex min-h-6 flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+          <div class="flex min-h-6 flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             <p>
               {result.total} {noun}{result.total === 1 ? '' : 's'}
               {tag && ` about “${tag}”`}

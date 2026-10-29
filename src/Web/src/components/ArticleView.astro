@@ -24,13 +24,13 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
 <article>
   <header class="mx-auto max-w-3xl">
     <nav aria-label="Breadcrumb">
-      <a href={parentPath} class="font-narrow back-link">
+      <a href={parentPath} class="back-link">
         {page.contentType === 'blogPost' ? 'All blog posts' : 'All articles'}
       </a>
     </nav>
-    <h1 class="font-wide mt-6 text-4xl leading-[1.02] font-extrabold text-balance sm:text-5xl lg:text-6xl">{page.title}</h1>
+    <h1 class="mt-6 text-4xl leading-tight font-medium text-balance sm:text-5xl lg:text-6xl">{page.title}</h1>
     {/* A div, not a p: the separator renders a div, which would close a p early. */}
-    <div class="font-narrow mt-8 flex items-center gap-3 border-t border-ink pt-3 text-sm text-muted-foreground">
+    <div class="mt-8 flex items-center gap-3 border-t border-border pt-3 text-sm text-muted-foreground">
       <time datetime={article.publishDate}>{formatDate(article.publishDate)}</time>
       <Separator orientation="vertical" className="h-4 self-center!" />
       <span>{article.readingTimeMinutes} min read</span>
@@ -40,7 +40,7 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
 
   {
     page.image && (
-      <figure class="chamfer mx-auto mt-10 max-w-4xl overflow-hidden bg-muted [--cut:2.5rem]">
+      <figure class="mx-auto mt-10 max-w-4xl overflow-hidden rounded-lg bg-muted">
         <ResponsiveImage
           image={page.image}
           loading="eager"
@@ -59,7 +59,7 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
   {
     product && (
       <aside aria-labelledby="featured-product" class="mx-auto mt-14 max-w-3xl">
-        <h2 id="featured-product" class="font-wide border-t border-ink pt-3 text-2xl font-extrabold">Featured product</h2>
+        <h2 id="featured-product" class="border-t border-border pt-3 text-2xl font-medium">Featured product</h2>
         <div class="mt-6 flex max-w-xs">
           <ProductCard product={product} />
         </div>
@@ -70,7 +70,7 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
   {
     related && (
       <aside aria-labelledby="related-article" class="mx-auto mt-14 max-w-3xl">
-        <h2 id="related-article" class="font-wide border-t border-ink pt-3 text-2xl font-extrabold">Read the full article</h2>
+        <h2 id="related-article" class="border-t border-border pt-3 text-2xl font-medium">Read the full article</h2>
         <div class="mt-6 flex max-w-sm">
           <ArticleCard article={related} />
         </div>

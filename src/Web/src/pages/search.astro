@@ -76,7 +76,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 
 <Layout title={q ? `Search: ${q}` : 'Search'}>
   <div class="max-w-3xl">
-    <h1 class="font-wide page-title">Search</h1>
+    <h1 class="page-title">Search</h1>
 
     <form action="/search" method="get" role="search" class="mt-8 flex flex-col gap-2 sm:flex-row">
       <label for="q" class="sr-only">Search terms</label>
@@ -105,7 +105,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
     {
       !q && topics.length > 0 && (
         <section class="mt-10">
-          <h2 class="font-wide border-t border-ink pt-3 text-xl font-extrabold">Browse by topic</h2>
+          <h2 class="border-t border-border pt-3 text-xl font-medium">Browse by topic</h2>
           <TagList tags={topics} className="mt-4" />
         </section>
       )
@@ -114,7 +114,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
     {
       tag && !q && (
         <p class="mt-8 text-muted-foreground">
-          Enter a search term, or <a href={tagHref(tag)} class="font-semibold text-primary underline decoration-2 underline-offset-4 hover:text-foreground">browse all “{tag}” articles</a>.
+          Enter a search term, or <a href={tagHref(tag)} class="font-semibold text-primary underline decoration-1 underline-offset-4 hover:text-foreground">browse all “{tag}” articles</a>.
         </p>
       )
     }
@@ -126,7 +126,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
         <FacetFilters groups={facetGroups} />
 
         <section class="min-w-0 flex-1" aria-live="polite">
-          <div class="font-narrow flex min-h-6 flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+          <div class="flex min-h-6 flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             <p>
               {result.total === 0
                 ? `No results for “${result.query}”`

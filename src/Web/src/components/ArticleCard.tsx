@@ -12,7 +12,7 @@ interface Props {
 
 export default function ArticleCard({ article, headingLevel: Heading = 'h3' }: Props) {
   return (
-    <Card className="group relative w-full pt-0 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+    <Card className="group relative w-full pt-0 transition-colors hover:border-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
       <div className="aspect-[16/10] overflow-hidden bg-muted">
         {article.image && (
           <ResponsiveImage
@@ -23,12 +23,12 @@ export default function ArticleCard({ article, headingLevel: Heading = 'h3' }: P
         )}
       </div>
       <CardHeader>
-        <CardDescription className="font-narrow">
+        <CardDescription className="">
           <time dateTime={article.publishDate}>{formatDate(article.publishDate)}</time>
         </CardDescription>
-        <CardTitle className="text-lg leading-snug font-bold text-balance">
+        <CardTitle className="text-lg leading-snug font-medium text-balance">
           <Heading>
-            <a href={article.path} className="decoration-primary decoration-2 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
+            <a href={article.path} className="decoration-primary decoration-1 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
               {article.title}
             </a>
           </Heading>

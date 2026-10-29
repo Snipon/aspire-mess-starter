@@ -90,8 +90,8 @@ const filtered = Boolean(category || brand || minRating || inStock);
 ---
 
 <Layout title="Shop" description="Developer gear: laptops, monitors, keyboards and more, with specs and real-world stats.">
-  <header class="mb-8 border-b border-ink pb-6">
-    <h1 class="font-wide text-5xl leading-[0.95] font-extrabold sm:text-6xl">Shop</h1>
+  <header class="mb-8 border-b border-border pb-6">
+    <h1 class="text-4xl leading-tight font-medium sm:text-5xl">Shop</h1>
     <p class="mt-6 max-w-2xl text-xl leading-relaxed text-pretty text-muted-foreground">Developer gear with full specs and how it actually performs for customers.</p>
   </header>
 
@@ -113,7 +113,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
         <FacetFilters groups={groups} />
         <div class="min-w-0 flex-1" aria-live="polite">
           <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-            <div class="font-narrow flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
               <p>
                 {result.total.toLocaleString('en-US')} product{result.total === 1 ? '' : 's'}
                 {q && ` matching “${q}”`}
@@ -136,7 +136,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
                   class={cn(
                     buttonVariants({ variant: 'ghost', size: 'sm' }),
                     'h-10 sm:h-8',
-                    sort === value ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground' : 'text-muted-foreground',
+                    sort === value ? 'bg-muted text-foreground hover:bg-muted' : 'text-muted-foreground',
                   )}
                 >
                   {label}

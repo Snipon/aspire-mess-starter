@@ -23,14 +23,14 @@ export default function MiniCart({ active }: { active: boolean }) {
       <a
         href="/cart"
         aria-current={active ? 'page' : undefined}
-        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'relative', active && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground')}
+        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'relative', active && 'bg-muted text-foreground hover:bg-muted')}
       >
         <ShoppingCartIcon aria-hidden="true" />
         <span className="sr-only">{count > 0 ? `Cart, ${count} ${count === 1 ? 'item' : 'items'}` : 'Cart'}</span>
         {count > 0 && (
           <span
             aria-hidden="true"
-            className="font-narrow absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-sm bg-primary px-1 text-xs font-bold text-primary-foreground tabular-nums ring-2 ring-background"
+            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-sm bg-primary px-1 text-xs font-semibold text-primary-foreground tabular-nums ring-2 ring-background"
           >
             {count > 99 ? '99+' : count}
           </span>
@@ -50,10 +50,10 @@ export default function MiniCart({ active }: { active: boolean }) {
                         {item.image && <ResponsiveImage image={{ ...item.image, alt: null }} sizes="48px" className="h-full w-full object-cover" />}
                       </div>
                       <div className="min-w-0 flex-1 text-sm">
-                        <a href={item.path ?? '/shop'} className="line-clamp-2 font-semibold decoration-primary decoration-2 underline-offset-4 hover:underline">
+                        <a href={item.path ?? '/shop'} className="line-clamp-2 font-semibold decoration-primary decoration-1 underline-offset-4 hover:underline">
                           {item.title}
                         </a>
-                        <p className="font-narrow text-muted-foreground tabular-nums">
+                        <p className="text-muted-foreground tabular-nums">
                           {item.quantity} × {formatMoney(item.unitPrice)}
                         </p>
                       </div>
@@ -65,7 +65,7 @@ export default function MiniCart({ active }: { active: boolean }) {
                 )}
                 <div className="mt-3 flex items-center justify-between border-t pt-3 text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-wide text-base font-extrabold tabular-nums">{formatMoney(cart.subtotal)}</span>
+                  <span className="text-base font-medium tabular-nums">{formatMoney(cart.subtotal)}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <a href="/cart" className={buttonVariants({ variant: 'outline', size: 'sm' })}>

@@ -34,7 +34,7 @@ const listId = `${id}-suggestions`;
     role="listbox"
     aria-label="Suggestions"
     hidden
-    class="absolute top-full right-0 z-20 mt-1 w-full min-w-72 overflow-hidden rounded-none border border-ink bg-popover text-sm text-popover-foreground"
+    class="absolute top-full right-0 z-20 mt-1 w-full min-w-72 overflow-hidden rounded-none border border-border bg-popover text-sm text-popover-foreground"
   >
   </ul>
 </div>
@@ -66,7 +66,7 @@ const listId = `${id}-suggestions`;
           title.className = 'min-w-0 truncate';
           title.textContent = item.title;
           const type = document.createElement('span');
-          type.className = 'font-narrow shrink-0 text-xs text-muted-foreground group-hover:text-foreground group-aria-selected:text-primary-foreground';
+          type.className = 'shrink-0 text-xs text-muted-foreground group-hover:text-foreground group-aria-selected:text-primary-foreground';
           type.textContent = contentTypeLabel(item.contentType);
           option.append(title, type);
           // mousedown, not click: fires before the input's blur closes the list.

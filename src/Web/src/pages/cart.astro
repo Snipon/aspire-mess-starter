@@ -47,7 +47,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
 ---
 
 <Layout title="Cart">
-  <h1 class="font-wide page-title">Cart</h1>
+  <h1 class="page-title">Cart</h1>
 
   {
     message && (
@@ -74,10 +74,10 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
                 {item.image && <ResponsiveImage image={{ ...item.image, alt: null }} sizes="80px" className="h-full w-full object-cover" />}
               </div>
               <div class="min-w-0 flex-1">
-                <a href={item.path ?? '/shop'} class="font-bold decoration-primary decoration-2 underline-offset-4 hover:underline">
+                <a href={item.path ?? '/shop'} class="font-semibold decoration-primary decoration-1 underline-offset-4 hover:underline">
                   {item.title}
                 </a>
-                <p class="font-narrow mt-0.5 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+                <p class="mt-0.5 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
                   <span class="tabular-nums">{formatMoney(item.unitPrice)} each</span>
                   <span>SKU {item.sku}</span>
                 </p>
@@ -91,7 +91,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
                     <select
                       id={`qty-${item.id}`}
                       name="quantity"
-                      class="h-10 rounded-sm border border-muted-foreground bg-card sm:h-8 px-2 text-sm tabular-nums hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      class="h-10 rounded-sm border border-muted-foreground bg-card sm:h-8 px-2 text-sm tabular-nums hover:border-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                       {Array.from({ length: Math.max(Math.min(item.stock, 10), item.quantity) }, (_, i) => (
                         <option value={i + 1} selected={i + 1 === item.quantity}>
@@ -112,25 +112,25 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
                   </form>
                 </div>
               </div>
-              <p class="font-wide text-base font-extrabold tabular-nums sm:text-lg">{formatMoney(item.total)}</p>
+              <p class="text-base font-medium tabular-nums sm:text-lg">{formatMoney(item.total)}</p>
             </li>
           ))}
         </ul>
-        {/* Ink panel (.dark scope) with the machined corner: the page's primary panel. */}
-        <aside class="dark chamfer h-fit bg-background p-6 text-foreground [--cut:1.5rem]">
-          <h2 class="font-wide text-xl font-extrabold">Summary</h2>
+        {/* Order summary: the page's primary panel. */}
+        <aside class="h-fit rounded-lg border bg-card p-6">
+          <h2 class="text-xl font-medium">Summary</h2>
           <dl class="mt-4 space-y-1.5 text-sm">
             <div class="flex justify-between">
               <dt class="text-muted-foreground">Items</dt>
-              <dd class="font-narrow tabular-nums">{cart.itemCount}</dd>
+              <dd class="tabular-nums">{cart.itemCount}</dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-muted-foreground">Subtotal</dt>
-              <dd class="font-narrow tabular-nums">{formatMoney(cart.subtotal)}</dd>
+              <dd class="tabular-nums">{formatMoney(cart.subtotal)}</dd>
             </div>
             <div class="mt-3 flex items-baseline justify-between border-t pt-3">
               <dt class="font-semibold">Total</dt>
-              <dd class="font-wide text-2xl font-extrabold tabular-nums">{formatMoney(cart.total)}</dd>
+              <dd class="text-2xl font-medium tabular-nums">{formatMoney(cart.total)}</dd>
             </div>
           </dl>
           <a href="/checkout" class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'mt-6 w-full')}>

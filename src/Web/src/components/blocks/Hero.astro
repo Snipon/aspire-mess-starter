@@ -15,21 +15,16 @@ const { block, first = false } = Astro.props;
 const Heading = first ? 'h1' : 'h2';
 ---
 
-{/* Ink panel with the machined corner; the CMS image becomes a signal-blue duotone beside the headline. */}
-<section class="dark chamfer grid bg-background text-foreground [--cut:3rem] lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-  <div class="px-6 py-14 sm:px-12 sm:py-20">
-    <Heading
-      class:list={[
-        'font-wide text-[clamp(2.75rem,7vw,5.75rem)] leading-[0.92] font-extrabold text-balance',
-        first && 'hero-reveal',
-      ]}
-    >
+{/* Quiet editorial opener: the headline beside the CMS image, if there is one. */}
+<section class="grid items-center gap-10 border-b pb-14 sm:pb-20 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+  <div>
+    <Heading class="text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.08] font-medium text-balance">
       {block.heading}
     </Heading>
-    {block.subheading && <p class="mt-8 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{block.subheading}</p>}
+    {block.subheading && <p class="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{block.subheading}</p>}
     {
       block.cta && (
-        <a {...linkAttrs(block.cta)} class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'mt-10')}>
+        <a {...linkAttrs(block.cta)} class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'mt-8')}>
           {block.cta.title ?? 'Read more'}
         </a>
       )
@@ -37,31 +32,14 @@ const Heading = first ? 'h1' : 'h2';
   </div>
   {
     block.image && (
-      <div class="relative isolate hidden min-h-72 overflow-hidden bg-primary lg:block">
+      <div class="relative hidden aspect-[4/3] overflow-hidden rounded-lg bg-muted lg:block">
         <ResponsiveImage
           image={block.image}
           loading={first ? 'eager' : 'lazy'}
           sizes="(min-width: 1152px) 460px, 40vw"
-          className="absolute inset-0 h-full w-full object-cover grayscale contrast-125 mix-blend-multiply"
+          className="absolute inset-0 h-full w-full object-cover"
         />
       </div>
     )
   }
 </section>
-
-<style>
-  /* The page's one entrance: the opening headline wipes in from the left. */
-  @media (prefers-reduced-motion: no-preference) {
-    .hero-reveal {
-      animation: hero-wipe 700ms cubic-bezier(0.7, 0, 0.2, 1) both;
-    }
-  }
-  @keyframes hero-wipe {
-    from {
-      clip-path: inset(0 100% 0 0);
-    }
-    to {
-      clip-path: inset(0 0 0 0);
-    }
-  }
-</style>

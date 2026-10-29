@@ -14,22 +14,21 @@ const primary = block.style === 'primary';
 
 <section
   class:list={[
-    'chamfer flex flex-col gap-8 px-6 py-12 [--cut:2rem] sm:flex-row sm:items-end sm:justify-between sm:px-12',
-    primary ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-card-foreground',
+    'flex flex-col gap-8 rounded-lg px-6 py-12 sm:flex-row sm:items-end sm:justify-between sm:px-12',
+    primary ? 'bg-muted text-foreground' : 'border border-border bg-card text-card-foreground',
   ]}
 >
   <div class="max-w-2xl">
-    <h2 class="font-wide text-3xl leading-none font-extrabold text-balance sm:text-5xl">{block.heading}</h2>
-    {block.text && <p class:list={['mt-5 max-w-xl text-lg leading-relaxed text-pretty', primary ? 'text-primary-foreground/80' : 'text-muted-foreground']}>{block.text}</p>}
+    <h2 class="text-3xl leading-tight font-medium text-balance sm:text-4xl">{block.heading}</h2>
+    {block.text && <p class="mt-5 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground">{block.text}</p>}
   </div>
   {
     block.link && (
       <a
         {...linkAttrs(block.link)}
         class={cn(
-          buttonVariants({ size: 'lg' }),
+          buttonVariants({ variant: primary ? 'signal' : 'default', size: 'lg' }),
           'shrink-0 self-start sm:self-auto',
-          primary && 'hover:bg-card hover:text-card-foreground',
         )}
       >
         {block.link.title ?? 'Learn more'}

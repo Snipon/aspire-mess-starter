@@ -93,12 +93,12 @@ const expiryError = fieldErrors.expiry;
     receipt ? (
       <section class="mx-auto max-w-2xl">
         <CheckCircle2Icon className="size-12 text-primary" aria-hidden="true" />
-        <h1 class="font-wide mt-6 text-4xl leading-[1.02] font-extrabold text-balance sm:text-5xl">Thank you, order {receipt.orderNumber} is placed</h1>
+        <h1 class="mt-6 text-4xl leading-tight font-medium text-balance sm:text-5xl">Thank you, order {receipt.orderNumber} is placed</h1>
         <p class="mt-5 text-lg leading-relaxed text-pretty text-muted-foreground">
           A confirmation would go to {receipt.email}. Paid {formatMoney(receipt.total)} with the card ending in {receipt.cardLast4}{' '}
           (reference {receipt.paymentReference}; demo payment, no money moved).
         </p>
-        <ul class="mt-10 divide-y border-y-2 border-ink text-left">
+        <ul class="mt-10 divide-y border-y-2 border-border text-left">
           {receipt.items.map((item) => (
             <li class="flex justify-between gap-4 py-3 text-sm">
               <span>
@@ -115,7 +115,7 @@ const expiryError = fieldErrors.expiry;
     ) : (
       cart && (
         <>
-          <h1 class="font-wide page-title">Checkout</h1>
+          <h1 class="page-title">Checkout</h1>
           {signInRejected && (
             <Alert variant="destructive" className="mt-6">
               <AlertDescription>Your sign-in could not be verified. Sign in again or check out as a guest.</AlertDescription>
@@ -153,7 +153,7 @@ const expiryError = fieldErrors.expiry;
                 },
               ].map((group) => (
                 <fieldset class="grid gap-4 sm:grid-cols-2">
-                  <legend class="font-wide mb-4 w-full border-b border-ink pb-2 text-xl font-extrabold">{group.legend}</legend>
+                  <legend class="mb-4 w-full border-b border-border pb-2 text-xl font-medium">{group.legend}</legend>
                   {group.fields.map((f) => (
                     <label class={cn('grid content-start gap-1.5 text-sm font-semibold', f.name === 'email' || f.name === 'line1' ? 'sm:col-span-2' : '')}>
                       {f.label}
@@ -175,7 +175,7 @@ const expiryError = fieldErrors.expiry;
               ))}
 
               <fieldset class="grid gap-4 sm:grid-cols-4">
-                <legend class="font-wide mb-4 w-full border-b border-ink pb-2 text-xl font-extrabold">Card</legend>
+                <legend class="mb-4 w-full border-b border-border pb-2 text-xl font-medium">Card</legend>
                 <p class="text-sm text-muted-foreground sm:col-span-4">
                   Demo payment, no money moves. Use 4242 4242 4242 4242 to succeed; 4000 0000 0000 0002 is declined and
                   4000 0000 0000 9995 has insufficient funds. Any future expiry and any 3 digits work.
@@ -202,22 +202,22 @@ const expiryError = fieldErrors.expiry;
               </button>
             </form>
 
-            {/* Ink panel (.dark scope) with the machined corner, as on the cart. */}
-            <aside class="dark chamfer h-fit bg-background p-6 text-foreground [--cut:1.5rem]">
-              <h2 class="font-wide text-xl font-extrabold">Order</h2>
+            {/* Order summary, as on the cart. */}
+            <aside class="h-fit rounded-lg border bg-card p-6">
+              <h2 class="text-xl font-medium">Order</h2>
               <ul class="mt-4 space-y-2 text-sm">
                 {cart.items.map((item) => (
                   <li class="flex justify-between gap-3">
                     <span>
                       {item.quantity} × {item.title}
                     </span>
-                    <span class="font-narrow tabular-nums">{formatMoney(item.total)}</span>
+                    <span class="tabular-nums">{formatMoney(item.total)}</span>
                   </li>
                 ))}
               </ul>
               <p class="mt-4 flex items-baseline justify-between border-t pt-3">
                 <span class="font-semibold">Total</span>
-                <span class="font-wide text-2xl font-extrabold tabular-nums">{formatMoney(cart.total)}</span>
+                <span class="text-2xl font-medium tabular-nums">{formatMoney(cart.total)}</span>
               </p>
               <a href="/cart" class={cn(buttonVariants({ variant: 'link' }), 'mt-1 px-0')}>
                 Edit cart

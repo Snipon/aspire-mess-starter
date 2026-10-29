@@ -6,7 +6,7 @@ import { formatMoney, formatNumber } from '@/lib/format';
 
 export default function ProductCard({ product }: { product: ProductSummary }) {
   return (
-    <Card className="group relative w-full pt-0 transition-colors hover:border-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+    <Card className="group relative w-full pt-0 transition-colors hover:border-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
       <div className="aspect-[4/3] overflow-hidden bg-muted">
         {product.image && (
           <ResponsiveImage
@@ -17,20 +17,20 @@ export default function ProductCard({ product }: { product: ProductSummary }) {
         )}
       </div>
       <CardHeader>
-        <CardDescription className="font-narrow">
+        <CardDescription className="">
           <span className="font-semibold text-foreground">{product.brand}</span> {product.category}
         </CardDescription>
-        <CardTitle className="text-base leading-snug font-bold text-balance">
+        <CardTitle className="text-base leading-snug font-medium text-balance">
           <h3>
-            <a href={product.path} className="decoration-primary decoration-2 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
+            <a href={product.path} className="decoration-primary decoration-1 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline">
               {product.title}
             </a>
           </h3>
         </CardTitle>
       </CardHeader>
       <CardContent className="mt-auto flex flex-wrap items-center justify-between gap-2">
-        <span className="font-wide text-xl font-extrabold tabular-nums">{formatMoney(product.price)}</span>
-        <span className="font-narrow text-sm text-muted-foreground">
+        <span className="text-xl font-medium tabular-nums">{formatMoney(product.price)}</span>
+        <span className="text-sm text-muted-foreground">
           <span aria-hidden="true">★</span> {product.rating.toFixed(1)}
           <span className="sr-only"> out of 5</span> ({formatNumber(product.reviewCount)})
         </span>
