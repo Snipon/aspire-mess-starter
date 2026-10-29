@@ -5,6 +5,7 @@
 #:package Aspire.Hosting.PostgreSQL@13.6.4
 #:package Aspire.Hosting.JavaScript@13.6.4
 #:package Aspire.Hosting.Seq@13.6.4
+#:package Aspire.Hosting.Keycloak@13.6.4-preview.1.26523.11
 #:package CommunityToolkit.Aspire.Hosting.Meilisearch@13.6.1
 #:project ./src/Cms/Cms.csproj
 #:project ./src/Api/Api.csproj
@@ -35,6 +36,16 @@ var commerceApiKey = builder.AddParameter("commerce-api-key",
     new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 var commerceHashSalt = builder.AddParameter("commerce-hash-salt",
     new GenerateParameterDefault { MinLength = 64, Special = false }, secret: true, persist: true);
+var idpAdminPassword = builder.AddParameter("idp-admin-password",
+    new GenerateParameterDefault { MinLength = 16, Special = false }, secret: true, persist: true);
+var cmsOidcSecret = builder.AddParameter("cms-oidc-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var commerceOidcSecret = builder.AddParameter("commerce-oidc-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var seqOidcSecret = builder.AddParameter("seq-oidc-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+var webOidcSecret = builder.AddParameter("web-oidc-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
 
 // Infrastructure containers (persistent so data and startup time survive AppHost restarts).
 var sql = builder.AddSqlServer("sql")
@@ -51,6 +62,25 @@ var meilisearch = builder.AddMeilisearch("meilisearch")
 var seq = builder.AddSeq("seq", port: 5341)
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume();
+
+// Identity provider (local stand-in for Entra ID): realm "staff" signs in admins and editors (Umbraco backoffice,
+// Drupal admin, Seq), realm "shop" signs in customers (self-registration). Realms, clients and the staff admin user
+// (umbraco-admin-email / idp-admin-password) are imported from infra/keycloak on the first start only; the redirect
+// URIs there assume the fixed host ports below (cms 28048/44350, commerce 8081, web-cache 8082, seq 5341). Admin
+// console: https://localhost:8080 (user admin, password keycloak-password).
+const string KeycloakUrl = "https://localhost:8080"; // the integration serves HTTPS (dev certificate) on 8080
+var keycloak = builder.AddKeycloak("keycloak", port: 8080)
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume()
+    .WithRealmImport("./infra/keycloak")
+    .WithEnvironment("KC_HOSTNAME", KeycloakUrl) // tokens carry this issuer, also when containers call keycloak:8080
+    .WithEnvironment("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
+    .WithEnvironment("STAFF_ADMIN_EMAIL", adminEmail)
+    .WithEnvironment("STAFF_ADMIN_PASSWORD", idpAdminPassword)
+    .WithEnvironment("CMS_OIDC_SECRET", cmsOidcSecret)
+    .WithEnvironment("COMMERCE_OIDC_SECRET", commerceOidcSecret)
+    .WithEnvironment("SEQ_OIDC_SECRET", seqOidcSecret)
+    .WithEnvironment("WEB_OIDC_SECRET", webOidcSecret);
 
 // Commerce database (Drupal on PostgreSQL), persistent like the CMS database.
 var commerceDb = builder.AddPostgres("commerce-postgres")
@@ -104,7 +134,7 @@ var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
     .WithEnvironment("DRUPAL_ADMIN_PASSWORD", commerceAdminPassword)
     .WithEnvironment("COMMERCE_API_KEY", commerceApiKey)
     .WithEnvironment("DEMO_CONTENT", "true") // 2000 demo products; remove for a real project
-    .WithHttpEndpoint(targetPort: 80)
+    .WithHttpEndpoint(port: 8081, targetPort: 80) // fixed: the IdP redirect URI (infra/keycloak) names it
     .WithHttpHealthCheck("/headless/health")
     .WithExternalHttpEndpoints();
 
@@ -136,7 +166,7 @@ var webCache = builder.AddContainer("web-cache", "nginx", "1.29-alpine")
     .WithEnvironment("NGINX_ENVSUBST_OUTPUT_DIR", "/etc/nginx") // nginx.conf.template -> /etc/nginx/nginx.conf
     .WithEnvironment("WEB_UPSTREAM", web.GetEndpoint("http"))
     .WithEnvironment("CACHE_PURGE_SECRET", cachePurgeSecret)
-    .WithHttpEndpoint(targetPort: 8080)
+    .WithHttpEndpoint(port: 8082, targetPort: 8080) // fixed: the IdP redirect URI (infra/keycloak) names it
     .WithExternalHttpEndpoints()
     .WaitFor(web);
 

@@ -15,8 +15,9 @@ apphost=apphost.cs
 # Aspire parameter names: ours from apphost.cs, plus the ones SQL Server and Meilisearch create (<resource>-password,
 # <resource>-masterKey).
 params=(umbraco-admin-email umbraco-admin-password delivery-api-key hmac-secret webhook-secret reindex-secret
-  cache-purge-secret commerce-admin-password commerce-api-key commerce-hash-salt sql-password meilisearch-masterKey
-  commerce-postgres-password)
+  cache-purge-secret commerce-admin-password commerce-api-key commerce-hash-salt idp-admin-password cms-oidc-secret
+  commerce-oidc-secret seq-oidc-secret web-oidc-secret sql-password meilisearch-masterKey commerce-postgres-password
+  keycloak-password)
 
 secret() { aspire secret "$@" --apphost "$apphost" --nologo --non-interactive; }
 
