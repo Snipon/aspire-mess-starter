@@ -14,6 +14,7 @@ version of what to run, what not to touch and how changes flow through the stack
 | `src/Web` | Astro 7 SSR + React + Tailwind 4 + shadcn/ui. Talks only to the API (server-side) |
 | `infra/web-cache` | nginx reverse proxy cache + njs purge endpoint |
 | `infra/terraform` | Azure deployment (no web-cache there) |
+| `.template.config` | `dotnet new` template: project name forms, `--demo`, random host ports |
 | `tests/Api.Tests` | xUnit tests for the API (fixtures captured from Umbraco in `Fixtures/delivery`, from Drupal in `Fixtures/drupal`) |
 
 ## Commands
@@ -76,11 +77,15 @@ restart. The web runs `npm run dev` and hot-reloads.
 
 ## Rules
 
+- **Template**: the repo is also a `dotnet new` template. Keep the name forms `AspireTest` / `aspire-test` /
+  `aspiretest` and host ports written as `localhost:<port>` or `port: <port>` so substitution still finds them; new
+  fixed host ports need a symbol in `.template.config/template.json`.
 - **Secrets**: all secrets are Aspire parameters in the AppHost user secrets (`scripts/init-secrets.sh`). Never put
   them in `appsettings*.json`, `.env` or code, and never read or print their values; ask the user to run
   `aspire secret get ...` themselves when one is needed.
-- **Demo content is opt-in** (`DemoContent:Enabled` for the CMS and `DEMO_CONTENT` for Drupal, set in `apphost.cs`
-  and `containerapps.tf`). Core code must work with an empty CMS and an empty catalog.
+- **Demo content is opt-in** (`DemoContent:Enabled` for the CMS and `DEMO_CONTENT` for Drupal, from `DemoContent` in
+  `apphost.cs` and `local.demo_content` in `containerapps.tf`). Core code must work with an empty CMS and an empty
+  catalog.
 - **Adapters stay neutral**: nothing outside `Content/Umbraco` and `Search/Meilisearch` knows about Umbraco or
   Meilisearch; the web knows only the API contract.
 - **Caching**: the web middleware sets the shared-cache policy (`s-maxage`); pages that must not be cached send

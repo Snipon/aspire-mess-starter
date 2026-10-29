@@ -9,6 +9,7 @@ resource "azurerm_container_app_environment" "this" {
 locals {
   kv_secret_ids = { for k, s in azurerm_key_vault_secret.this : k => s.versionless_id }
   acr_images    = "${azurerm_container_registry.this.login_server}/aspire-test"
+  demo_content  = true # demo content in the CMS (`dotnet new` sets this from --demo)
 }
 
 # --- meilisearch (internal only) ---------------------------------------------
@@ -202,9 +203,9 @@ resource "azurerm_container_app" "cms" {
         value = "true"
       }
       env {
-        # Demo articles, blog posts and images (src/Cms/Headless/ContentSeeder.cs); remove for a real project.
+        # Demo articles, blog posts and images (src/Cms/Headless/ContentSeeder.cs).
         name  = "DemoContent__Enabled"
-        value = "true"
+        value = tostring(local.demo_content)
       }
       env {
         name  = "Umbraco__CMS__DeliveryApi__PublicAccess"

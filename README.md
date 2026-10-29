@@ -86,6 +86,25 @@ manifest): `node scripts/gen-architecture.mjs` rewrites it, and CI commits the u
 - **web-cache** – nginx reverse proxy cache in front of the web, the site's entry point locally (see
   [Reverse proxy cache](#reverse-proxy-cache)).
 
+## New project from this template
+
+The repository is a `dotnet new` template (`.template.config/template.json`). Install it from a clean clone, so
+ignored local files (build output, `node_modules`, media) are not part of it:
+
+```sh
+git clone <this repo> aspire-headless-template
+dotnet new install ./aspire-headless-template
+dotnet new aspire-headless -n ContosoShop            # empty CMS and catalog
+dotnet new aspire-headless -n ContosoShop --demo     # with demo articles, blog posts and 2000 products
+```
+
+The name is applied in three forms: `ContosoShop` (solution file), `contoso-shop` (`UserSecretsId`, so every project
+has its own secret store, image repository prefix, tfstate key and tags) and `contososhop` (Azure resource names).
+The fixed host ports (Keycloak, cms, commerce, web-cache, Seq, Aspire dashboard) are replaced by random free ports,
+so several generated projects can run on one machine; the Keycloak realm redirect URIs and these docs use the same
+values. After creating a project: `git init`, `scripts/init-secrets.sh`, `aspire start`, then create a `site` node
+in the backoffice unless `--demo` was used.
+
 ## Prerequisites
 
 - .NET SDK 10.0.300+
@@ -339,12 +358,12 @@ plain string. It searches the shop as the editor types through the backoffice-on
 `/umbraco/management/api/v1/product-picker/products?q=` (`Headless/ProductPickerController.cs`), which passes
 through the API's `/api/products` search (`ProductPicker__ApiUrl`), so the CMS knows the API contract, not Drupal.
 
-**Demo content is opt-in.** The seeder only runs when `DemoContent:Enabled` is `true`, which `apphost.cs` and
-`infra/terraform/containerapps.tf` set for this demo (`DemoContent__Enabled`). Starting a real project from this
-repository: remove those two lines (or delete `ContentSeeder.cs`, `DemoArticles.cs` and `DemoBlogPosts.cs` and the
-`ContentSeeder` registration in `HeadlessComposer.cs`). The CMS then boots with the schema and no content; create a
-`site` node in the backoffice, because until one exists the website answers 404 on every page. Switching it off on
-a seeded database leaves the existing content alone.
+**Demo content is opt-in.** The seeder only runs when `DemoContent:Enabled` is `true`, which comes from
+`const bool DemoContent` in `apphost.cs` (also `DEMO_CONTENT` for Drupal) and `local.demo_content` in
+`infra/terraform/containerapps.tf`. This repository has them on; a project created with `dotnet new` has them off
+unless `--demo` is passed (see [New project from this template](#new-project-from-this-template)). Without demo
+content the CMS boots with the schema and no content; create a `site` node in the backoffice, because until one
+exists the website answers 404 on every page. Switching it off on a seeded database leaves the existing content alone.
 
 Seeded demo content (`ContentSeeder.cs`, idempotent, deterministic seed, one transaction so a failed seed leaves
 nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, latest blog

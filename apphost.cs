@@ -41,6 +41,11 @@ var webStaffOidcSecret = GeneratedSecret("web-staff-oidc-secret");
 var seqProxyCookieSecret = GeneratedSecret("seq-proxy-cookie-secret"); // oauth2-proxy: 16, 24 or 32 bytes
 var webSessionSecret = GeneratedSecret("web-session-secret");
 
+// Demo articles, blog posts, images and 2000 products, seeded on first start (CMS ContentSeeder, Drupal entrypoint).
+// `dotnet new` sets this from --demo; core code works with an empty CMS and catalog.
+const bool DemoContent = true;
+var demoContent = DemoContent ? "true" : "false";
+
 // Infrastructure containers (persistent so data and startup time survive AppHost restarts).
 var sql = builder.AddSqlServer("sql")
     .WithLifetime(ContainerLifetime.Persistent)
@@ -72,9 +77,9 @@ foreach (var check in seq.Resource.Annotations.OfType<HealthCheckAnnotation>().T
 // Identity provider (local stand-in for Entra ID): realm "staff" signs in admins and editors (Umbraco backoffice,
 // Drupal admin, Seq), realm "shop" signs in customers (self-registration). Realms, clients and the staff admin user
 // (umbraco-admin-email / idp-admin-password) are imported from infra/keycloak on the first start only; the redirect
-// URIs there assume the fixed host ports below (cms 28048/44350, commerce 8081, web-cache 8082, seq 5341). Admin
+// URIs there assume the fixed host ports below (cms launch profile, commerce, web-cache, seq-proxy). Admin
 // console: https://localhost:8080 (user admin, password keycloak-password).
-const string KeycloakUrl = "https://localhost:8080"; // the integration serves HTTPS (dev certificate) on 8080
+const string KeycloakUrl = "https://localhost:8080"; // the integration serves HTTPS (dev certificate) on the host port
 const string KeycloakInternalUrl = "https://keycloak.dev.internal:8443"; // container-to-container, trusted dev certificate
 const string StaffIssuer = KeycloakUrl + "/realms/staff";
 const string ShopIssuer = KeycloakUrl + "/realms/shop";
@@ -151,7 +156,7 @@ var cms = builder.AddProject<Projects.Cms>("cms")
     .WithEnvironment("Umbraco__CMS__DeliveryApi__ApiKey", deliveryApiKey)
     .WithEnvironment("Umbraco__CMS__Imaging__HMACSecretKey", hmacSecret)
     .WithEnvironment("ContentWebhook__Secret", webhookSecret)
-    .WithEnvironment("DemoContent__Enabled", "true") // demo articles, blog posts and images; remove for a real project
+    .WithEnvironment("DemoContent__Enabled", demoContent)
     // Backoffice sign-in through the staff realm (button next to the local login). No WaitFor(keycloak): only sign-in
     // needs it, and the OIDC handler fetches discovery lazily.
     .WithEnvironment("BackOfficeOidc__Authority", StaffIssuer)
@@ -190,7 +195,7 @@ var commerce = builder.AddDockerfile("commerce", "./src/Commerce")
     .WithEnvironment("DRUPAL_ADMIN_EMAIL", adminEmail)
     .WithEnvironment("DRUPAL_ADMIN_PASSWORD", commerceAdminPassword)
     .WithEnvironment("COMMERCE_API_KEY", commerceApiKey)
-    .WithEnvironment("DEMO_CONTENT", "true") // 2000 demo products; remove for a real project
+    .WithEnvironment("DEMO_CONTENT", demoContent)
     .WithEnvironment("OIDC_CLIENT_ID", "commerce")
     .WithEnvironment("OIDC_CLIENT_SECRET", commerceOidcSecret)
     .WithEnvironment("OIDC_ISSUER", StaffIssuer) // the ID token's iss, checked on sign-in
