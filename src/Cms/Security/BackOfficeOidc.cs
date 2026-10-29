@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -33,22 +34,32 @@ public sealed class BackOfficeOidcOptions
     /// <summary>Claim (as issued in the ID token) that carries the user's app roles.</summary>
     public string RoleClaim { get; set; } = "roles";
 
-    /// <summary>Role claim value to Umbraco user group alias. Keys can be added or remapped in configuration.</summary>
+    /// <summary>
+    /// Role claim value to comma-separated Umbraco user group aliases. Keys can be added or remapped in configuration.
+    /// The groups named here are managed by the identity provider; other groups a user has are left alone.
+    /// </summary>
     public Dictionary<string, string> RoleGroups { get; set; } = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["admin"] = "admin",
+        ["admin"] = "admin,sensitiveData",
         ["editor"] = "editor",
     };
+
+    /// <summary>
+    /// Boolean claim that must be <c>true</c> before a sign-in is linked to an existing backoffice user by email
+    /// (<c>email_verified</c> in standard OIDC; <c>xms_edov</c> as an optional claim in Entra ID). Without it, anyone who
+    /// can set their own email at the provider could take over a backoffice user.
+    /// </summary>
+    public string EmailVerifiedClaim { get; set; } = "email_verified";
 
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Authority) && !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret);
 }
 
 /// <summary>
-/// Optional backoffice sign-in through any OpenID Connect provider (Keycloak locally, Entra ID in Azure), registered only
-/// when <c>BackOfficeOidc</c> is configured. Users are auto-linked by email (a local user with the same email is linked,
-/// otherwise one is created), and on every sign-in their Umbraco groups are replaced by the groups mapped from the role
-/// claim; a user without a mapped role is refused.
+/// Optional backoffice sign-in through any OpenID Connect provider (Keycloak locally, Entra ID by configuration),
+/// registered only when <c>BackOfficeOidc</c> is configured. Users are auto-linked by email (an enabled local user with
+/// the same, verified email is linked, otherwise one is created), and on every sign-in their managed Umbraco groups are
+/// set from the role claim; a user without a mapped role is refused.
 /// </summary>
 public sealed class BackOfficeOidcComposer : IComposer
 {
@@ -87,6 +98,17 @@ public sealed class BackOfficeOidcComposer : IComposer
                     // Before linking or creating: throwing refuses it (no user is created).
                     OnAutoLinking = (user, login) =>
                     {
+                        // Umbraco links an existing user found by email without its usual sign-in checks.
+                        if (user.HasIdentity && !IsTrue(login.Principal, options.EmailVerifiedClaim))
+                        {
+                            throw new InvalidOperationException("The identity provider does not assert a verified email.");
+                        }
+
+                        if (user.HasIdentity && (!user.IsApproved || user.IsLockedOut))
+                        {
+                            throw new InvalidOperationException("The backoffice user is disabled or locked out.");
+                        }
+
                         if (!Sync(user, login, options))
                         {
                             throw new InvalidOperationException("The identity provider grants this user no backoffice role.");
@@ -98,29 +120,28 @@ public sealed class BackOfficeOidcComposer : IComposer
             }));
     }
 
-    /// <summary>Replaces the user's groups with the mapped roles and updates the name; false when no role maps.</summary>
+    /// <summary>
+    /// Sets the user's managed groups (those in <see cref="BackOfficeOidcOptions.RoleGroups"/>) to the ones mapped from the
+    /// role claim, keeps other groups, and updates the name; false when no role maps.
+    /// </summary>
     private static bool Sync(BackOfficeIdentityUser user, ExternalLoginInfo login, BackOfficeOidcOptions options)
     {
-        var roleClaimTypes = new HashSet<string>(StringComparer.Ordinal) { options.RoleClaim };
-        if (JsonWebTokenHandler.DefaultInboundClaimTypeMap.TryGetValue(options.RoleClaim, out var mapped))
-        {
-            roleClaimTypes.Add(mapped);
-        }
-
-        var groups = login.Principal.Claims
-            .Where(c => roleClaimTypes.Contains(c.Type))
-            .Select(c => options.RoleGroups.GetValueOrDefault(c.Value))
-            .OfType<string>()
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (groups.Count == 0)
+        var granted = Claims(login.Principal, options.RoleClaim)
+            .SelectMany(c => Groups(options.RoleGroups.GetValueOrDefault(c.Value)))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (granted.Count == 0)
         {
             return false;
         }
 
-        // Roles has no dirty tracking of its own; Clear/AddRole mark the user's groups as changed.
-        user.Roles.Clear();
-        foreach (var group in groups)
+        // Roles changes are tracked through the collection (the setter is not), so edit it in place.
+        var managed = options.RoleGroups.Values.SelectMany(Groups).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var role in user.Roles.Where(r => managed.Contains(r.RoleId) && !granted.Contains(r.RoleId)).ToList())
+        {
+            user.Roles.Remove(role);
+        }
+
+        foreach (var group in granted.Where(g => !user.Roles.Any(r => string.Equals(r.RoleId, g, StringComparison.OrdinalIgnoreCase))))
         {
             user.AddRole(group);
         }
@@ -132,6 +153,19 @@ public sealed class BackOfficeOidcComposer : IComposer
 
         return true;
     }
+
+    /// <summary>Claims of the given type as issued, or as renamed by the default inbound claim mapping.</summary>
+    private static IEnumerable<Claim> Claims(ClaimsPrincipal principal, string type)
+    {
+        JsonWebTokenHandler.DefaultInboundClaimTypeMap.TryGetValue(type, out var mapped);
+        return principal.Claims.Where(c => c.Type == type || c.Type == mapped);
+    }
+
+    private static bool IsTrue(ClaimsPrincipal principal, string type) =>
+        Claims(principal, type).Any(c => bool.TryParse(c.Value, out var value) && value);
+
+    private static string[] Groups(string? aliases) =>
+        aliases?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
 }
 
 internal sealed class BackOfficeOidcManifestReader(BackOfficeOidcOptions options) : IPackageManifestReader

@@ -372,21 +372,26 @@ How the API exposes it (`src/Api/Contracts`):
 ### Backoffice sign-in (OIDC)
 
 `src/Cms/Security/BackOfficeOidc.cs` adds a sign-in button to the backoffice login for any OpenID Connect provider
-(Keycloak realm `staff` locally, Entra ID in Azure). It is off unless `BackOfficeOidc:Authority`, `:ClientId` and
-`:ClientSecret` are set; the AppHost sets them (client `cms`, secret parameter `cms-oidc-secret`). Code flow with
-PKCE, callback `/umbraco-signin-oidc`, scopes `openid profile email`.
+(Keycloak realm `staff` locally; Entra ID works with the same settings, but the Terraform does not set them yet). It is
+off unless `BackOfficeOidc:Authority`, `:ClientId` and `:ClientSecret` are set; the AppHost sets them (client `cms`,
+secret parameter `cms-oidc-secret`). Code flow with PKCE, callback `/umbraco-signin-oidc`, scopes `openid profile email`.
 
-- **Linking**: by the `email` claim. A backoffice user with the same email is linked (the unattended admin links to
-  the realm's `admin` user), otherwise a user is created with the `name` claim as its name. Manual linking is off.
-- **Groups**: on every sign-in the user's groups are replaced by the values of the `roles` claim mapped through
-  `BackOfficeOidc:RoleGroups` (default `admin` → `admin`, `editor` → `editor`; other values are ignored), and the
-  name is updated. Without a mapped role the sign-in is refused, so groups are managed in the identity provider.
+- **Linking**: by the `email` claim. An existing backoffice user with the same email is linked only when the
+  `BackOfficeOidc:EmailVerifiedClaim` claim (default `email_verified`) is `true` and the user is not disabled or
+  locked out (the unattended admin links to the realm's `admin` user). Otherwise a new user is created with the `name`
+  claim as its name. Manual linking is off.
+- **Groups**: on every sign-in the groups named in `BackOfficeOidc:RoleGroups` are set from the `roles` claim (default
+  `admin` → `admin,sensitiveData`, `editor` → `editor`; values are comma-separated aliases, unknown roles are ignored)
+  and the name is updated. Groups not named in the map stay as they are. Without a mapped role the sign-in is refused.
 - **Local login** stays available unless `BackOfficeOidc:DenyLocalLogin=true` (then the login page redirects straight
   to the provider). Turn it on only once an admin can sign in through the provider.
 - **Entra ID**: Authority `https://login.microsoftonline.com/<tenant>/v2.0`, app roles `admin`/`editor` (they arrive as
-  `roles`), redirect URI `https://<cms host>/umbraco-signin-oidc`. Entra does not send `email` by default: add it as an
-  optional ID token claim. `preferred_username` is deliberately not used as a fallback: it is not a verified email,
-  so it could link a sign-in to the wrong existing user.
+  `roles`), redirect URI `https://<cms host>/umbraco-signin-oidc`. Entra sends neither `email` nor `email_verified` by
+  default: add the optional ID token claims `email` and `xms_edov` and set `BackOfficeOidc:EmailVerifiedClaim=xms_edov`
+  (true only for a domain verified by the tenant); otherwise sign-ins can create users but never link to existing
+  ones. `preferred_username` is deliberately not used as a fallback: it is not a verified email.
+- **Realm changes**: Keycloak imports `infra/keycloak` only into an empty data volume. After changing a realm file,
+  apply the change in the admin console or delete the realm there and restart the `keycloak` resource.
 
 ## Commerce (Drupal)
 
