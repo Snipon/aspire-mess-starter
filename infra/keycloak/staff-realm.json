@@ -24,12 +24,19 @@
       "realmRoles": ["default-roles-staff", "admin"]
     }
   ],
-  "clientScopes": [
+  "clients": [
     {
-      "name": "roles-claim",
-      "description": "Realm roles as a flat 'roles' claim (like Entra ID app roles)",
+      "clientId": "cms",
+      "name": "Umbraco backoffice",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "false", "display.on.consent.screen": "false" },
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${CMS_OIDC_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:28048/umbraco-signin-oidc", "https://localhost:44350/umbraco-signin-oidc"],
+      "attributes": { "post.logout.redirect.uris": "http://localhost:28048/*##https://localhost:44350/*" },
+      "defaultClientScopes": ["basic", "profile", "email"],
       "protocolMappers": [
         {
           "name": "roles",
@@ -46,21 +53,6 @@
           }
         }
       ]
-    }
-  ],
-  "clients": [
-    {
-      "clientId": "cms",
-      "name": "Umbraco backoffice",
-      "protocol": "openid-connect",
-      "publicClient": false,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "${CMS_OIDC_SECRET}",
-      "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
-      "redirectUris": ["http://localhost:28048/umbraco-signin-oidc", "https://localhost:44350/umbraco-signin-oidc"],
-      "attributes": { "post.logout.redirect.uris": "http://localhost:28048/*##https://localhost:44350/*" },
-      "defaultClientScopes": ["profile", "email", "roles-claim"]
     },
     {
       "clientId": "commerce",
@@ -73,7 +65,23 @@
       "directAccessGrantsEnabled": false,
       "redirectUris": ["http://localhost:8081/openid-connect/sso"],
       "attributes": { "post.logout.redirect.uris": "http://localhost:8081/*" },
-      "defaultClientScopes": ["profile", "email", "roles-claim"]
+      "defaultClientScopes": ["basic", "profile", "email"],
+      "protocolMappers": [
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "seq",
@@ -86,7 +94,23 @@
       "directAccessGrantsEnabled": false,
       "redirectUris": ["http://localhost:5341/oauth2/callback"],
       "attributes": { "post.logout.redirect.uris": "http://localhost:5341/*" },
-      "defaultClientScopes": ["profile", "email", "roles-claim"]
+      "defaultClientScopes": ["basic", "profile", "email"],
+      "protocolMappers": [
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ]
 }
