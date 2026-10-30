@@ -235,6 +235,11 @@ resource "azurerm_container_app" "cms" {
         name  = "ProductPicker__ApiUrl"
         value = local.api_url
       }
+      # "Preview on website" in the backoffice (src/Cms/Headless/WebsitePreviewUrlProvider.cs).
+      env {
+        name  = "Preview__WebUrl"
+        value = local.web_url
+      }
       env {
         name        = "ContentWebhook__Secret"
         secret_name = "webhook-secret"
@@ -315,6 +320,7 @@ resource "azurerm_container_app" "api" {
       "hmac-secret",
       "webhook-secret",
       "reindex-secret",
+      "preview-api-key",
       "seq-ingestion-api-key",
     ])
     content {
@@ -397,6 +403,10 @@ resource "azurerm_container_app" "api" {
         secret_name = "hmac-secret"
       }
       env {
+        name        = "Preview__ApiKey"
+        secret_name = "preview-api-key"
+      }
+      env {
         name        = "Webhooks__Secret"
         secret_name = "webhook-secret"
       }
@@ -459,7 +469,7 @@ resource "azurerm_container_app" "web" {
   }
 
   dynamic "secret" {
-    for_each = toset(concat(["seq-ingestion-api-key", "web-staff-oidc-secret", "web-session-secret"], local.customer_auth ? local.customer_secrets : []))
+    for_each = toset(concat(["seq-ingestion-api-key", "web-staff-oidc-secret", "web-session-secret", "preview-api-key"], local.customer_auth ? local.customer_secrets : []))
     content {
       name                = secret.value
       identity            = azurerm_user_assigned_identity.apps.id
@@ -508,6 +518,11 @@ resource "azurerm_container_app" "web" {
       env {
         name        = "SESSION_SECRET"
         secret_name = "web-session-secret"
+      }
+      # Staff preview of drafts (/preview/[id]): the web's key for the API's draft endpoint.
+      env {
+        name        = "PREVIEW_API_KEY"
+        secret_name = "preview-api-key"
       }
       # Staff bar (src/Web/src/lib/staff.ts): staff sign-in with Entra ID and the back offices it links to. Drupal
       # Commerce is not deployed (no shop admin shortcut).

@@ -265,6 +265,8 @@ public sealed class SearchSyncTests
             return Task.FromResult(_pages.GetValueOrDefault(id));
         }
 
+        public Task<Page?> GetPreviewByIdAsync(string id, string? culture, CancellationToken ct) => Task.FromResult<Page?>(null);
+
         public Task<Page?> GetByPathAsync(string path, string? culture, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<NavItem[]> GetNavigationAsync(string? culture, CancellationToken ct) => throw new NotSupportedException();

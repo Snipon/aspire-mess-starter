@@ -170,6 +170,7 @@ aspire secret list                             # or: aspire secret get Parameter
 | `seq-proxy-cookie-secret` | 32 random alphanumeric characters (oauth2-proxy's cookie key for the Seq login) |
 | `web-staff-oidc-secret` | 32 random alphanumeric characters (client secret of `web-staff`, the website's staff sign-in) |
 | `web-session-secret` | 32 random alphanumeric characters (encrypts the web's customer session cookie; rotating it signs every customer out) |
+| `preview-api-key` | 32 random alphanumeric characters (the web's key for draft content on the API, see [Preview](#preview)) |
 | `sql-password`, `meilisearch-masterKey`, `commerce-postgres-password` | 32 random alphanumeric characters (Aspire's own parameters for `sql`, `meilisearch` and `commerce-postgres`) |
 
 The script is idempotent and never changes an existing value: the persistent containers depend on them. It uses
@@ -178,7 +179,7 @@ reachable only through the staff login, see [Observability](#observability-local
 
 Rotating (`--rotate <name>`, then restart the AppHost):
 
-- `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`, `cache-purge-secret`: just restart; the cms reconciles the
+- `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`, `cache-purge-secret`, `preview-api-key`: just restart; the cms reconciles the
   webhook's secret header on start and the api re-signs image URLs.
 - `seq-proxy-cookie-secret`: just restart; Seq users sign in again.
 - `umbraco-admin-email`/`-password`: only used by the unattended install, so change the user in the backoffice too.
@@ -229,6 +230,7 @@ Scalar and the OpenAPI document are mapped in every environment on purpose for t
 | --- | --- | --- |
 | GET | `/api/content?path=/articles&culture=` | `Page` or 404 ProblemDetails |
 | GET | `/api/content/{id}` | `Page` or 404 |
+| GET | `/api/preview/content/{id}?culture=` | draft `Page` for the staff [preview](#preview); header `X-Preview-Key` (parameter `preview-api-key`); 401 without it, 404 when no key is configured; `no-store` |
 | GET | `/api/navigation` | `NavItem[]` tree of site and pages (articles and blog posts are excluded) |
 | GET | `/api/articles?tag=&page=1&pageSize=12&culture=` | `Paged<ArticleSummary>`, newest `publishDate` first |
 | GET | `/api/tags` | `TagCount[]` (`{tag, count}`), most used first |
@@ -552,6 +554,22 @@ the "Staff sign-in" link in the footer (`/auth/staff/login`). Off without `STAFF
 - **Edit product** links to `/admin/commerce/products/sku/{sku}` in Drupal (`AdminController`), which redirects to the
   product's edit form for users allowed to administer products.
 - Hiding a shortcut is not access control: each back office checks the user's roles itself at its own sign-in.
+
+### Preview
+
+Umbraco's own preview renders templates, which a headless CMS does not have. Instead, **Save and preview ▸ Preview on
+website** in the backoffice opens the saved draft on the website at `/preview/{key}?culture=`, for signed-in staff
+only.
+
+- **CMS**: `Headless/WebsitePreviewUrlProvider.cs` (URL provider `website`, base URL `Preview:WebUrl`) and the
+  `previewOption` in `App_Plugins/WebsitePreview`. The default Save and preview button keeps Umbraco's preview.
+- **Web**: `pages/preview/[id].astro` sends signed-out visitors to the staff sign-in and back, renders the draft with
+  the same `PageView` as the live page plus a banner and `noindex`, and answers `no-store`, so web-cache never keeps a
+  draft. Off (404) without staff sign-in.
+- **API**: `/api/preview/content/{id}` reads the draft through `IContentSource.GetPreviewByIdAsync` (Delivery API
+  `Preview: true`) and requires `X-Preview-Key` (`Preview:ApiKey`), which only the web's server holds
+  (`PREVIEW_API_KEY`).
+- Lists inside a draft (latest articles, navigation) still show published content.
 
 ## Adapters: how the API stays CMS/search-engine neutral
 

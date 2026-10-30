@@ -9,7 +9,7 @@ namespace Cms.Headless;
 
 /// <summary>
 /// Headless-only CMS: templates can never be created, and document types are always saved without templates.
-/// Seeds demo content and registers the search-index webhook once Umbraco has started.
+/// Seeds demo content and registers the search-index webhook once Umbraco has started. Previews open on the website.
 /// </summary>
 public sealed class HeadlessComposer : IComposer
 {
@@ -26,6 +26,8 @@ public sealed class HeadlessComposer : IComposer
         var payloadType = builder.Config.GetSection("Umbraco:CMS:Webhook").Get<WebhookSettings>()?.PayloadType
             ?? new WebhookSettings().PayloadType;
         builder.WebhookEvents().AddCms(cms => cms.AddContent(onlyDefault: false, payloadType));
+
+        builder.UrlProviders().Append<WebsitePreviewUrlProvider>();
 
         builder
             .AddNotificationHandler<TemplateSavingNotification, BlockTemplatesHandler>()

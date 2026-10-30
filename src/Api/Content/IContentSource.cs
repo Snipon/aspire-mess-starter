@@ -9,6 +9,9 @@ public interface IContentSource
 
     Task<Page?> GetByIdAsync(string id, string? culture, CancellationToken ct);
 
+    /// <summary>The latest saved version of a page, unpublished changes included; callers must restrict access.</summary>
+    Task<Page?> GetPreviewByIdAsync(string id, string? culture, CancellationToken ct);
+
     /// <summary>The site tree without articles and blog posts (they are listed by <see cref="GetArticlesAsync"/> and search).</summary>
     Task<NavItem[]> GetNavigationAsync(string? culture, CancellationToken ct);
 

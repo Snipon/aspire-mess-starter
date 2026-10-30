@@ -424,6 +424,82 @@
         }
       }
     },
+    "/api/preview/content/{id}": {
+      "get": {
+        "tags": [
+          "Preview"
+        ],
+        "summary": "Get the draft of a page by id",
+        "description": "Returns the latest saved version of a page, unpublished changes included, for the website's staff preview. Requires the `X-Preview-Key` header (`Preview:ApiKey`); without a configured key the endpoint answers 404.",
+        "operationId": "GetPreviewContentById",
+        "parameters": [
+          {
+            "name": "X-Preview-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "culture",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/search": {
       "get": {
         "tags": [
@@ -2582,6 +2658,9 @@
     },
     {
       "name": "Content"
+    },
+    {
+      "name": "Preview"
     },
     {
       "name": "Search"

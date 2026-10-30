@@ -82,6 +82,7 @@ app.MapOpenApi(); // /openapi/v1.json
 app.MapScalarApiReference(); // /scalar
 
 app.MapContentEndpoints();
+app.MapPreviewEndpoints();
 app.MapSearchEndpoints();
 app.MapCommerceEndpoints(app.Configuration);
 app.MapStatusEndpoints();

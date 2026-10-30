@@ -92,3 +92,18 @@ export async function getStatus(): Promise<{ report?: StatusReport; httpStatus?:
     return { latencyMs: Math.round(performance.now() - started) };
   }
 }
+
+/**
+ * The draft of a page for the staff preview (/preview/[id]); undefined when there is none. PREVIEW_API_KEY stays on
+ * the server. Any other failure throws: a 401 means the web and the API disagree on the key.
+ */
+export async function previewPage(id: string, culture: string | null): Promise<Page | undefined> {
+  const key = process.env.PREVIEW_API_KEY;
+  if (!key) throw new Error('PREVIEW_API_KEY environment variable is not set.');
+  const { data, response } = await api().GET('/api/preview/content/{id}', {
+    params: { path: { id }, query: { culture: culture ?? undefined }, header: { 'X-Preview-Key': key } },
+  });
+  if (response.status === 404 || response.status === 400) return undefined;
+  if (!data) throw new Error(`Preview API returned ${response.status} for ${id}`);
+  return data;
+}

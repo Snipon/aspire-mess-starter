@@ -78,7 +78,7 @@ public static class ContentEndpoints
     /// Fills <see cref="Article.Product"/> live from the shop. The article is returned without it when the shop is off
     /// (no <see cref="ICommerceSource"/>), the product is gone or the commerce backend fails.
     /// </summary>
-    private static async Task<Page> WithProductAsync(Page page, IServiceProvider services, CancellationToken ct)
+    internal static async Task<Page> WithProductAsync(Page page, IServiceProvider services, CancellationToken ct)
     {
         if (page.Article is not { ProductSku: { Length: > 0 } sku } article || services.GetService<ICommerceSource>() is not { } commerce)
         {

@@ -13,6 +13,9 @@ public static class SharedSecret
     /// <remarks>Kept apart from the webhook secret, which CMS Settings users can read in the webhook's headers.</remarks>
     public const string ReindexHeader = "X-Reindex-Secret";
 
+    /// <summary>Sent by the website for staff preview; compared with <c>Preview:ApiKey</c>.</summary>
+    public const string PreviewHeader = "X-Preview-Key";
+
     public static bool IsValid(string? actual, string? expected)
     {
         if (string.IsNullOrEmpty(expected))

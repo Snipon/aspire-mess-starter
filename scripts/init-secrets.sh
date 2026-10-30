@@ -17,7 +17,7 @@ apphost=apphost.cs
 # <resource>-masterKey).
 params=(umbraco-admin-email umbraco-admin-password delivery-api-key hmac-secret webhook-secret reindex-secret
   cache-purge-secret commerce-admin-password commerce-api-key commerce-hash-salt idp-admin-password cms-oidc-secret
-  commerce-oidc-secret seq-oidc-secret seq-proxy-cookie-secret web-oidc-secret web-staff-oidc-secret web-session-secret sql-password
+  commerce-oidc-secret seq-oidc-secret seq-proxy-cookie-secret web-oidc-secret web-staff-oidc-secret web-session-secret preview-api-key sql-password
   meilisearch-masterKey commerce-postgres-password keycloak-password)
 
 secret() { aspire secret "$@" --apphost "$apphost" --nologo --non-interactive; }
