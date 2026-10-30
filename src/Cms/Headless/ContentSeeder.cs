@@ -14,16 +14,17 @@ using Umbraco.Extensions;
 namespace Cms.Headless;
 
 /// <summary>
-/// Idempotent demo content on top of the uSync schema (src/Cms/uSync, imported on first boot before this runs):
-/// demo photos (Headless/DemoImages, Unsplash License, credits in CREDITS.tsv there), a "Home" site node with blocks, an "Articles" page with <see cref="DemoArticles.Count"/>
-/// articles and a "Blog" page with <see cref="DemoBlogPosts.Count"/> blog posts. Runs only if the "site" document type
-/// exists, in one scope (transaction and media files), so a failed seed leaves nothing behind and is retried on the next
-/// boot. When the site was seeded before, only the demo articles and blog posts missing from their pages (by name) are
-/// added, so an install seeded with fewer is topped up; an Articles page still showing the previously seeded "latest
-/// articles" block gets the article list instead, and a Home page still in the layout seeded before blog posts existed
-/// gets the blog post slider and a Blog page; the generated placeholder images of earlier versions are swapped for the
-/// photos. Everything created is then sent to the search index
-/// (<see cref="SearchIndexNotifier"/>).
+/// Idempotent demo content on top of the uSync schema (src/Cms/uSync, imported on first boot before this runs): demo
+/// photos (Headless/DemoImages, Unsplash License, credits in CREDITS.tsv there), a "Home" site node with blocks, an
+/// "Articles" page with <see cref="DemoArticles.Count"/> articles and a "Blog" page with
+/// <see cref="DemoBlogPosts.Count"/> blog posts. Runs only if the "site" document type exists, in one scope
+/// (transaction and media files), so a failed seed leaves nothing behind and is retried on the next boot. When the site
+/// was seeded before, only the demo articles and blog posts missing from their pages (by name) are added, so an install
+/// seeded with fewer is topped up; an Articles page still showing the previously seeded "latest articles" block gets
+/// the article list instead, and a Home page still in the layout seeded before blog posts existed gets the blog post
+/// slider and a Blog page; the generated placeholder images of earlier versions are swapped for the photos, and the
+/// Articles hero's short seeded subheading (too short for a meta description) gets the longer one. Everything created
+/// is then sent to the search index (<see cref="SearchIndexNotifier"/>).
 /// <para>
 /// Opt-in: runs only when <c>DemoContent:Enabled</c> is <c>true</c> (set by apphost.cs and infra/terraform for this
 /// demo). Without it the CMS starts with the schema and no content; a project built on this repo leaves it off, or
@@ -49,6 +50,10 @@ internal sealed class ContentSeeder(
     private const string SiteAlias = "site";
     private const int ImageCount = 12;
     private const int MaxChildren = 100_000;
+    private const string ArticlesSubheading =
+        "Everything we have written, newest first: guides, notes and lessons learned on .NET, cloud, front-end engineering and design systems.";
+    // What earlier versions seeded: too short for the page's meta description, so replaced while still untouched.
+    private const string PreviousArticlesSubheading = "Everything we have written, newest first.";
 
     private const string ImageFolder = "Demo images";
     private const string LegacyImageFolder = "Placeholders";
@@ -151,7 +156,7 @@ internal sealed class ContentSeeder(
         (ElementTypeKey("heroBlock"), new()
         {
             ["heading"] = "Articles",
-            ["subheading"] = "Everything we have written, newest first.",
+            ["subheading"] = ArticlesSubheading,
             ["image"] = MediaPicker(images[1 % images.Length]),
         }),
         (ElementTypeKey("articleListBlock"), new() { ["heading"] = "All articles", ["pageSize"] = 12 }));
@@ -184,7 +189,10 @@ internal sealed class ContentSeeder(
         DemoBlogPost[] missingPosts = hasBlogSchema && (blog is not null || upgradeHome)
             ? [.. DemoBlogPosts.Generate(DateTime.UtcNow, demoArticles).Where(p => !postKeys.ContainsKey(p.Title))]
             : [];
-        if (images.Length == 0 || (missing.Length == 0 && missingPosts.Length == 0 && !upgradeArticlesPage && !upgradeHome))
+        bool upgradeArticlesSubheading = !upgradeArticlesPage
+            && articles.GetValue<string>("blocks")?.Contains($"\"{PreviousArticlesSubheading}\"", StringComparison.Ordinal) == true;
+        if (images.Length == 0
+            || (missing.Length == 0 && missingPosts.Length == 0 && !upgradeArticlesPage && !upgradeHome && !upgradeArticlesSubheading))
         {
             return;
         }
@@ -195,6 +203,15 @@ internal sealed class ContentSeeder(
         {
             logger.LogInformation("Replacing the Articles page's latest articles block with the article list");
             articles.SetValue("blocks", ArticlesPageBlocks(images));
+            Publish(articles);
+            changed.Add(articles.Key);
+        }
+
+        if (upgradeArticlesSubheading)
+        {
+            logger.LogInformation("Lengthening the Articles page's hero subheading");
+            articles.SetValue("blocks", articles.GetValue<string>("blocks")!
+                .Replace($"\"{PreviousArticlesSubheading}\"", $"\"{ArticlesSubheading}\"", StringComparison.Ordinal));
             Publish(articles);
             changed.Add(articles.Key);
         }
