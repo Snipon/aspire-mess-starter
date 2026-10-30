@@ -9,7 +9,7 @@ type Props = Omit<ComponentProps<typeof PaginationLink>, "size"> & { text?: stri
 const { text = "Next", class: className, ...rest } = Astro.props;
 ---
 
-<PaginationLink aria-label="Go to next page" size="default" class:list={["max-sm:p-0! sm:pr-1.5!", className]} {...rest}>
+<PaginationLink aria-label="Go to next page" size="default" class:list={["max-sm:p-0! sm:pr-5!", className]} {...rest}>
   <span class="hidden sm:block">{text}</span>
   <ChevronRight data-icon="inline-end" />
 </PaginationLink>

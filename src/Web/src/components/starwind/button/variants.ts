@@ -1,8 +1,8 @@
-import { tv } from "tailwind-variants";
+import { tv } from "@/lib/utils";
 
 // The site's button styles: square corners, ink default, signal for the one primary action per view.
 export const button = tv({
-  base: "group/button inline-flex shrink-0 items-center justify-center rounded-sm border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  base: "group/button inline-flex shrink-0 items-center justify-center rounded-3 border border-transparent bg-clip-padding text-13 font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-13",
   variants: {
     variant: {
       default: "bg-ink text-ink-foreground hover:bg-ink/85",
@@ -19,16 +19,16 @@ export const button = tv({
     },
     size: {
       default:
-        "h-10 gap-2 px-4 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-      xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-      sm: "h-8 gap-1 rounded-sm px-3 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-      lg: "h-12 gap-2 px-6 text-base has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-      icon: "size-10",
+        "h-34 gap-8 px-13 has-data-[icon=inline-end]:pr-8 has-data-[icon=inline-start]:pl-8",
+      xs: "h-21 gap-5 rounded-[min(var(--radius-md),10px)] px-8 text-13 in-data-[slot=button-group]:rounded-5 has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5 [&_svg:not([class*='size-'])]:size-13",
+      sm: "h-34 gap-5 rounded-3 px-13 text-13 in-data-[slot=button-group]:rounded-5 has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5 [&_svg:not([class*='size-'])]:size-13",
+      lg: "h-55 gap-8 px-21 text-16 has-data-[icon=inline-end]:pr-8 has-data-[icon=inline-start]:pl-8",
+      icon: "size-34 [&_svg:not([class*='size-'])]:size-21",
       "icon-xs":
-        "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+        "size-21 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-5 [&_svg:not([class*='size-'])]:size-13",
       "icon-sm":
-        "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-      "icon-lg": "size-12",
+        "size-34 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-5",
+      "icon-lg": "size-55 [&_svg:not([class*='size-'])]:size-21",
     },
   },
   defaultVariants: {

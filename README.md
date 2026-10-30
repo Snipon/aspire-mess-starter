@@ -641,6 +641,13 @@ stylesheet and touch `Layout.astro`/`tsconfig.json`, which the site does not use
 `ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are [Tabler](https://tabler.io/icons) SVGs
 imported as components (`import XIcon from '@tabler/icons/outline/x.svg'`).
 
+Sizes follow a Fibonacci scale named by pixels at the 16px root: spacing and sizes `1 2 3 5 8 13 21 34 55 89 144 233
+377` (`p-13`, `gap-21`, `h-34`), type `13 16 21 34 55` (`text-16`; 16 is the one off-scale size, for body text), radii
+`2 3 5 8 13` (`rounded-5`) and widths `377 610 987` (`max-w-610`). Tailwind's linear defaults are cleared in
+`global.css`, so `p-4` or `text-sm` generate nothing. A newly added Starwind component needs its classes moved onto
+the scale and `tv` imported from `@/lib/utils`, whose merge config knows the numeric font sizes (otherwise `text-16`
+counts as a colour and drops the text colour).
+
 The per-visitor header pieces (`StaffBar`, `AccountMenu`, `MiniCart`) are Astro components with a small custom
 element each (`<staff-bar>`, `<account-menu>`, `<mini-cart>`) that loads `/api/staff`, `/api/me` or `/api/cart` with
 `loadVisitorJson` (`src/lib/visitor-json.ts`, which also reloads after a back/forward navigation) and fills

@@ -15,7 +15,7 @@ const { tags, href = tagHref, class: className } = Astro.props;
 
 {
   tags.length > 0 && (
-    <ul class={cn('flex flex-wrap gap-1.5', className)} aria-label="Tags">
+    <ul class={cn('flex flex-wrap gap-5', className)} aria-label="Tags">
       {tags.map((tag) => (
         <li>
           {/* z-10: stays clickable above a card's stretched link. */}

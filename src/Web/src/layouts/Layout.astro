@@ -72,15 +72,15 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     <slot name="head" />
   </head>
   <body class="flex min-h-screen flex-col bg-background text-foreground antialiased" data-cms-id={cmsId} data-sku={sku}>
-    <a href="#main" class="sr-only z-50 bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2">
+    <a href="#main" class="sr-only z-50 bg-primary px-13 py-8 text-primary-foreground focus:not-sr-only focus:fixed focus:top-8 focus:left-8">
       Skip to content
     </a>
     {staffEnabled() && <StaffBar />}
     <header class="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-0 px-4 sm:gap-x-8 sm:px-6">
-        <a href="/" class="py-3 font-heading text-xl font-medium focus-visible:outline-2 focus-visible:outline-ring">Aspire Test</a>
-        <nav aria-label="Main" class="order-3 -mx-1 w-full overflow-x-auto sm:order-none sm:mx-0 sm:w-auto sm:flex-1">
-          <ul class="flex text-[0.95rem]">
+      <div class="mx-auto flex max-w-987 flex-wrap items-center gap-x-13 gap-y-0 px-13 sm:gap-x-34 sm:px-21">
+        <a href="/" class="py-13 font-heading text-21 font-medium focus-visible:outline-2 focus-visible:outline-ring">Aspire Test</a>
+        <nav aria-label="Main" class="order-3 -mx-5 w-full overflow-x-auto sm:order-none sm:mx-0 sm:w-auto sm:flex-1">
+          <ul class="flex text-16">
             {
               links.map((item) => (
                 <li>
@@ -88,7 +88,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
                     href={item.path}
                     aria-current={isActive(item.path) ? 'page' : undefined}
                     class={cn(
-                      'block px-3 py-4 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground',
+                      'block px-13 py-13 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground',
                       isActive(item.path)
                         ? 'text-foreground underline decoration-1 underline-offset-8'
                         : 'text-muted-foreground hover:text-foreground',
@@ -101,9 +101,9 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
             }
           </ul>
         </nav>
-        <form action="/search" method="get" role="search" aria-label="Site" class="ml-auto py-3">
+        <form action="/search" method="get" role="search" aria-label="Site" class="ml-auto py-13">
           <label for="site-search" class="sr-only">Search</label>
-          <SearchInput id="site-search" value={q} placeholder="Search" class="w-32 sm:w-60" />
+          <SearchInput id="site-search" value={q} placeholder="Search" class="w-89 sm:w-233" />
         </form>
         {/* Pages render nothing per visitor: the account state, count and mini cart are fetched in the browser. */}
         {authEnabled() && <AccountMenu active={current === '/account'} />}
@@ -111,14 +111,14 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
       </div>
     </header>
 
-    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 sm:py-16">
+    <main id="main" class="mx-auto w-full max-w-987 flex-1 px-13 py-34 sm:px-21 sm:py-55">
       <slot />
     </main>
 
     <footer class="border-t text-muted-foreground">
-      <div class="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-        <p class="font-heading text-2xl font-medium text-foreground">Aspire Test</p>
-        <p class="max-w-sm text-sm">
+      <div class="mx-auto flex max-w-987 flex-col gap-21 px-13 py-55 sm:flex-row sm:items-end sm:justify-between sm:px-21">
+        <p class="font-heading text-21 font-medium text-foreground">Aspire Test</p>
+        <p class="max-w-377 text-13">
           Content from Umbraco, products from Drupal Commerce, search by Meilisearch, served by Astro.{' '}
           <a href="/status" class="text-foreground underline underline-offset-4 hover:text-primary">
             System status

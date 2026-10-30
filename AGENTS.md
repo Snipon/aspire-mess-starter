@@ -93,6 +93,9 @@ restart. The web runs `npm run dev` and hot-reloads.
   are fetched in the browser from `/api/cart` and `/api/me` (`no-store`), never rendered server-side.
 - **Commerce calls are not idempotent**: the Drupal client retries GETs only. Never add retries to cart or checkout
   calls.
+- **Design scale**: spacing, sizes, type, radii and widths are Fibonacci steps named by px (`p-13`, `text-21`,
+  `rounded-5`, `max-w-610`; see README "UI components"). Tailwind's default steps (`p-4`, `text-sm`, `rounded-lg`)
+  do not exist; use `cn`/`tv` from `@/lib/utils`.
 - **Style**: match the surrounding code (comment density, naming, file-scoped namespaces, records for contracts).
   Keep changes minimal; no new dependencies for a few lines of code.
 - **Persistent containers** (sql, meilisearch, seq, commerce-postgres) hold local data; do not remove them or their volumes without

@@ -18,8 +18,8 @@ const tag = posts ? null : block.tag;
 ---
 
 <section>
-  <div class="flex items-baseline justify-between gap-4">
-    <h2 class="text-3xl font-medium sm:text-4xl">{heading}</h2>
+  <div class="flex items-baseline justify-between gap-13">
+    <h2 class="text-34 font-medium">{heading}</h2>
     {
       tag && (
         <a href={tagHref(tag)} class={ButtonVariants.button({ variant: 'link' })}>
@@ -28,12 +28,12 @@ const tag = posts ? null : block.tag;
       )
     }
   </div>
-  <div class="mt-6">
+  <div class="mt-21">
     {
       items.length > 0 ? (
         <Swiper
           aria-label={heading}
-          class="latest-articles pb-14!"
+          class="latest-articles pb-55!"
           options={{
             slidesPerView: 1,
             spaceBetween: 24,
@@ -56,7 +56,7 @@ const tag = posts ? null : block.tag;
           <SwiperPagination />
         </Swiper>
       ) : (
-        <p class="border border-dashed border-input px-6 py-10 text-center text-muted-foreground">
+        <p class="border border-dashed border-input px-21 py-34 text-center text-muted-foreground">
           No {posts ? 'blog posts' : 'articles'} published yet.
         </p>
       )

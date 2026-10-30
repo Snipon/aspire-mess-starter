@@ -30,7 +30,7 @@ const { article, headingLevel: Heading = 'h3' } = Astro.props;
     <CardDescription>
       <time datetime={article.publishDate}>{formatDate(article.publishDate)}</time>
     </CardDescription>
-    <CardTitle class="text-lg leading-snug font-medium text-balance">
+    <CardTitle class="text-21 leading-snug font-medium text-balance">
       <Heading>
         <a
           href={article.path}
@@ -44,7 +44,7 @@ const { article, headingLevel: Heading = 'h3' } = Astro.props;
   {
     article.summary && (
       <CardContent class="flex-1">
-        <p class="line-clamp-3 font-serif text-[0.95rem] leading-relaxed text-muted-foreground">{article.summary}</p>
+        <p class="line-clamp-3 font-serif text-16 leading-relaxed text-muted-foreground">{article.summary}</p>
       </CardContent>
     )
   }

@@ -32,19 +32,19 @@ const pageHref = (n: number) => (n === 1 ? tagHref(tag) : `${tagHref(tag)}?page=
 {
   result && articles.length ? (
     <Layout title={`Articles tagged “${tag}”`} description={`${result.total} articles about ${tag}.`}>
-      <header class="border-b border-border pb-6">
+      <header class="border-b border-border pb-21">
         <a href="/articles" class="back-link">
           All articles
         </a>
-        <p class="mt-8 text-lg font-semibold text-primary">Topic</p>
-        <h1 class="mt-1 text-4xl leading-tight font-medium break-words text-balance sm:text-5xl">{tag}</h1>
-        <p class="mt-6 text-lg text-muted-foreground">
+        <p class="mt-34 text-21 font-semibold text-primary">Topic</p>
+        <h1 class="mt-5 text-34 leading-tight font-medium break-words text-balance sm:text-55">{tag}</h1>
+        <p class="mt-21 text-21 text-muted-foreground">
           {result.total} article{result.total === 1 ? '' : 's'}
           {totalPages > 1 && <span>, page {result.page} of {totalPages}</span>}
         </p>
       </header>
 
-      <div class="mt-10">
+      <div class="mt-34">
         <ArticleGrid articles={articles} headingLevel="h2" />
       </div>
 

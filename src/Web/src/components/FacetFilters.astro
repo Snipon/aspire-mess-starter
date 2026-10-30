@@ -14,14 +14,14 @@ const { groups, class: className } = Astro.props;
 const same = (a?: string, b?: string) => a?.toLowerCase() === b?.toLowerCase();
 ---
 
-<aside class={cn('shrink-0 lg:w-56', className)} aria-label="Filters">
+<aside class={cn('shrink-0 lg:w-233', className)} aria-label="Filters">
   {
     groups
       .filter((group) => group.values.length > 0)
       .map((group) => (
-        <section class="mb-4 lg:mb-8 lg:border-t lg:border-border lg:pt-3">
-          <h2 class="font-sans text-sm font-semibold lg:px-3">{group.label}</h2>
-          <ul class="-mx-1 mt-2 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:space-y-0.5 lg:px-0">
+        <section class="mb-13 lg:mb-34 lg:border-t lg:border-border lg:pt-13">
+          <h2 class="font-sans text-13 font-semibold lg:px-13">{group.label}</h2>
+          <ul class="-mx-5 mt-8 flex gap-5 overflow-x-auto px-5 pb-5 lg:mx-0 lg:block lg:space-y-2 lg:px-0">
             {group.values.map((facet) => {
               const selected = same(facet.value, group.selected);
               return (
@@ -33,13 +33,13 @@ const same = (a?: string, b?: string) => a?.toLowerCase() === b?.toLowerCase();
                       variant: selected ? 'default' : 'ghost',
                       size: 'sm',
                       class: [
-                        'h-10 w-full justify-between gap-3 px-3 text-sm lg:h-9 font-medium ',
+                        'h-34 w-full justify-between gap-13 px-13 text-13 font-medium ',
                         // Chips below lg need an edge; the selected value is filled signal, like the active tab.
                         selected ? 'bg-primary text-primary-foreground' : 'border-border lg:border-transparent',
                       ],
                     })}
                   >
-                    <span class="flex items-center gap-1.5 truncate">
+                    <span class="flex items-center gap-5 truncate">
                       {selected && <CheckIcon aria-hidden="true" />}
                       {group.format ? group.format(facet.value) : facet.value}
                     </span>

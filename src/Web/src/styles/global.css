@@ -12,17 +12,17 @@
 
 @layer components {
   mark {
-    @apply bg-primary/10 px-0.5 text-foreground;
+    @apply bg-primary/10 px-2 text-foreground;
   }
 
   /* Page heading over a hairline rule. */
   .page-title {
-    @apply border-b pb-6 text-4xl leading-tight font-medium sm:text-5xl;
+    @apply border-b pb-21 text-34 leading-tight font-medium sm:text-55;
   }
 
   /* Back link above a page heading. */
   .back-link {
-    @apply inline-flex min-h-10 items-center text-sm text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
+    @apply inline-flex min-h-34 items-center text-13 text-muted-foreground underline decoration-border underline-offset-4 hover:text-foreground hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
   }
 }
 
@@ -63,7 +63,7 @@
     }
     /* Inline code: a soft chip instead of the plugin's backticks. */
     :not(pre) > code {
-      @apply rounded-sm bg-muted px-1.5 py-0.5 font-normal;
+      @apply rounded-3 bg-muted px-5 py-2 font-normal;
 
       &::before,
       &::after {
@@ -115,13 +115,53 @@
   --color-ink: var(--ink);
   --color-ink-foreground: var(--ink-foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Fibonacci scale. Utilities are named by their size in px at the 16px root (p-13, gap-21, text-34, rounded-5,
+   max-w-610) and set in rem so they follow the reader's font size. Tailwind's linear defaults are cleared, so an
+   off-scale class (p-4, text-sm) generates nothing. */
+@theme {
+  --spacing: initial;
+  --spacing-*: initial;
+  --spacing-0: 0rem;
+  --spacing-1: 0.0625rem;
+  --spacing-2: 0.125rem;
+  --spacing-3: 0.1875rem;
+  --spacing-5: 0.3125rem;
+  --spacing-8: 0.5rem;
+  --spacing-13: 0.8125rem;
+  --spacing-21: 1.3125rem;
+  --spacing-34: 2.125rem;
+  --spacing-55: 3.4375rem;
+  --spacing-89: 5.5625rem;
+  --spacing-144: 9rem;
+  --spacing-233: 14.5625rem;
+  --spacing-377: 23.5625rem;
+
+  /* 16px body is the one off-scale size: 13px is too small for reading. Line heights land on the next step up. */
+  --text-*: initial;
+  --text-13: 0.8125rem;
+  --text-13--line-height: calc(21 / 13);
+  --text-16: 1rem;
+  --text-16--line-height: calc(26 / 16);
+  --text-21: 1.3125rem;
+  --text-21--line-height: calc(34 / 21);
+  --text-34: 2.125rem;
+  --text-34--line-height: 1.2;
+  --text-55: 3.4375rem;
+  --text-55--line-height: 1.1;
+
+  --radius-*: initial;
+  --radius-2: 0.125rem;
+  --radius-3: 0.1875rem;
+  --radius-5: 0.3125rem;
+  --radius-8: 0.5rem;
+  --radius-13: 0.8125rem;
+
+  --container-*: initial;
+  --container-377: 23.5625rem;
+  --container-610: 38.125rem;
+  --container-987: 61.6875rem;
 }
 
 :root {
@@ -151,7 +191,6 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.375rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -212,7 +251,6 @@
   }
   html {
     @apply font-sans;
-    font-size: 106.25%; /* 17px body */
   }
   /* Content is serif (headings, reading text), the interface sans: headings that are UI labels opt out with
      font-sans. */

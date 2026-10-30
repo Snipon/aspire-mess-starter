@@ -67,19 +67,19 @@ const groups: FacetGroup[] = result
 const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
 ---
 
-<section id="articles" class="scroll-mt-24">
-  <h2 class="text-3xl font-medium sm:text-4xl">{heading}</h2>
+<section id="articles" class="scroll-mt-89">
+  <h2 class="text-34 font-medium">{heading}</h2>
 
   {
     !result ? (
-      <Alert variant="destructive" class="mt-6">
+      <Alert variant="destructive" class="mt-21">
         <AlertDescription>{posts ? 'Blog posts' : 'Articles'} are temporarily unavailable. Please try again shortly.</AlertDescription>
       </Alert>
     ) : (
-      <div class="mt-8 flex flex-col gap-8 lg:flex-row lg:gap-10">
+      <div class="mt-34 flex flex-col gap-34 lg:flex-row">
         <FacetFilters groups={groups} />
         <div class="min-w-0 flex-1" aria-live="polite">
-          <div class="flex min-h-6 flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+          <div class="flex min-h-21 flex-wrap items-center gap-x-13 gap-y-8 text-13 text-muted-foreground">
             <p>
               {result.total} {noun}{result.total === 1 ? '' : 's'}
               {tag && ` about “${tag}”`}
@@ -96,11 +96,11 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
             )}
           </div>
           {articles.length > 0 ? (
-            <div class="mt-4">
+            <div class="mt-13">
               <ArticleGrid articles={articles} />
             </div>
           ) : (
-            <p class="mt-4 border border-dashed border-input px-6 py-10 text-center text-muted-foreground">
+            <p class="mt-13 border border-dashed border-input px-21 py-34 text-center text-muted-foreground">
               No {noun}s match these filters.
             </p>
           )}

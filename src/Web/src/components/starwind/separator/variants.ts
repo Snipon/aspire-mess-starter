@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "@/lib/utils";
 
 // The site's separator styles.
 export const separator = tv({

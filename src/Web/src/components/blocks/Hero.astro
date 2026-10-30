@@ -28,7 +28,7 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
 <section
   class={cn(
     'relative mx-[calc(50%-50vw)] flex w-screen items-end overflow-hidden',
-    first && media && '-mt-10 sm:-mt-16',
+    first && media && '-mt-34 sm:-mt-55',
     media ? 'min-h-[60vh] bg-ink lg:min-h-[70vh]' : 'border-b',
   )}
 >
@@ -69,16 +69,16 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
       />
     )
   }
-  <div class={cn('relative mx-auto w-full max-w-6xl px-4 sm:px-6', media ? 'py-14 text-white sm:py-20' : 'pb-14 sm:pb-20')}>
-    <div class="max-w-3xl">
-      <Heading class="text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.08] font-medium text-balance">
+  <div class={cn('relative mx-auto w-full max-w-987 px-13 sm:px-21', media ? 'py-55 text-white sm:py-89' : 'pb-55 sm:pb-89')}>
+    <div class="max-w-610">
+      <Heading class="text-[clamp(2.125rem,5.5vw,3.4375rem)] leading-[1.08] font-medium text-balance">
         {block.heading}
       </Heading>
       {
         block.subheading && (
           <p
             class={cn(
-              'mt-6 max-w-xl font-serif text-lg leading-relaxed text-pretty sm:text-xl',
+              'mt-21 max-w-610 font-serif text-21 leading-relaxed text-pretty',
               media ? 'text-white/85' : 'text-muted-foreground',
             )}
           >
@@ -88,7 +88,7 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
       }
       {
         block.cta && (
-          <a {...linkAttrs(block.cta)} class={cn(ButtonVariants.button({ variant: 'signal', size: 'lg' }), 'mt-8')}>
+          <a {...linkAttrs(block.cta)} class={cn(ButtonVariants.button({ variant: 'signal', size: 'lg' }), 'mt-34')}>
             {block.cta.title ?? 'Read more'}
           </a>
         )
@@ -106,7 +106,7 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
         class={ButtonVariants.button({
           variant: 'outline',
           size: 'icon',
-          class: 'absolute right-4 bottom-4 border-white/60 bg-black/40 text-white hover:bg-black/60 hover:text-white motion-reduce:hidden sm:right-6 sm:bottom-6',
+          class: 'absolute right-13 bottom-13 border-white/60 bg-black/40 text-white hover:bg-black/60 hover:text-white motion-reduce:hidden sm:right-21 sm:bottom-21',
         })}
       >
         <span data-icon="pause">

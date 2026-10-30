@@ -12,9 +12,9 @@ const { retryHref, detail } = Astro.props;
 ---
 
 <Layout title="Sign-in failed" noindex>
-  <section class="mx-auto max-w-xl">
-    <h1 class="text-4xl font-medium">Sign-in did not complete</h1>
-    <p class="mt-4 text-lg text-muted-foreground">{detail}</p>
-    <a href={retryHref} class={ButtonVariants.button({ size: 'lg', class: 'mt-8' })}>Try again</a>
+  <section class="mx-auto max-w-610">
+    <h1 class="text-34 font-medium">Sign-in did not complete</h1>
+    <p class="mt-13 text-21 text-muted-foreground">{detail}</p>
+    <a href={retryHref} class={ButtonVariants.button({ size: 'lg', class: 'mt-34' })}>Try again</a>
   </section>
 </Layout>

@@ -51,21 +51,21 @@ const stats = product
         </a>
       </nav>
 
-      <div class="mt-6 grid gap-8 lg:grid-cols-2 lg:gap-12">
-        <figure class="self-start overflow-hidden rounded-lg bg-card">
+      <div class="mt-21 grid gap-34 lg:grid-cols-2 lg:gap-55">
+        <figure class="self-start overflow-hidden rounded-5 bg-card">
           {product.image && (
             <ResponsiveImage image={product.image} loading="eager" sizes="(min-width: 1024px) 540px, 100vw" class="aspect-[4/3] w-full object-cover" />
           )}
         </figure>
 
         <div>
-          <p class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <p class="flex flex-wrap gap-x-13 gap-y-5 text-13 text-muted-foreground">
             <a href={`/shop?brand=${encodeURIComponent(product.brand)}`} class="font-semibold text-foreground underline decoration-transparent decoration-1 underline-offset-4 hover:decoration-foreground">{product.brand}</a>
             <a href={`/shop?category=${encodeURIComponent(product.category)}`} class="underline decoration-transparent decoration-1 underline-offset-4 hover:text-foreground hover:decoration-foreground">{product.category}</a>
             <span>SKU {product.sku}</span>
           </p>
-          <h1 class="mt-3 text-3xl leading-[1.05] font-medium text-balance sm:text-4xl">{product.title}</h1>
-          <p class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <h1 class="mt-13 text-34 leading-[1.05] font-medium text-balance">{product.title}</h1>
+          <p class="mt-13 flex flex-wrap gap-x-13 gap-y-5 text-13 text-muted-foreground">
             <span>
               <span aria-hidden="true">★</span> <span class="font-semibold text-foreground">{product.stats.rating.toFixed(1)}</span><span class="sr-only"> out of 5</span>
             </span>
@@ -74,9 +74,9 @@ const stats = product
           </p>
 
           {/* The buy panel reads as the head of a spec sheet: price and action on top, key figures ruled below. */}
-          <div class="mt-8 rounded-lg border border-border bg-card">
-            <div class="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
-              <p class="text-4xl font-medium tabular-nums sm:text-5xl">{formatMoney(product.price)}</p>
+          <div class="mt-34 rounded-5 border border-border bg-card">
+            <div class="flex flex-wrap items-center justify-between gap-13 px-21 pt-21">
+              <p class="text-34 font-medium tabular-nums sm:text-55">{formatMoney(product.price)}</p>
               {product.stock > 0 ? (
                 <Badge variant="secondary">{product.stock < 10 ? `Only ${product.stock} left` : 'In stock'}</Badge>
               ) : (
@@ -84,31 +84,31 @@ const stats = product
               )}
             </div>
 
-            <form method="post" action="/cart" class="flex items-end gap-3 px-5 pt-5 pb-5">
+            <form method="post" action="/cart" class="flex items-end gap-13 px-21 pt-21 pb-21">
               <input type="hidden" name="action" value="add" />
               <input type="hidden" name="sku" value={product.sku} />
-              <label class="grid gap-1.5 text-sm font-semibold">
+              <label class="grid gap-5 text-13 font-semibold">
                 Quantity
                 <select
                   name="quantity"
                   disabled={maxQuantity === 0}
-                  class="h-12 min-w-20 rounded-sm border border-muted-foreground bg-card px-3 text-base tabular-nums hover:border-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
+                  class="h-55 min-w-89 rounded-3 border border-muted-foreground bg-card px-13 text-16 tabular-nums hover:border-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
                 >
                   {Array.from({ length: Math.max(maxQuantity, 1) }, (_, i) => (
                     <option value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
               </label>
-              <button type="submit" disabled={maxQuantity === 0} class={cn(ButtonVariants.button({ size: 'lg' }), 'flex-1 sm:flex-none sm:px-10')}>
+              <button type="submit" disabled={maxQuantity === 0} class={cn(ButtonVariants.button({ size: 'lg' }), 'flex-1 sm:flex-none sm:px-34')}>
                 Add to cart
               </button>
             </form>
 
             <dl class="grid grid-cols-2 gap-px border-t border-border bg-border sm:grid-cols-4">
               {stats.map(([label, value]) => (
-                <div class="bg-card px-5 py-3">
-                  <dt class="text-xs text-muted-foreground">{label}</dt>
-                  <dd class="mt-0.5 font-semibold tabular-nums">{value}</dd>
+                <div class="bg-card px-21 py-13">
+                  <dt class="text-13 text-muted-foreground">{label}</dt>
+                  <dd class="mt-2 font-semibold tabular-nums">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -116,12 +116,12 @@ const stats = product
         </div>
       </div>
 
-      <div class="mt-16 grid gap-12 lg:grid-cols-2">
+      <div class="mt-55 grid gap-55 lg:grid-cols-2">
         <section aria-labelledby="specs">
-          <h2 id="specs" class="text-2xl font-medium">Specifications</h2>
-          <dl class="mt-4 border-t border-border">
+          <h2 id="specs" class="text-21 font-medium">Specifications</h2>
+          <dl class="mt-13 border-t border-border">
             {product.specs.map((spec) => (
-              <div class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-4 border-b border-border py-2.5 text-sm">
+              <div class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-13 border-b border-border py-8 text-13">
                 <dt class="text-muted-foreground">{spec.label}</dt>
                 <dd class="font-semibold tabular-nums">
                   {spec.value}
@@ -132,8 +132,8 @@ const stats = product
           </dl>
         </section>
         <section aria-labelledby="about">
-          <h2 id="about" class="text-2xl font-medium">About this product</h2>
-          <div class="prose mt-4 max-w-none border-t border-border pt-4 prose-headings:text-base" set:html={focusableScrollers(product.descriptionHtml)} />
+          <h2 id="about" class="text-21 font-medium">About this product</h2>
+          <div class="prose mt-13 max-w-none border-t border-border pt-13 prose-headings:text-16" set:html={focusableScrollers(product.descriptionHtml)} />
         </section>
       </div>
     </Layout>

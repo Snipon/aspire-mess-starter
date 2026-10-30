@@ -14,13 +14,13 @@ const primary = block.style === 'primary';
 
 <section
   class:list={[
-    'flex flex-col gap-8 rounded-lg px-6 py-12 sm:flex-row sm:items-end sm:justify-between sm:px-12',
+    'flex flex-col gap-34 rounded-5 px-21 py-55 sm:flex-row sm:items-end sm:justify-between sm:px-55',
     primary ? 'bg-muted text-foreground' : 'border border-border bg-card text-card-foreground',
   ]}
 >
-  <div class="max-w-2xl">
-    <h2 class="text-3xl leading-tight font-medium text-balance sm:text-4xl">{block.heading}</h2>
-    {block.text && <p class="mt-5 max-w-xl font-serif text-lg leading-relaxed text-pretty text-muted-foreground">{block.text}</p>}
+  <div class="max-w-610">
+    <h2 class="text-34 leading-tight font-medium text-balance">{block.heading}</h2>
+    {block.text && <p class="mt-21 max-w-610 font-serif text-21 leading-relaxed text-pretty text-muted-foreground">{block.text}</p>}
   </div>
   {
     block.link && (
