@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../umbraco-package-schema.json",
+  "name": "Website preview",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "workspaceActionMenuItem",
+      "kind": "previewOption",
+      "alias": "Headless.PreviewOption.Website",
+      "name": "Preview on website",
+      "forWorkspaceActions": "Umb.WorkspaceAction.Document.SaveAndPreview",
+      "weight": 100,
+      "meta": {
+        "label": "Preview on website",
+        "icon": "icon-globe",
+        "urlProviderAlias": "website"
+      }
+    }
+  ]
+}
