@@ -3,6 +3,9 @@ import Layout from '../layouts/Layout.astro';
 import ArticleView from './ArticleView.astro';
 import BlockList from './blocks/BlockList.astro';
 import type { Page } from '../lib/api/client';
+import { cardImageUrl } from '../lib/image';
+import { siteUrl } from '../lib/site';
+import { articleJsonLd } from '../lib/structured-data';
 
 interface Props {
   page: Page;
@@ -17,20 +20,24 @@ const { page, banner, noindex } = Astro.props;
 // Landing pages often have no summary; their hero's subheading describes them just as well.
 const hero = page.blocks.find((block) => block.type === 'hero');
 const description = page.summary ?? hero?.subheading;
+const image = page.image ?? hero?.image;
+const article = page.article ?? page.blogPost;
+const structuredData = article && !noindex ? [articleJsonLd(page, article, siteUrl(Astro.url), image ? cardImageUrl(image) : undefined)] : undefined;
 ---
 
 <Layout
   title={page.title}
   description={description}
   cmsId={page.id}
-  image={page.image ?? hero?.image}
-  type={page.article || page.blogPost ? 'article' : 'website'}
+  {image}
+  type={article ? 'article' : 'website'}
   {noindex}
+  {structuredData}
 >
   {banner && <p role="status" class="mb-8 bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">{banner}</p>}
   {
-    page.article || page.blogPost ? (
-      <ArticleView page={page} article={(page.article ?? page.blogPost)!} />
+    article ? (
+      <ArticleView page={page} article={article} />
     ) : (
       <>
         {page.blocks[0]?.type !== 'hero' && (

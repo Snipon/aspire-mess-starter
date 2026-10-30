@@ -7,7 +7,9 @@ import StaffBar from '../components/StaffBar.astro';
 import { cn } from '@/lib/utils';
 import { getNavigation, type Image, type NavItem } from '../lib/api/client';
 import { authEnabled } from '../lib/auth';
+import { cardImageUrl } from '../lib/image';
 import { siteUrl } from '../lib/site';
+import { jsonLd } from '../lib/structured-data';
 import { staffEnabled } from '../lib/staff';
 
 interface Props {
@@ -22,16 +24,17 @@ interface Props {
   type?: 'website' | 'article';
   /** Keeps the page out of search engines: per-visitor pages, search results, errors and drafts. */
   noindex?: boolean;
+  /** schema.org objects (lib/structured-data.ts), rendered as one JSON-LD script. */
+  structuredData?: object[];
 }
 
-const { title, description, cmsId, sku, image, type = 'website', noindex } = Astro.props;
+const { title, description, cmsId, sku, image, type = 'website', noindex, structuredData } = Astro.props;
 
 // Filters, sort and search terms collapse onto the listing; only the page number stays part of the URL.
 const canonical = new URL(Astro.url.pathname, siteUrl(Astro.url));
 const pageNumber = Number(Astro.url.searchParams.get('page'));
 if (pageNumber > 1) canonical.searchParams.set('page', String(pageNumber));
-// Social cards want ~1200px wide; image URLs from the API are already absolute.
-const cardImage = image && (image.srcset.find((r) => r.width >= 1200) ?? image.srcset.at(-1) ?? image);
+const cardImage = image && cardImageUrl(image);
 const nav = await getNavigation();
 
 // Show each root (normally just Home) followed by its direct children as top-level links.
@@ -62,9 +65,10 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     <meta property="og:title" content={title} />
     {description && <meta property="og:description" content={description} />}
     <meta property="og:url" content={canonical.href} />
-    {cardImage && <meta property="og:image" content={cardImage.url} />}
+    {cardImage && <meta property="og:image" content={cardImage} />}
     {cardImage && image?.alt && <meta property="og:image:alt" content={image.alt} />}
     <meta name="twitter:card" content={cardImage ? 'summary_large_image' : 'summary'} />
+    {structuredData && <script type="application/ld+json" set:html={jsonLd(structuredData)} />}
     <slot name="head" />
   </head>
   <body class="flex min-h-screen flex-col bg-background text-foreground antialiased" data-cms-id={cmsId} data-sku={sku}>

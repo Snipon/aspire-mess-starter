@@ -278,7 +278,8 @@ request. Per-visitor pages and endpoints (`/cart`, `/checkout`, `/account`, `/st
 Every page gets a canonical link (path plus `page` when above 1, so filtered, sorted and searched listings collapse
 onto the listing), Open Graph and Twitter card tags (`Layout.astro`). Search results, per-visitor and error pages
 are `noindex` instead. `/robots.txt` keeps crawlers out of the per-visitor paths and points at `/sitemap.xml`, which
-lists every published page and product from `/api/sitemap`. Absolute URLs use `SITE_URL`.
+lists every published page and product from `/api/sitemap`. Absolute URLs use `SITE_URL`. Products, articles and blog posts carry
+schema.org JSON-LD (`Product` with offer and rating plus breadcrumbs, `Article`/`BlogPosting`; `lib/structured-data.ts`).
 
 ## Observability (local)
 
