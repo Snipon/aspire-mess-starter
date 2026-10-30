@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Content changed webhook
-         * @description Called by the CMS on publish/unpublish/delete/move with `{ "id": "..." }` (or an array of those, as sent for move and moved-to-recycle-bin). Each item is re-read from the content source and upserted if published, otherwise removed; when its path changed or it disappeared, the documents indexed below its old path are re-read as well. Afterwards every page in the web cache is invalidated (`WebCache:PurgeUrl`), so the site shows the change at once; purging after the index update keeps list pages from being cached with stale results. Requires the `X-Webhook-Secret` header.
+         * @description Called by the CMS on publish/unpublish/delete/move with `{ "id": "..." }` (or an array of those, as sent for move and moved-to-recycle-bin). Each item is re-read from the content source and upserted if published, otherwise removed; when its path changed or it disappeared, the documents indexed below its old path are re-read as well. Requires the `X-Webhook-Secret` header.
          */
         post: operations["ContentWebhook"];
         delete?: never;
@@ -212,7 +212,7 @@ export interface paths {
         put?: never;
         /**
          * Rebuild the search index from the content source
-         * @description Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded, then purges the web cache. Requires the `X-Reindex-Secret` header (`Search:ReindexSecret`).
+         * @description Builds a fresh index and swaps it in atomically; search keeps serving the previous contents until the rebuild has succeeded. Requires the `X-Reindex-Secret` header (`Search:ReindexSecret`).
          */
         post: operations["Reindex"];
         delete?: never;

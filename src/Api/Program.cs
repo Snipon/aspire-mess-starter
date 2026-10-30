@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Api.Auth;
-using Api.Caching;
 using Api.Commerce;
 using Api.Content;
 using Api.Endpoints;
@@ -22,7 +21,6 @@ builder.AddCustomerAuth();
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<StatusReporter>();
-builder.Services.AddHttpClient<WebCachePurger>(http => http.Timeout = TimeSpan.FromSeconds(10));
 
 // Strict number handling keeps numbers typed as `integer` (not `integer | string`) in the OpenAPI document.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);

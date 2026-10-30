@@ -8,8 +8,8 @@ interface Bar {
 
 /**
  * Top bar for signed-in staff: shortcuts into the CMS and the other back offices, chosen by role for the page being
- * viewed (its CMS id or product SKU, from the <body> data attributes). Pages are shared-cached, so the bar is fetched
- * per visitor (/api/staff, no-store) and renders nothing for everyone else.
+ * viewed (its CMS id or product SKU, from the <body> data attributes). Pages render nothing per visitor, so the bar is
+ * fetched (/api/staff, no-store) and renders nothing for everyone else.
  */
 export default function StaffBar() {
   const bar = useVisitorJson<Bar>(() => {

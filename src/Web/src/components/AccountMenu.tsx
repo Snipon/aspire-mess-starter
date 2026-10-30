@@ -10,8 +10,8 @@ interface Me {
 }
 
 /**
- * "Sign in" for visitors, a link to /account for signed-in customers. Pages are shared-cached, so the signed-in state
- * is fetched in the browser (/api/me, no-store) and the server-rendered header never contains it.
+ * "Sign in" for visitors, a link to /account for signed-in customers. Pages render nothing per visitor, so the
+ * signed-in state is fetched in the browser (/api/me, no-store) and the server-rendered header never contains it.
  */
 export default function AccountMenu({ active }: { active: boolean }) {
   // undefined while loading, null when signed out (or when the session could not be read).

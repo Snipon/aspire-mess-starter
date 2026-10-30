@@ -7,8 +7,8 @@ import { log } from './log';
 /**
  * Customer sign-in at the shop's identity provider (a Keycloak realm locally, Entra External ID in production), via
  * OIDC_AUTHORITY, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET and OIDC_SCOPE (see OidcClient). The session lives in an encrypted
- * cookie and carries the access token for the API; pages stay shared-cached because nothing per visitor is rendered
- * into them (the header asks /api/me in the browser). Off unless OIDC_AUTHORITY is set.
+ * cookie and carries the access token for the API; nothing per visitor is rendered into pages (the header asks
+ * /api/me in the browser). Off unless OIDC_AUTHORITY is set.
  */
 const customers = new OidcClient('OIDC', '/auth/callback');
 const SESSION_COOKIE = 'session';

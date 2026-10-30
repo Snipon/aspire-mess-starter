@@ -8,7 +8,7 @@ import { api } from '../lib/api/client';
 import { cartErrors, cartHeaders, ensureCart, loadCart } from '../lib/cart';
 import { formatMoney } from '../lib/format';
 
-// Per visitor: never stored by the reverse proxy or the browser.
+// Per visitor: never stored by the browser or any cache in between.
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 // Form posts (add from a product page, change quantity, remove), then redirect back here (POST/redirect/GET).

@@ -4,7 +4,8 @@ import { backOfficesFromEnv, shortcutsFor } from '../../lib/staff-shortcuts';
 
 /**
  * The staff top bar (StaffBar.tsx) for the page being viewed (?cmsId= or ?sku=): who is signed in and their
- * shortcuts, or null for everyone else. Pages are shared-cached, so the bar is fetched per visitor in the browser.
+ * shortcuts, or null for everyone else. Pages render nothing per visitor, so the bar is
+ * fetched in the browser.
  */
 export const GET: APIRoute = ({ cookies, url }) => {
   const session = getStaffSession(cookies);

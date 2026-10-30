@@ -10,7 +10,7 @@ import { formatDate, formatMoney } from '../lib/format';
 
 const PAGE_SIZE = 10;
 
-// Per visitor: never stored by the reverse proxy or the browser.
+// Per visitor: never stored by the browser or any cache in between.
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 let orders: OrderPage | undefined;

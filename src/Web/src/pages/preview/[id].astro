@@ -5,7 +5,7 @@ import PageView from '../../components/PageView.astro';
 import { previewPage } from '../../lib/api/client';
 import { getStaffSession, staffEnabled } from '../../lib/staff';
 
-// Staff preview of a draft ("Preview on website" in the CMS). Per staff member, so never shared-cached.
+// Staff preview of a draft ("Preview on website" in the CMS). Per staff member, so never cached.
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 // Without staff sign-in there is no preview (404); signed-out staff sign in and come back here.

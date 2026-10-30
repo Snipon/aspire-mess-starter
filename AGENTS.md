@@ -7,13 +7,12 @@ version of what to run, what not to touch and how changes flow through the stack
 
 | Path | What |
 | --- | --- |
-| `apphost.cs` | Aspire AppHost (file-based): sql, meilisearch, seq, commerce-postgres, cms, commerce, api, web, web-cache |
+| `apphost.cs` | Aspire AppHost (file-based): sql, meilisearch, seq, commerce-postgres, cms, commerce, api, web |
 | `src/Cms` | Headless Umbraco 18. Schema in `uSync/v18`; seeding, webhooks and Delivery API query extensions in `Headless/` |
 | `src/Commerce` | Drupal 11 + Commerce 3 image. Schema, seeder, fake card and JSON endpoints in `web/modules/custom/headless_commerce` |
 | `src/Api` | .NET 10 minimal API. `Contracts/` is the public contract; `Content/`, `Search/` and `Commerce/` hold the ports (`IContentSource`, `ISearchIndex`, `ICommerceSource`, `IProductIndex`) and their adapters |
 | `src/Web` | Astro 7 SSR + React + Tailwind 4 + shadcn/ui. Talks only to the API (server-side) |
-| `infra/web-cache` | nginx reverse proxy cache + njs purge endpoint |
-| `infra/terraform` | Azure deployment (no web-cache there) |
+| `infra/terraform` | Azure deployment |
 | `.template.config` | `dotnet new` template: project name forms, `--demo`, random host ports |
 | `tests/Api.Tests` | xUnit tests for the API (fixtures captured from Umbraco in `Fixtures/delivery`, from Drupal in `Fixtures/drupal`) |
 
@@ -26,7 +25,7 @@ dotnet build apphost.cs                                        # AppHost
 terraform -chdir=infra/terraform fmt -check -recursive
 
 aspire start && aspire describe        # run detached; aspire stop to stop
-aspire logs <resource>                 # cms, api, web, web-cache, ...
+aspire logs <resource>                 # cms, api, web, ...
 ```
 
 On a running AppHost, rebuild one .NET resource instead of restarting everything (Aspire MCP
@@ -88,11 +87,10 @@ restart. The web runs `npm run dev` and hot-reloads.
   catalog.
 - **Adapters stay neutral**: nothing outside `Content/Umbraco` and `Search/Meilisearch` knows about Umbraco or
   Meilisearch; the web knows only the API contract.
-- **Caching**: the web middleware sets the shared-cache policy (`s-maxage`); pages that must not be cached send
-  `Cache-Control: no-store`. The API purges web-cache after each content webhook (`WebCachePurger`). Anything per
-  visitor (cart, checkout, the cart and session cookies, the signed-in customer) must stay out of cached pages: the
-  header's cart count and mini cart (`MiniCart.tsx`) and account menu (`AccountMenu.tsx`) are fetched in the browser
-  from `/api/cart` and `/api/me` (`no-store`), never rendered server-side.
+- **Caching**: there is no shared cache; pages are rendered per request. Per-visitor pages and endpoints send
+  `Cache-Control: no-store`. Pages still render nothing per visitor (cart, checkout, the cart and session cookies, the
+  signed-in customer): the header's cart count and mini cart (`MiniCart.tsx`) and account menu (`AccountMenu.tsx`)
+  are fetched in the browser from `/api/cart` and `/api/me` (`no-store`), never rendered server-side.
 - **Commerce calls are not idempotent**: the Drupal client retries GETs only. Never add retries to cart or checkout
   calls.
 - **Style**: match the surrounding code (comment density, naming, file-scoped namespaces, records for contracts).
