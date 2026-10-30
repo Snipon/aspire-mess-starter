@@ -12,33 +12,37 @@ const { block } = Astro.props;
 const primary = block.style === 'primary';
 ---
 
+{/* A full-width band like the hero (breaking out of the page column; body clips the 100vw overflow), with its content
+    aligned to the page column. */}
 <section
   class:list={[
-    'flex flex-col gap-34 rounded-5 px-21 py-55 sm:flex-row sm:items-end sm:justify-between sm:px-55',
-    primary ? 'bg-muted text-foreground' : 'border border-border bg-card text-card-foreground',
+    'mx-[calc(50%-50vw)] w-screen',
+    primary ? 'bg-muted text-foreground' : 'border-y border-border bg-card text-card-foreground',
   ]}
 >
-  <div class="max-w-610">
-    <h2 class="text-34 leading-tight font-medium text-balance">{block.heading}</h2>
-    {block.text && <p class="mt-21 max-w-610 font-serif text-21 leading-relaxed text-pretty text-muted-foreground">{block.text}</p>}
+  <div class="mx-auto flex max-w-987 flex-col gap-34 px-13 py-55 sm:flex-row sm:items-end sm:justify-between sm:px-21">
+    <div class="max-w-610">
+      <h2 class="text-34 leading-tight font-medium text-balance">{block.heading}</h2>
+      {block.text && <p class="mt-21 max-w-610 font-serif text-21 leading-relaxed text-pretty text-muted-foreground">{block.text}</p>}
+    </div>
+    {
+      block.link && (
+        <a
+          {...linkAttrs(block.link)}
+          class={cn(
+            ButtonVariants.button({ variant: primary ? 'signal' : 'default', size: 'lg' }),
+            'shrink-0 self-start sm:self-auto',
+          )}
+        >
+          {block.link.title ?? 'Learn more'}
+          {block.link.target === '_blank' && (
+            <>
+              <span aria-hidden="true">↗</span>
+              <span class="sr-only">(opens in a new tab)</span>
+            </>
+          )}
+        </a>
+      )
+    }
   </div>
-  {
-    block.link && (
-      <a
-        {...linkAttrs(block.link)}
-        class={cn(
-          ButtonVariants.button({ variant: primary ? 'signal' : 'default', size: 'lg' }),
-          'shrink-0 self-start sm:self-auto',
-        )}
-      >
-        {block.link.title ?? 'Learn more'}
-        {block.link.target === '_blank' && (
-          <>
-            <span aria-hidden="true">↗</span>
-            <span class="sr-only">(opens in a new tab)</span>
-          </>
-        )}
-      </a>
-    )
-  }
 </section>
