@@ -21,7 +21,7 @@ const Heading = first ? 'h1' : 'h2';
     <Heading class="text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.08] font-medium text-balance">
       {block.heading}
     </Heading>
-    {block.subheading && <p class="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{block.subheading}</p>}
+    {block.subheading && <p class="mt-6 max-w-xl font-serif text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{block.subheading}</p>}
     {
       block.cta && (
         <a {...linkAttrs(block.cta)} class={cn(ButtonVariants.button({ variant: 'signal', size: 'lg' }), 'mt-8')}>

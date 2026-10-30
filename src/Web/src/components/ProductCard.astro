@@ -26,8 +26,7 @@ const { product } = Astro.props;
   </div>
   <CardHeader>
     <CardDescription>
-      <span class="font-semibold text-foreground">{product.brand}</span>
-      {product.category}
+      <span class="font-semibold text-foreground">{product.brand}</span>{' '}{product.category}
     </CardDescription>
     <CardTitle class="text-base leading-snug font-medium text-balance">
       <h3>
@@ -43,8 +42,7 @@ const { product } = Astro.props;
   <CardContent class="mt-auto flex flex-wrap items-center justify-between gap-2">
     <span class="text-xl font-medium tabular-nums">{formatMoney(product.price)}</span>
     <span class="text-sm text-muted-foreground">
-      <span aria-hidden="true">★</span>
-      {product.rating.toFixed(1)}
+      <span aria-hidden="true">★</span>{' '}{product.rating.toFixed(1)}
       <span class="sr-only"> out of 5</span> ({formatNumber(product.reviewCount)})
     </span>
     {!product.inStock && <Badge variant="secondary">Out of stock</Badge>}

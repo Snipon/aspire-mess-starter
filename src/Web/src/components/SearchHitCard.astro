@@ -34,7 +34,7 @@ const { hit, tagHref } = Astro.props;
         {hit.publishDate && <time datetime={hit.publishDate}>{formatDate(hit.publishDate)}</time>}
       </CardDescription>
     </CardHeader>
-    <CardContent class="space-y-3 px-0 text-base text-muted-foreground">
+    <CardContent class="space-y-3 px-0 text-base text-muted-foreground *:[p]:font-serif">
       {
         hit.highlight ? (
           // The API HTML-escapes the text and only adds <mark> around matches.
