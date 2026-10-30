@@ -1,0 +1,60 @@
+---
+import UserIcon from '@tabler/icons/outline/user.svg';
+import { ButtonVariants } from '@/components/starwind/button';
+
+/**
+ * "Sign in" for visitors, a link to /account for signed-in customers. Pages render nothing per visitor, so the
+ * signed-in state is fetched in the browser (/api/me, no-store) and the server-rendered header never contains it.
+ */
+interface Props {
+  /** On /account: the link shows as the current page. */
+  active: boolean;
+}
+
+const { active } = Astro.props;
+---
+
+<account-menu class="contents">
+  <span class="size-9" aria-hidden="true"></span>
+  <template data-signed-out>
+    <a href="/auth/login" class={ButtonVariants.button({ variant: 'ghost', size: 'sm' })}>Sign in</a>
+  </template>
+  <template data-signed-in>
+    <a
+      href="/account"
+      aria-current={active ? 'page' : undefined}
+      class={ButtonVariants.button({ variant: 'ghost', size: 'icon', class: active && 'bg-muted text-foreground hover:bg-muted' })}
+    >
+      <UserIcon aria-hidden="true" />
+      <span class="sr-only" data-label></span>
+    </a>
+  </template>
+</account-menu>
+
+<script>
+  import { loadVisitorJson } from '@/lib/visitor-json';
+
+  interface Me {
+    name: string;
+    email: string | null;
+  }
+
+  class AccountMenu extends HTMLElement {
+    connectedCallback() {
+      // null when signed out (or when the session could not be read).
+      loadVisitorJson<Me>('/api/me', (me) => {
+        const template = this.querySelector<HTMLTemplateElement>(me ? 'template[data-signed-in]' : 'template[data-signed-out]')!;
+        const link = template.content.firstElementChild!.cloneNode(true) as HTMLAnchorElement;
+        if (me) {
+          link.title = me.email ?? me.name;
+          link.querySelector('[data-label]')!.textContent = `Account (${me.name})`;
+        } else {
+          link.href = `/auth/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`;
+        }
+        this.querySelector(':scope > :not(template)')!.replaceWith(link);
+      });
+    }
+  }
+
+  customElements.define('account-menu', AccountMenu);
+</script>

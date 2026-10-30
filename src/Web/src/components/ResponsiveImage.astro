@@ -1,5 +1,6 @@
 ---
 import type { Image } from '@/lib/api/client';
+import { imageAttributes } from '@/lib/image';
 
 interface Props {
   image: Image;
@@ -9,21 +10,7 @@ interface Props {
 }
 
 const { image, sizes = '(min-width: 1024px) 1024px, 100vw', class: className, loading = 'lazy' } = Astro.props;
-const srcset = image.srcset.length ? image.srcset.map((r) => `${r.url} ${r.width}w`).join(', ') : undefined;
-// Prefer the largest signed rendition over the original upload as the fallback src.
-const src = image.srcset.at(-1)?.url ?? image.url;
-const objectPosition = image.focalPoint ? `${image.focalPoint.left * 100}% ${image.focalPoint.top * 100}%` : undefined;
+const { objectPosition, ...attributes } = imageAttributes(image, sizes);
 ---
 
-<img
-  src={src}
-  srcset={srcset}
-  sizes={srcset ? sizes : undefined}
-  width={image.width ?? undefined}
-  height={image.height ?? undefined}
-  alt={image.alt ?? ''}
-  loading={loading}
-  decoding="async"
-  class={className}
-  style={objectPosition ? { objectPosition } : undefined}
-/>
+<img {...attributes} loading={loading} decoding="async" class={className} style={objectPosition ? { objectPosition } : undefined} />
