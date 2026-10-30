@@ -1,5 +1,5 @@
 ---
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/starwind/input';
 
 /** A `q` search input with autosuggest (combobox over /api/suggest); without JavaScript it is a plain search field. */
 interface Props {
@@ -19,11 +19,11 @@ const listId = `${id}-suggestions`;
     id={id}
     type="search"
     name="q"
-    defaultValue={value}
+    value={value}
     placeholder={placeholder}
-    autoFocus={autofocus}
-    className={className}
-    autoComplete="off"
+    autofocus={autofocus}
+    class={className}
+    autocomplete="off"
     role="combobox"
     aria-autocomplete="list"
     aria-expanded="false"

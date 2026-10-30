@@ -1,6 +1,6 @@
 ---
-import ResponsiveImage from '@/components/ResponsiveImage';
-import { buttonVariants } from '@/components/ui/button';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import type { Block } from '../../lib/api/client';
 import { linkAttrs } from '../../lib/format';
@@ -24,7 +24,7 @@ const Heading = first ? 'h1' : 'h2';
     {block.subheading && <p class="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{block.subheading}</p>}
     {
       block.cta && (
-        <a {...linkAttrs(block.cta)} class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'mt-8')}>
+        <a {...linkAttrs(block.cta)} class={cn(ButtonVariants.button({ variant: 'signal', size: 'lg' }), 'mt-8')}>
           {block.cta.title ?? 'Read more'}
         </a>
       )
@@ -37,7 +37,7 @@ const Heading = first ? 'h1' : 'h2';
           image={block.image}
           loading={first ? 'eager' : 'lazy'}
           sizes="(min-width: 1152px) 460px, 40vw"
-          className="absolute inset-0 h-full w-full object-cover"
+          class="absolute inset-0 h-full w-full object-cover"
         />
       </div>
     )

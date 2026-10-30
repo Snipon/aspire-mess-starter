@@ -1,0 +1,67 @@
+---
+// Top bar for signed-in staff: shortcuts into the CMS and the other back offices, chosen by role for the page being
+// viewed (its CMS id or product SKU, from the <body> data attributes). Pages render nothing per visitor, so the bar is
+// fetched (/api/staff, no-store) and renders nothing for everyone else.
+---
+
+<staff-bar class="contents">
+  <template>
+    <nav aria-label="Staff" class="bg-primary text-primary-foreground">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-1.5 text-sm sm:px-6">
+        <span class="font-semibold" data-name></span>
+        <ul class="flex flex-wrap gap-x-4 gap-y-1" data-shortcuts></ul>
+        <form method="post" action="/auth/staff/logout" class="ml-auto">
+          <button
+            type="submit"
+            class="font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground"
+          >
+            Sign out
+          </button>
+        </form>
+      </div>
+    </nav>
+  </template>
+  <template data-shortcut>
+    <li>
+      <a
+        class="underline decoration-primary-foreground/40 underline-offset-4 hover:decoration-foreground-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground"
+      ></a>
+    </li>
+  </template>
+</staff-bar>
+
+<script>
+  import type { Shortcut } from '@/lib/staff-shortcuts';
+  import { loadVisitorJson } from '@/lib/visitor-json';
+
+  interface Bar {
+    name: string;
+    shortcuts: Shortcut[];
+  }
+
+  class StaffBar extends HTMLElement {
+    connectedCallback() {
+      const { cmsId, sku } = document.body.dataset;
+      const query = new URLSearchParams(Object.entries({ cmsId, sku }).filter((e): e is [string, string] => Boolean(e[1])));
+      loadVisitorJson<Bar>(`/api/staff?${query}`, (bar) => {
+        this.querySelector(':scope > nav')?.remove();
+        if (!bar) return;
+        const nav = this.querySelector<HTMLTemplateElement>('template:not([data-shortcut])')!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+        nav.querySelector('[data-name]')!.textContent = bar.name;
+        const item = this.querySelector<HTMLTemplateElement>('template[data-shortcut]')!.content.firstElementChild!;
+        nav.querySelector('[data-shortcuts]')!.replaceChildren(
+          ...bar.shortcuts.map((s) => {
+            const li = item.cloneNode(true) as HTMLElement;
+            const a = li.querySelector('a')!;
+            a.href = s.href;
+            a.textContent = s.label;
+            return li;
+          }),
+        );
+        this.prepend(nav);
+      });
+    }
+  }
+
+  customElements.define('staff-bar', StaffBar);
+</script>

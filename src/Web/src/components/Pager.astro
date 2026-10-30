@@ -1,0 +1,57 @@
+---
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/starwind/pagination';
+
+interface Props {
+  page: number;
+  totalPages: number;
+  href: (page: number) => string;
+}
+
+const { page, totalPages, href } = Astro.props;
+
+/** The first and last page, and the current page with its neighbours; null marks a gap. */
+function pageWindow(page: number, totalPages: number): (number | null)[] {
+  const pages = [...new Set([1, page - 1, page, page + 1, totalPages])]
+    .filter((p) => p >= 1 && p <= totalPages)
+    .sort((a, b) => a - b);
+  return pages.flatMap((p, i) => (i > 0 && p - pages[i - 1] > 1 ? [null, p] : [p]));
+}
+---
+
+{
+  totalPages > 1 && (
+    <Pagination class="mt-10">
+      <PaginationContent>
+        {page > 1 && (
+          <PaginationItem>
+            <PaginationPrevious href={href(page - 1)} rel="prev" />
+          </PaginationItem>
+        )}
+        {pageWindow(page, totalPages).map((p) => (
+          <PaginationItem>
+            {p === null ? (
+              <PaginationEllipsis />
+            ) : (
+              <PaginationLink href={href(p)} isActive={p === page} aria-label={`Page ${p}`}>
+                {p}
+              </PaginationLink>
+            )}
+          </PaginationItem>
+        ))}
+        {page < totalPages && (
+          <PaginationItem>
+            <PaginationNext href={href(page + 1)} rel="next" />
+          </PaginationItem>
+        )}
+      </PaginationContent>
+    </Pagination>
+  )
+}

@@ -1,10 +1,11 @@
 ---
-import { XIcon } from 'lucide-react';
-import ArticleGrid from '@/components/ArticleGrid';
-import FacetFilters, { type FacetGroup } from '@/components/FacetFilters';
-import Pager from '@/components/Pager';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { buttonVariants } from '@/components/ui/button';
+import XIcon from '@tabler/icons/outline/x.svg';
+import ArticleGrid from '@/components/ArticleGrid.astro';
+import FacetFilters from '@/components/FacetFilters.astro';
+import type { FacetGroup } from '@/lib/facets';
+import Pager from '@/components/Pager.astro';
+import { Alert, AlertDescription } from '@/components/starwind/alert';
+import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import { api, type ArticleSummary, type Block } from '../../lib/api/client';
 import { log } from '../../lib/log';
@@ -71,7 +72,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 
   {
     !result ? (
-      <Alert variant="destructive" className="mt-6">
+      <Alert variant="destructive" class="mt-6">
         <AlertDescription>{posts ? 'Blog posts' : 'Articles'} are temporarily unavailable. Please try again shortly.</AlertDescription>
       </Alert>
     ) : (
@@ -88,7 +89,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
             {(tag || year) && (
               <a
                 href={listHref({ tag: null, year: null })}
-                class={cn(buttonVariants({ variant: 'outline', size: 'xs' }))}
+                class={cn(ButtonVariants.button({ variant: 'outline', size: 'xs' }))}
               >
                 <XIcon aria-hidden="true" /> Clear filters
               </a>

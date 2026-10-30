@@ -1,0 +1,28 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import type { VariantProps } from "tailwind-variants";
+
+import { button } from "../button/variants";
+
+type Props = HTMLAttributes<"a"> & Pick<VariantProps<typeof button>, "size"> & { isActive?: boolean };
+
+const { isActive, size = "icon", class: className, ...rest } = Astro.props;
+const variant = isActive ? "default" : "ghost";
+---
+
+<a
+  aria-current={isActive ? "page" : undefined}
+  data-active={isActive ? "true" : "false"}
+  data-variant={variant}
+  data-size={size}
+  class={button({
+    variant,
+    size,
+    // 36px below sm so a full window (both gaps) fits a 320px screen.
+    class: ["tabular-nums max-sm:size-9", isActive && "bg-primary text-primary-foreground", className],
+  })}
+  {...rest}
+  data-slot="pagination-link"
+>
+  <slot />
+</a>

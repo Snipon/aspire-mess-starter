@@ -1,10 +1,11 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @import "@fontsource-variable/source-serif-4/opsz.css"; /* wght 200–900, optical size 8–60 */
 @import "@fontsource-variable/source-serif-4/opsz-italic.css";
 
 @custom-variant dark (&:is(.dark *));
+/* Orientation variants for data-orientation (the separator). */
+@custom-variant data-horizontal (&:where([data-orientation="horizontal"]));
+@custom-variant data-vertical (&:where([data-orientation="vertical"]));
 @plugin "@tailwindcss/typography";
 
 @layer components {

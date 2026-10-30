@@ -1,8 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import ResponsiveImage from '@/components/ResponsiveImage';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { buttonVariants } from '@/components/ui/button';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import { Alert, AlertDescription } from '@/components/starwind/alert';
+import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import { api } from '../lib/api/client';
 import { cartErrors, cartHeaders, ensureCart, loadCart } from '../lib/cart';
@@ -51,7 +51,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
 
   {
     message && (
-      <Alert variant="destructive" className="mt-6">
+      <Alert variant="destructive" class="mt-6">
         <AlertDescription>{message}</AlertDescription>
       </Alert>
     )
@@ -61,7 +61,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
     !cart || cart.items.length === 0 ? (
       <div class="mt-10 border border-dashed border-input px-6 py-14 text-center">
         <p class="text-lg text-muted-foreground">Your cart is empty.</p>
-        <a href="/shop" class={cn(buttonVariants({ size: 'lg' }), 'mt-6')}>
+        <a href="/shop" class={cn(ButtonVariants.button({ size: 'lg' }), 'mt-6')}>
           Browse the shop
         </a>
       </div>
@@ -71,7 +71,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
           {cart.items.map((item) => (
             <li class="flex gap-3 p-4 sm:gap-4 sm:p-5">
               <div class="size-16 shrink-0 overflow-hidden bg-muted sm:size-20">
-                {item.image && <ResponsiveImage image={{ ...item.image, alt: null }} sizes="80px" className="h-full w-full object-cover" />}
+                {item.image && <ResponsiveImage image={{ ...item.image, alt: null }} sizes="80px" class="h-full w-full object-cover" />}
               </div>
               <div class="min-w-0 flex-1">
                 <a href={item.path ?? '/shop'} class="font-semibold decoration-primary decoration-1 underline-offset-4 hover:underline">
@@ -99,14 +99,14 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
                         </option>
                       ))}
                     </select>
-                    <button type="submit" class={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-10 sm:h-8')}>
+                    <button type="submit" class={cn(ButtonVariants.button({ variant: 'outline', size: 'sm' }), 'h-10 sm:h-8')}>
                       Update
                     </button>
                   </form>
                   <form method="post">
                     <input type="hidden" name="action" value="remove" />
                     <input type="hidden" name="item" value={item.id} />
-                    <button type="submit" class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'h-10 text-muted-foreground sm:h-8')}>
+                    <button type="submit" class={cn(ButtonVariants.button({ variant: 'ghost', size: 'sm' }), 'h-10 text-muted-foreground sm:h-8')}>
                       Remove
                     </button>
                   </form>
@@ -133,7 +133,7 @@ const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please
               <dd class="text-2xl font-medium tabular-nums">{formatMoney(cart.total)}</dd>
             </div>
           </dl>
-          <a href="/checkout" class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'mt-6 w-full')}>
+          <a href="/checkout" class={cn(ButtonVariants.button({ variant: 'signal', size: 'lg' }), 'mt-6 w-full')}>
             Checkout
           </a>
         </aside>

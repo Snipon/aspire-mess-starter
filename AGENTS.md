@@ -11,7 +11,7 @@ version of what to run, what not to touch and how changes flow through the stack
 | `src/Cms` | Headless Umbraco 18. Schema in `uSync/v18`; seeding, webhooks and Delivery API query extensions in `Headless/` |
 | `src/Commerce` | Drupal 11 + Commerce 3 image. Schema, seeder, fake card and JSON endpoints in `web/modules/custom/headless_commerce` |
 | `src/Api` | .NET 10 minimal API. `Contracts/` is the public contract; `Content/`, `Search/` and `Commerce/` hold the ports (`IContentSource`, `ISearchIndex`, `ICommerceSource`, `IProductIndex`) and their adapters |
-| `src/Web` | Astro 7 SSR + React + Tailwind 4 + shadcn/ui. Talks only to the API (server-side) |
+| `src/Web` | Astro 7 SSR + Tailwind 4 + Starwind UI (no UI framework). Talks only to the API (server-side) |
 | `infra/terraform` | Azure deployment |
 | `.template.config` | `dotnet new` template: project name forms, `--demo`, random host ports |
 | `tests/Api.Tests` | xUnit tests for the API (fixtures captured from Umbraco in `Fixtures/delivery`, from Drupal in `Fixtures/drupal`) |
@@ -89,7 +89,7 @@ restart. The web runs `npm run dev` and hot-reloads.
   Meilisearch; the web knows only the API contract.
 - **Caching**: there is no shared cache; pages are rendered per request. Per-visitor pages and endpoints send
   `Cache-Control: no-store`. Pages still render nothing per visitor (cart, checkout, the cart and session cookies, the
-  signed-in customer): the header's cart count and mini cart (`MiniCart.tsx`) and account menu (`AccountMenu.tsx`)
+  signed-in customer): the header's cart count and mini cart (`MiniCart.astro`) and account menu (`AccountMenu.astro`)
   are fetched in the browser from `/api/cart` and `/api/me` (`no-store`), never rendered server-side.
 - **Commerce calls are not idempotent**: the Drupal client retries GETs only. Never add retries to cart or checkout
   calls.

@@ -1,0 +1,14 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import type { VariantProps } from "tailwind-variants";
+
+import { alert } from "./variants";
+
+type Props = HTMLAttributes<"div"> & VariantProps<typeof alert>;
+
+const { variant, role = "alert", class: className, ...rest } = Astro.props;
+---
+
+<div class={alert({ variant, class: className })} role={role} {...rest} data-slot="alert">
+  <slot />
+</div>

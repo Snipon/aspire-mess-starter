@@ -1,0 +1,14 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+import { separator } from "./variants";
+
+// Decorative, like the site's previous separator: hidden from assistive technology.
+type Props = Omit<HTMLAttributes<"div">, "role" | "aria-orientation"> & {
+  orientation?: "horizontal" | "vertical";
+};
+
+const { orientation = "horizontal", class: className, ...rest } = Astro.props;
+---
+
+<div role="none" data-orientation={orientation} class={separator({ class: className })} {...rest} data-slot="separator" />

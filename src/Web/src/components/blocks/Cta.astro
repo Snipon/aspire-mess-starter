@@ -1,7 +1,7 @@
 ---
 import type { Block } from '../../lib/api/client';
 import { linkAttrs } from '../../lib/format';
-import { buttonVariants } from '@/components/ui/button';
+import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -27,7 +27,7 @@ const primary = block.style === 'primary';
       <a
         {...linkAttrs(block.link)}
         class={cn(
-          buttonVariants({ variant: primary ? 'signal' : 'default', size: 'lg' }),
+          ButtonVariants.button({ variant: primary ? 'signal' : 'default', size: 'lg' }),
           'shrink-0 self-start sm:self-auto',
         )}
       >

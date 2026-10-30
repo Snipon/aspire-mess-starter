@@ -1,0 +1,62 @@
+---
+import TagList from '@/components/TagList.astro';
+import { Badge } from '@/components/starwind/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/starwind/card';
+import type { SearchHit } from '@/lib/api/client';
+import { contentTypeLabel, formatDate } from '@/lib/format';
+
+interface Props {
+  hit: SearchHit;
+  tagHref: (tag: string) => string;
+}
+
+const { hit, tagHref } = Astro.props;
+---
+
+<Card class="group relative flex-row gap-5 px-5 transition-colors hover:border-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+  <div class="min-w-0 flex-1 space-y-2">
+    <CardHeader class="px-0">
+      <CardTitle class="flex items-baseline justify-between gap-4 text-lg leading-snug font-medium">
+        <h2>
+          <a
+            href={hit.path}
+            class="decoration-primary decoration-1 underline-offset-4 after:absolute after:inset-0 focus-visible:outline-none group-hover:underline"
+          >
+            {hit.title}
+          </a>
+        </h2>
+        <Badge variant="outline" class="shrink-0">
+          {contentTypeLabel(hit.contentType)}
+        </Badge>
+      </CardTitle>
+      <CardDescription class="flex flex-wrap gap-x-3">
+        <span class="text-primary">{hit.path}</span>
+        {hit.publishDate && <time datetime={hit.publishDate}>{formatDate(hit.publishDate)}</time>}
+      </CardDescription>
+    </CardHeader>
+    <CardContent class="space-y-3 px-0 text-base text-muted-foreground">
+      {
+        hit.highlight ? (
+          // The API HTML-escapes the text and only adds <mark> around matches.
+          <p set:html={hit.highlight} />
+        ) : (
+          hit.summary && <p>{hit.summary}</p>
+        )
+      }
+      <TagList tags={hit.tags} href={tagHref} />
+    </CardContent>
+  </div>
+  {
+    hit.imageUrl && (
+      <img
+        src={hit.imageUrl}
+        alt=""
+        width={96}
+        height={96}
+        loading="lazy"
+        decoding="async"
+        class="hidden size-24 shrink-0 self-center bg-muted object-cover sm:block"
+      />
+    )
+  }
+</Card>

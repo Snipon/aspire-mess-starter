@@ -1,0 +1,16 @@
+---
+import type { Image } from '@/lib/api/client';
+import { imageAttributes } from '@/lib/image';
+
+interface Props {
+  image: Image;
+  sizes?: string;
+  class?: string;
+  loading?: 'eager' | 'lazy';
+}
+
+const { image, sizes = '(min-width: 1024px) 1024px, 100vw', class: className, loading = 'lazy' } = Astro.props;
+const { objectPosition, ...attributes } = imageAttributes(image, sizes);
+---
+
+<img {...attributes} loading={loading} decoding="async" class={className} style={objectPosition ? { objectPosition } : undefined} />
