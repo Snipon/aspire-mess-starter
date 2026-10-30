@@ -41,6 +41,8 @@ const siteName = 'Aspire Test';
 const pageTitle = pageNumber > 1 ? `${title} – Page ${pageNumber}` : title;
 const fullTitle = Astro.url.pathname === '/' ? siteName : `${pageTitle} – ${siteName}`;
 const cardImage = image && cardImageUrl(image);
+// Pages without an image of their own share the site card (public/og-default.png: the mark, name and strapline).
+const defaultCard = { url: new URL('/og-default.png', canonical).href, width: 1200, height: 630, alt: `${siteName}: notes on building for the web` };
 const nav = await getNavigation();
 
 // Show each root (normally just Home) followed by its direct children as top-level links.
@@ -83,9 +85,17 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     <meta property="og:title" content={Astro.url.pathname === '/' ? siteName : pageTitle} />
     {description && <meta property="og:description" content={description} />}
     <meta property="og:url" content={canonical.href} />
-    {cardImage && <meta property="og:image" content={cardImage} />}
-    {cardImage && image?.alt && <meta property="og:image:alt" content={image.alt} />}
-    <meta name="twitter:card" content={cardImage ? 'summary_large_image' : 'summary'} />
+    <meta property="og:image" content={cardImage ?? defaultCard.url} />
+    {cardImage ? (
+      image?.alt && <meta property="og:image:alt" content={image.alt} />
+    ) : (
+      <>
+        <meta property="og:image:width" content={String(defaultCard.width)} />
+        <meta property="og:image:height" content={String(defaultCard.height)} />
+        <meta property="og:image:alt" content={defaultCard.alt} />
+      </>
+    )}
+    <meta name="twitter:card" content="summary_large_image" />
     {structuredData && <script type="application/ld+json" set:html={jsonLd(structuredData)} />}
     <slot name="head" />
   </head>
