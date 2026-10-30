@@ -117,7 +117,7 @@ const stats = product
       </div>
 
       <div class="mt-55 grid gap-55 lg:grid-cols-2">
-        <section aria-labelledby="specs">
+        <section data-reveal aria-labelledby="specs">
           <h2 id="specs" class="text-21 font-medium">Specifications</h2>
           <dl class="mt-13 border-t border-border">
             {product.specs.map((spec) => (
@@ -131,7 +131,7 @@ const stats = product
             ))}
           </dl>
         </section>
-        <section aria-labelledby="about">
+        <section data-reveal aria-labelledby="about">
           <h2 id="about" class="text-21 font-medium">About this product</h2>
           <div class="prose mt-13 max-w-none border-t border-border pt-13 prose-headings:text-16" set:html={focusableScrollers(product.descriptionHtml)} />
         </section>
