@@ -149,6 +149,10 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
       </div>
     </header>
     <script>
+      import { revealOnScroll } from '../lib/reveal';
+
+      revealOnScroll();
+
       const header = document.querySelector<HTMLElement>('body > header')!;
       let last = Math.max(0, scrollY);
       const update = () => {

@@ -310,21 +310,28 @@
     view-transition-name: site-header;
   }
 
-  /* Elements marked data-reveal fade and slide up 55px as they scroll in; ones already in view at load are simply
-     there. */
+  /* Elements marked data-reveal slide up 55px and fade in when they enter the viewport (lib/reveal.ts marks them
+     data-revealed). Only once that script has run (data-reveal-ready) do they start hidden, so without it, or for
+     anything already on screen at load, they are simply there. Card border colours keep their hover transition. */
+  [data-reveal-ready] [data-reveal] {
+    transition:
+      opacity 377ms ease-out var(--reveal-delay, 0ms),
+      translate 610ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--reveal-delay, 0ms),
+      border-color 150ms;
+  }
+  [data-reveal-ready] [data-reveal]:not([data-revealed]) {
+    opacity: 0;
+    translate: 0 3.4375rem;
+  }
+  /* Grids marked data-stagger slide a row in as a left-to-right cascade (rows of three). */
+  [data-stagger] > :nth-child(3n + 2) {
+    --reveal-delay: 89ms;
+  }
+  [data-stagger] > :nth-child(3n + 3) {
+    --reveal-delay: 144ms;
+  }
+
   @supports (animation-timeline: view()) {
-    [data-reveal] {
-      animation: reveal linear both;
-      animation-timeline: view();
-      animation-range: entry var(--reveal-lag, 0%) entry calc(var(--reveal-lag, 0%) + 89%);
-    }
-    /* Grids marked data-stagger slide their items in one after another along each row of three. */
-    [data-stagger] > :nth-child(3n + 2) {
-      --reveal-lag: 21%;
-    }
-    [data-stagger] > :nth-child(3n + 3) {
-      --reveal-lag: 42%;
-    }
     /* As the hero scrolls away its media drifts at a fraction of the speed (the gap it leaves at the top is already
        off screen) and its copy fades. */
     :is([data-hero] > img, [data-hero] > video) {
@@ -362,12 +369,5 @@
 @keyframes reading-progress {
   from {
     scale: 0 1;
-  }
-}
-
-@keyframes reveal {
-  from {
-    opacity: 0;
-    translate: 0 3.4375rem;
   }
 }
