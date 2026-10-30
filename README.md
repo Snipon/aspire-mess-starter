@@ -525,12 +525,13 @@ the "Staff sign-in" link in the footer (`/auth/staff/login`). Off without `STAFF
 
 ### Preview
 
-Umbraco's own preview renders templates, which a headless CMS does not have. Instead, **Save and preview ▸ Preview on
-website** in the backoffice opens the saved draft on the website at `/preview/{key}?culture=`, for signed-in staff
-only.
+Umbraco's own preview renders templates, which a headless CMS does not have. Instead, **Save and preview** in the
+backoffice opens the saved draft on the website at `/preview/{key}?culture=`, for signed-in staff only.
 
-- **CMS**: `Headless/WebsitePreviewUrlProvider.cs` (URL provider `website`, base URL `Preview:WebUrl`) and the
-  `previewOption` in `App_Plugins/WebsitePreview`. The default Save and preview button keeps Umbraco's preview.
+- **CMS**: `Headless/WebsitePreviewUrlProvider.cs` (URL provider `website`, base URL `Preview:WebUrl`), and
+  `App_Plugins/WebsitePreview`, which replaces the backoffice's Save and preview action
+  (`overwrites: Umb.WorkspaceAction.Document.SaveAndPreview`) with one that previews through that provider; Umbraco's
+  own preview is not offered.
 - **Web**: `pages/preview/[id].astro` sends signed-out visitors to the staff sign-in and back, renders the draft with
   the same `PageView` as the live page plus a banner and `noindex`, and answers `no-store`, so no cache keeps a draft. Off (404) without staff sign-in.
 - **API**: `/api/preview/content/{id}` reads the draft through `IContentSource.GetPreviewByIdAsync` (Delivery API
