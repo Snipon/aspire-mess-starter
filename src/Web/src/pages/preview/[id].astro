@@ -1,0 +1,32 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import NotFound from '../../components/NotFound.astro';
+import PageView from '../../components/PageView.astro';
+import { previewPage } from '../../lib/api/client';
+import { getStaffSession, staffEnabled } from '../../lib/staff';
+
+// Staff preview of a draft ("Preview on website" in the CMS). Per staff member, so never shared-cached.
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+// Without staff sign-in there is no preview (404); signed-out staff sign in and come back here.
+const session = getStaffSession(Astro.cookies);
+if (staffEnabled() && !session) {
+  const returnTo = Astro.url.pathname + Astro.url.search;
+  return new Response(null, {
+    status: 302,
+    headers: { Location: `/auth/staff/login?returnTo=${encodeURIComponent(returnTo)}`, 'Cache-Control': 'no-store' },
+  });
+}
+const page = session ? await previewPage(Astro.params.id!, Astro.url.searchParams.get('culture')) : undefined;
+if (!page) Astro.response.status = 404;
+---
+
+{
+  page ? (
+    <PageView page={page} banner="Preview: unpublished draft" noindex />
+  ) : (
+    <Layout title="Page not found">
+      <NotFound />
+    </Layout>
+  )
+}
