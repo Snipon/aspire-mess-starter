@@ -18,9 +18,17 @@ import { ButtonVariants } from '@/components/starwind/button';
   const button = document.querySelector<HTMLButtonElement>('[data-theme-toggle]')!;
   const sync = () => button.setAttribute('aria-pressed', String(root.classList.contains('dark')));
   sync();
-  button.addEventListener('click', () => {
+  const toggle = () => {
     storeTheme(root.classList.toggle('dark') ? 'dark' : 'light');
     sync();
+  };
+  // Cross-fades between the themes where view transitions are supported and motion is welcome.
+  button.addEventListener('click', () => {
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.startViewTransition(toggle);
+    } else {
+      toggle();
+    }
   });
   // A page restored from the back/forward cache keeps the theme it had; another page may have changed it since.
   window.addEventListener('pageshow', (e) => {
