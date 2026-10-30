@@ -15,6 +15,11 @@ export const badge = tv({
       ghost:
         "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
       link: "text-primary underline-offset-4 hover:underline",
+      // Highlights: tinted, never the only signal (always a text label).
+      sun: "border-sun/50 bg-sun/15 text-sun-foreground [a]:hover:bg-sun/30",
+      sea: "border-sea/50 bg-sea/15 text-sea-foreground [a]:hover:bg-sea/30",
+      rose: "border-rose/50 bg-rose/15 text-rose-foreground [a]:hover:bg-rose/30",
+      iris: "border-iris/50 bg-iris/15 text-iris-foreground [a]:hover:bg-iris/30",
     },
   },
   defaultVariants: {

@@ -12,7 +12,7 @@
 
 @layer components {
   mark {
-    @apply bg-primary/10 px-2 text-foreground;
+    @apply rounded-2 bg-sun/40 px-2 text-foreground;
   }
 
   /* Page heading over a hairline rule. */
@@ -114,6 +114,14 @@
   --color-foreground: var(--foreground);
   --color-ink: var(--ink);
   --color-ink-foreground: var(--ink-foreground);
+  --color-sun: var(--sun);
+  --color-sun-foreground: var(--sun-foreground);
+  --color-sea: var(--sea);
+  --color-sea-foreground: var(--sea-foreground);
+  --color-rose: var(--rose);
+  --color-rose-foreground: var(--rose-foreground);
+  --color-iris: var(--iris);
+  --color-iris-foreground: var(--iris-foreground);
   --color-background: var(--background);
 }
 
@@ -186,6 +194,15 @@
   --ring: #9a4529;
   --ink: #241c18;
   --ink-foreground: #fbf7f4;
+  /* Highlights: bright fills used as tints (bg-sun/15, border-sun/50) with their -foreground for text. */
+  --sun: #ffc53d;
+  --sun-foreground: #7a4f00;
+  --sea: #20c5b0;
+  --sea-foreground: #0a5c52;
+  --rose: #ff5c8a;
+  --rose-foreground: #9b1543;
+  --iris: #8d7bff;
+  --iris-foreground: #4430b8;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -222,6 +239,14 @@
   --ring: #e6a68b;
   --ink: #efe6e0;
   --ink-foreground: #1c1715;
+  --sun: #ffd166;
+  --sun-foreground: #ffe09a;
+  --sea: #3ddcc6;
+  --sea-foreground: #8ff0e0;
+  --rose: #ff7aa2;
+  --rose-foreground: #ffb3c8;
+  --iris: #a799ff;
+  --iris-foreground: #cfc6ff;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

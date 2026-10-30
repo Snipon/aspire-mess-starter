@@ -29,17 +29,17 @@ const icons = {
   unhealthy: CircleXIcon,
   unknown: HelpCircleIcon,
 } satisfies Record<State, unknown>;
-// Status colours have no theme token: one strong hue per state for the edge bar and icon, on flat panel surfaces.
+// One highlight per state for the edge bar and icon, on flat panel surfaces.
 // The icon hues are !important to beat the Alert's svg text-current.
 const bars: Record<State, string> = {
-  healthy: 'border-l-emerald-600',
-  degraded: 'border-l-amber-500',
+  healthy: 'border-l-sea',
+  degraded: 'border-l-sun',
   unhealthy: 'border-l-destructive',
   unknown: 'border-l-input',
 };
 const hues: Record<State, string> = {
-  healthy: 'text-emerald-700!',
-  degraded: 'text-amber-700!',
+  healthy: 'text-sea-foreground!',
+  degraded: 'text-sun-foreground!',
   unhealthy: 'text-destructive!',
   unknown: 'text-muted-foreground!',
 };

@@ -78,9 +78,9 @@ const stats = product
             <div class="flex flex-wrap items-center justify-between gap-13 px-21 pt-21">
               <p class="text-34 font-medium tabular-nums sm:text-55">{formatMoney(product.price)}</p>
               {product.stock > 0 ? (
-                <Badge variant="secondary">{product.stock < 10 ? `Only ${product.stock} left` : 'In stock'}</Badge>
+                <Badge variant={product.stock < 10 ? 'sun' : 'sea'}>{product.stock < 10 ? `Only ${product.stock} left` : 'In stock'}</Badge>
               ) : (
-                <Badge variant="destructive">Out of stock</Badge>
+                <Badge variant="rose">Out of stock</Badge>
               )}
             </div>
 

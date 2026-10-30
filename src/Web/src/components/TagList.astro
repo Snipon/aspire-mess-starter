@@ -11,6 +11,10 @@ interface Props {
 }
 
 const { tags, href = tagHref, class: className } = Astro.props;
+
+// A stable highlight per tag (hash of its name), so a tag has the same colour wherever it appears.
+const hues = ['sun', 'sea', 'rose', 'iris'] as const;
+const hue = (tag: string) => hues[[...tag.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % hues.length];
 ---
 
 {
@@ -19,7 +23,7 @@ const { tags, href = tagHref, class: className } = Astro.props;
       {tags.map((tag) => (
         <li>
           {/* z-10: stays clickable above a card's stretched link. */}
-          <a href={href(tag)} class={BadgeVariants.badge({ variant: 'secondary', class: 'relative z-10' })}>
+          <a href={href(tag)} class={BadgeVariants.badge({ variant: hue(tag), class: 'relative z-10' })}>
             {tag}
           </a>
         </li>

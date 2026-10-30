@@ -45,6 +45,6 @@ const { product } = Astro.props;
       <span aria-hidden="true">★</span>{' '}{product.rating.toFixed(1)}
       <span class="sr-only"> out of 5</span> ({formatNumber(product.reviewCount)})
     </span>
-    {!product.inStock && <Badge variant="secondary">Out of stock</Badge>}
+    {!product.inStock && <Badge variant="rose">Out of stock</Badge>}
   </CardContent>
 </Card>
