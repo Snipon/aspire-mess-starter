@@ -96,7 +96,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
     <p class="mt-6 max-w-2xl text-xl leading-relaxed text-pretty text-muted-foreground">Developer gear with full specs and how it actually performs for customers.</p>
   </header>
 
-  <form action="/shop" method="get" role="search" class="flex max-w-xl gap-2">
+  <form action="/shop" method="get" role="search" aria-label="Products" class="flex max-w-xl gap-2">
     <label for="shop-search" class="sr-only">Search products</label>
     <Input id="shop-search" type="search" name="q" value={q} placeholder="Search products, brands, specs" class="flex-1" />
     <button type="submit" class={cn(ButtonVariants.button())}>Search</button>

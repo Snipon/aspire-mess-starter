@@ -6,7 +6,7 @@ import { Badge } from '@/components/starwind/badge';
 import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import { api } from '../../lib/api/client';
-import { formatDate, formatMoney, formatNumber } from '../../lib/format';
+import { focusableScrollers, formatDate, formatMoney, formatNumber } from '../../lib/format';
 
 const slug = Astro.params.slug ?? '';
 const { data: product, response } = await api().GET('/api/products/{slug}', { params: { path: { slug } } });
@@ -124,7 +124,7 @@ const stats = product
         </section>
         <section aria-labelledby="about">
           <h2 id="about" class="text-2xl font-medium">About this product</h2>
-          <div class="prose mt-4 max-w-none border-t border-border pt-4 prose-headings:text-base" set:html={product.descriptionHtml} />
+          <div class="prose mt-4 max-w-none border-t border-border pt-4 prose-headings:text-base" set:html={focusableScrollers(product.descriptionHtml)} />
         </section>
       </div>
     </Layout>
