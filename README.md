@@ -316,7 +316,7 @@ database uSync imports it on first boot (`uSync:Settings:ImportOnFirstBoot`), be
 | `site` | document | `blocks` (Content Blocks) | root |
 | `page` | document | `title`, `blocks` (Content Blocks) | `site`, `page` |
 | `article` | document | `title`, `image` (single image), `body` (Markdown), `tags` (group `articles`), `publishDate` (optional; falls back to the create date), `product` (Product picker: one shop SKU) | `page` |
-| `heroBlock` | element | `heading`, `subheading`, `image`, `ctaLabel`, `ctaLink` (one link) | Content Blocks |
+| `heroBlock` | element | `heading`, `subheading`, `image`, `video` (Video Media Picker: plays muted and looping as the hero's full-width background; `image` is its poster and fallback), `ctaLabel`, `ctaLink` (one link) | Content Blocks |
 | `ctaBlock` | element | `heading`, `text`, `link` (one link), `style` (`primary`/`secondary`) | Content Blocks |
 | `latestArticlesBlock` | element | `heading`, `count` (1–50, empty = 6), `tag` (optional, a single tag; a list or `!tag` is ignored); a slider on the web | Content Blocks |
 | `articleListBlock` | element | `heading`, `pageSize` (1–50, empty = 12); all articles with topic/year filters and a pager, read by the web from `/api/search` | Content Blocks |
@@ -360,7 +360,7 @@ How the API exposes it (`src/Api/Contracts`):
   `articleList` | `latestBlogPosts` | `blogPostList`; OpenAPI `oneOf` + discriminator, a TypeScript discriminated
   union in the web). `latestArticles` and `latestBlogPosts` blocks arrive resolved (`articles: ArticleSummary[]`,
   `posts: BlogPostSummary[]`). Links are `{url, title?, target?}`; content links become site paths
-  (`/articles`).
+  (`/articles`). A `hero` block's `video` is `{url, mimeType}` (MP4, WebM or Ogg from the media library) or `null`.
 - `Page.article` is non-null exactly when `contentType == "article"`: `{publishDate, tags, bodyHtml,
   readingTimeMinutes, productSku, product}`. `product` is a `ProductSummary` read live from the shop by the content
   endpoints; `null` when no product is picked, it is no longer in the shop, or the shop is off or failing. The Markdown is rendered by Markdig with raw HTML disabled and only http(s)/mailto/tel/
