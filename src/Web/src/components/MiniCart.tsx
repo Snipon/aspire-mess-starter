@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils';
 const MAX_ITEMS = 4;
 
 /**
- * Cart icon with the item count and, on hover or focus, the cart's lines. Pages are shared-cached, so the cart is
- * fetched in the browser (/api/cart, no-store) and the server-rendered header never contains it.
+ * Cart icon with the item count and, on hover or focus, the cart's lines. Pages render nothing per visitor, so the
+ * cart is fetched in the browser (/api/cart, no-store) and the server-rendered header never contains it.
  */
 export default function MiniCart({ active }: { active: boolean }) {
   // undefined while loading, null for no cart (or when the cart could not be loaded).

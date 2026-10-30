@@ -5,8 +5,8 @@ import { log } from '../../lib/log';
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
 /**
- * The visitor's cart (or null) for the header's mini cart (MiniCart.tsx). Pages are shared-cached, so the header
- * fetches this per visitor in the browser instead of rendering the cart server-side.
+ * The visitor's cart (or null) for the header's mini cart (MiniCart.tsx). Pages render nothing per visitor, so the
+ * header fetches this per visitor in the browser instead of rendering the cart server-side.
  */
 export const GET: APIRoute = async ({ cookies }) => {
   try {

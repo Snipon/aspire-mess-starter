@@ -10,7 +10,7 @@ import { accessToken, endSession, getSession } from '../lib/auth';
 import { cartHeaders, clearCart, loadCart } from '../lib/cart';
 import { formatMoney } from '../lib/format';
 
-// Per visitor: never stored by the reverse proxy or the browser.
+// Per visitor: never stored by the browser or any cache in between.
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 const loaded = await loadCart(Astro.cookies);

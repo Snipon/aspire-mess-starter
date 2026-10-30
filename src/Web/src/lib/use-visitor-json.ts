@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Per-visitor JSON (cart, sign-in state, staff bar) fetched in the browser, because pages are shared-cached. Undefined
- * while loading, null when there is nothing (or it could not be loaded). Reloaded on back/forward navigation, which
- * restores the page as it was although the visitor may have changed the cart or signed in or out since. `url` may be a
- * function when it depends on the document, which exists only inside the effect.
+ * Per-visitor JSON (cart, sign-in state, staff bar) fetched in the browser, because pages render nothing per visitor.
+ * Undefined while loading, null when there is nothing (or it could not be loaded). Reloaded on back/forward
+ * navigation, which restores the page as it was although the visitor may have changed the cart or signed in or out
+ * since. `url` may be a function when it depends on the document, which exists only inside the effect.
  */
 export function useVisitorJson<T>(url: string | (() => string)): T | null | undefined {
   const [value, setValue] = useState<T | null>();

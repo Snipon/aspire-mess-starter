@@ -78,7 +78,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
           <label for="site-search" class="sr-only">Search</label>
           <SearchInput id="site-search" value={q} placeholder="Search" class="w-32 sm:w-60" />
         </form>
-        {/* Pages are shared-cached: the account state, count and mini cart are fetched per visitor in the browser. */}
+        {/* Pages render nothing per visitor: the account state, count and mini cart are fetched in the browser. */}
         {authEnabled() && <AccountMenu client:load active={current === '/account'} />}
         <MiniCart client:load active={current === '/cart'} />
       </div>
