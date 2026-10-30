@@ -644,7 +644,9 @@ a `-foreground` for text) that tint badges, tags and search matches; use them ra
 mode is the `.dark` class on `<html>`: the visitor's choice from the header toggle (`ThemeToggle.astro`, kept in
 `localStorage`) or else the system setting, set by an inline head script before the first paint. Motion is CSS only
 and off under `prefers-reduced-motion`: pages cross-fade (cross-document view transitions, the header stays put),
-listing cards marked `data-reveal` fade in as they scroll into view, card images ease in on hover and the theme toggle
+elements marked `data-reveal` (listing cards, section headings, the CTA, product sections) fade and slide up as they
+scroll into view (staggered along each row in grids marked `data-stagger`), the hero's media drifts and its copy fades
+as it scrolls away, articles get a reading progress bar, card images ease in on hover and the theme toggle
 cross-fades. The sticky header turns to glass once the page scrolls under it, hides while scrolling down and returns
 on scroll up (never while it holds focus or the pointer). Style links as buttons or badges with
 `ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are [Tabler](https://tabler.io/icons) SVGs

@@ -26,8 +26,9 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
   column; body clips the horizontal overflow of 100vw). The text stays aligned with the page column.
 */}
 <section
+  data-hero
   class={cn(
-    'relative mx-[calc(50%-50vw)] flex w-screen items-end overflow-hidden',
+    'relative mx-[calc(50%-50vw)] flex w-screen items-end overflow-clip',
     first && media && '-mt-34 sm:-mt-55',
     media ? 'min-h-[60vh] bg-ink lg:min-h-[70vh]' : 'border-b',
   )}
@@ -70,7 +71,7 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
     )
   }
   <div class={cn('relative mx-auto w-full max-w-987 px-13 sm:px-21', media ? 'py-55 text-white sm:py-89' : 'pb-55 sm:pb-89')}>
-    <div class="max-w-610">
+    <div data-hero-copy class="max-w-610">
       <Heading class="text-[clamp(2.125rem,5.5vw,3.4375rem)] leading-[1.08] font-medium text-balance">
         {block.heading}
       </Heading>
