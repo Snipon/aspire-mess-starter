@@ -79,7 +79,7 @@ const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
             {orders.items.map((order) => (
               <li class="border border-border bg-card p-5">
                 <div class="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 class="font-semibold">Order {order.orderNumber}</h3>
+                  <h3 class="font-sans font-semibold">Order {order.orderNumber}</h3>
                   <span class="text-sm text-muted-foreground">
                     {formatDate(order.placedAt)} · <span class="capitalize">{order.status}</span>
                   </span>

@@ -20,7 +20,7 @@ const same = (a?: string, b?: string) => a?.toLowerCase() === b?.toLowerCase();
       .filter((group) => group.values.length > 0)
       .map((group) => (
         <section class="mb-4 lg:mb-8 lg:border-t lg:border-border lg:pt-3">
-          <h2 class="text-sm font-semibold lg:px-3">{group.label}</h2>
+          <h2 class="font-sans text-sm font-semibold lg:px-3">{group.label}</h2>
           <ul class="-mx-1 mt-2 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:space-y-0.5 lg:px-0">
             {group.values.map((facet) => {
               const selected = same(facet.value, group.selected);
