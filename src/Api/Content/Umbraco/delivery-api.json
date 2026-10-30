@@ -1672,6 +1672,15 @@
               "$ref": "#/components/schemas/IApiMediaWithCropsModel"
             }
           },
+          "video": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/IApiMediaWithCropsModel"
+            }
+          },
           "ctaLabel": {
             "type": [
               "null",
@@ -1745,10 +1754,10 @@
             "$ref": "#/components/schemas/ArticleContentModel"
           },
           {
-            "$ref": "#/components/schemas/SiteContentModel"
+            "$ref": "#/components/schemas/PageContentModel"
           },
           {
-            "$ref": "#/components/schemas/PageContentModel"
+            "$ref": "#/components/schemas/SiteContentModel"
           },
           {
             "$ref": "#/components/schemas/BlogPostContentModel"
@@ -1758,8 +1767,8 @@
           "propertyName": "contentType",
           "mapping": {
             "article": "#/components/schemas/ArticleContentModel",
-            "site": "#/components/schemas/SiteContentModel",
             "page": "#/components/schemas/PageContentModel",
+            "site": "#/components/schemas/SiteContentModel",
             "blogPost": "#/components/schemas/BlogPostContentModel"
           }
         }
@@ -1867,10 +1876,10 @@
             "$ref": "#/components/schemas/ArticleContentResponseModel"
           },
           {
-            "$ref": "#/components/schemas/SiteContentResponseModel"
+            "$ref": "#/components/schemas/PageContentResponseModel"
           },
           {
-            "$ref": "#/components/schemas/PageContentResponseModel"
+            "$ref": "#/components/schemas/SiteContentResponseModel"
           },
           {
             "$ref": "#/components/schemas/BlogPostContentResponseModel"
@@ -1880,8 +1889,8 @@
           "propertyName": "contentType",
           "mapping": {
             "article": "#/components/schemas/ArticleContentResponseModel",
-            "site": "#/components/schemas/SiteContentResponseModel",
             "page": "#/components/schemas/PageContentResponseModel",
+            "site": "#/components/schemas/SiteContentResponseModel",
             "blogPost": "#/components/schemas/BlogPostContentResponseModel"
           }
         }
@@ -1968,7 +1977,7 @@
         "type": "object",
         "oneOf": [
           {
-            "$ref": "#/components/schemas/HeroBlockElementModel"
+            "$ref": "#/components/schemas/ArticleListBlockElementModel"
           },
           {
             "$ref": "#/components/schemas/LatestArticlesBlockElementModel"
@@ -1977,10 +1986,10 @@
             "$ref": "#/components/schemas/CtaBlockElementModel"
           },
           {
-            "$ref": "#/components/schemas/ArticleListBlockElementModel"
+            "$ref": "#/components/schemas/BlogPostListBlockElementModel"
           },
           {
-            "$ref": "#/components/schemas/BlogPostListBlockElementModel"
+            "$ref": "#/components/schemas/HeroBlockElementModel"
           },
           {
             "$ref": "#/components/schemas/LatestBlogPostsBlockElementModel"
@@ -1989,11 +1998,11 @@
         "discriminator": {
           "propertyName": "contentType",
           "mapping": {
-            "heroBlock": "#/components/schemas/HeroBlockElementModel",
+            "articleListBlock": "#/components/schemas/ArticleListBlockElementModel",
             "latestArticlesBlock": "#/components/schemas/LatestArticlesBlockElementModel",
             "ctaBlock": "#/components/schemas/CtaBlockElementModel",
-            "articleListBlock": "#/components/schemas/ArticleListBlockElementModel",
             "blogPostListBlock": "#/components/schemas/BlogPostListBlockElementModel",
+            "heroBlock": "#/components/schemas/HeroBlockElementModel",
             "latestBlogPostsBlock": "#/components/schemas/LatestBlogPostsBlockElementModel"
           }
         }

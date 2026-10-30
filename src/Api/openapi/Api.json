@@ -1275,6 +1275,7 @@
           "subheading",
           "image",
           "cta",
+          "video",
           "type"
         ],
         "type": "object",
@@ -1311,6 +1312,16 @@
               },
               {
                 "$ref": "#/components/schemas/Link"
+              }
+            ]
+          },
+          "video": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Video"
               }
             ]
           }
@@ -2641,6 +2652,21 @@
           "quantity": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "Video": {
+        "required": [
+          "url",
+          "mimeType"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
           }
         }
       }

@@ -1,45 +1,100 @@
 ---
 import ResponsiveImage from '@/components/ResponsiveImage.astro';
 import { ButtonVariants } from '@/components/starwind/button';
+import { imageAttributes } from '@/lib/image';
 import { cn } from '@/lib/utils';
 import type { Block } from '../../lib/api/client';
 import { linkAttrs } from '../../lib/format';
 
 interface Props {
   block: Extract<Block, { type: 'hero' }>;
-  /** The first block on a page carries the page's h1. */
+  /** The first block on a page carries the page's h1 and sits directly under the header. */
   first?: boolean;
 }
 
 const { block, first = false } = Astro.props;
 const Heading = first ? 'h1' : 'h2';
+const media = Boolean(block.video || block.image);
+// The image is the video's poster, and what shows without the video (reduced motion, unplayable file).
+const poster = block.image ? imageAttributes(block.image, '100vw').src : undefined;
 ---
 
-{/* Quiet editorial opener: the headline beside the CMS image, if there is one. */}
-<section class="grid items-center gap-10 border-b pb-14 sm:pb-20 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-  <div>
-    <Heading class="text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.08] font-medium text-balance">
-      {block.heading}
-    </Heading>
-    {block.subheading && <p class="mt-6 max-w-xl font-serif text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{block.subheading}</p>}
-    {
-      block.cta && (
-        <a {...linkAttrs(block.cta)} class={cn(ButtonVariants.button({ variant: 'signal', size: 'lg' }), 'mt-8')}>
-          {block.cta.title ?? 'Read more'}
-        </a>
-      )
-    }
-  </div>
+{/*
+  Full-cover opener: the video, else the image, fills the viewport width behind the text (breaking out of the page
+  column; body clips the horizontal overflow of 100vw). The text stays aligned with the page column.
+*/}
+<section
+  class={cn(
+    'relative mx-[calc(50%-50vw)] flex w-screen items-end overflow-hidden',
+    first && media && '-mt-10 sm:-mt-16',
+    media ? 'min-h-[60vh] bg-ink lg:min-h-[70vh]' : 'border-b',
+  )}
+>
   {
     block.image && (
-      <div class="relative hidden aspect-[4/3] overflow-hidden rounded-lg bg-muted lg:block">
-        <ResponsiveImage
-          image={block.image}
-          loading={first ? 'eager' : 'lazy'}
-          sizes="(min-width: 1152px) 460px, 40vw"
-          class="absolute inset-0 h-full w-full object-cover"
-        />
-      </div>
+      <ResponsiveImage
+        image={{ ...block.image, alt: null }}
+        loading={first ? 'eager' : 'lazy'}
+        sizes="100vw"
+        class="absolute inset-0 h-full w-full object-cover"
+      />
     )
   }
+  {
+    block.video && (
+      <video
+        muted
+        loop
+        playsinline
+        preload="none"
+        data-hero-video
+        poster={poster}
+        aria-hidden="true"
+        tabindex="-1"
+        class="absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
+      >
+        <source src={block.video.url} type={block.video.mimeType} />
+      </video>
+    )
+  }
+  {media && <div class="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/10" aria-hidden="true" />}
+  <div class={cn('relative mx-auto w-full max-w-6xl px-4 sm:px-6', media ? 'py-14 text-white sm:py-20' : 'pb-14 sm:pb-20')}>
+    <div class="max-w-3xl">
+      <Heading class="text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.08] font-medium text-balance">
+        {block.heading}
+      </Heading>
+      {
+        block.subheading && (
+          <p
+            class={cn(
+              'mt-6 max-w-xl font-serif text-lg leading-relaxed text-pretty sm:text-xl',
+              media ? 'text-white/85' : 'text-muted-foreground',
+            )}
+          >
+            {block.subheading}
+          </p>
+        )
+      }
+      {
+        block.cta && (
+          <a {...linkAttrs(block.cta)} class={cn(ButtonVariants.button({ variant: 'signal', size: 'lg' }), 'mt-8')}>
+            {block.cta.title ?? 'Read more'}
+          </a>
+        )
+      }
+    </div>
+  </div>
 </section>
+
+<script>
+  // Hero videos play only for visitors who have not asked for reduced motion (they see the image instead and never
+  // download the video); the preference is followed live. Without JavaScript the image shows.
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const sync = () =>
+    document.querySelectorAll<HTMLVideoElement>('video[data-hero-video]').forEach((video) => {
+      if (reduce.matches) video.pause();
+      else video.play().catch(() => {}); // Autoplay can be refused (e.g. power saving): the poster and image remain.
+    });
+  sync();
+  reduce.addEventListener('change', sync);
+</script>

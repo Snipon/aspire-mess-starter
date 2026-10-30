@@ -20,6 +20,7 @@ export type OrderPage = components['schemas']['OrderPage'];
 export type Link = components['schemas']['Link'];
 export type TagCount = components['schemas']['TagCount'];
 export type Image = components['schemas']['Image'];
+export type Video = components['schemas']['Video'];
 export type NavItem = components['schemas']['NavItem'];
 export type SearchResult = components['schemas']['SearchResult'];
 export type SearchHit = components['schemas']['SearchHit'];

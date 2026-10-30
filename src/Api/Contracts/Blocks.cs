@@ -12,8 +12,11 @@ namespace Api.Contracts;
 [JsonDerivedType(typeof(BlogPostListBlock), "blogPostList")]
 public abstract record Block;
 
-/// <summary>A page header with an optional background image and call to action.</summary>
-public sealed record HeroBlock(string Heading, string? Subheading, Image? Image, Link? Cta) : Block;
+/// <summary>
+/// A page header over an optional background video or image (the image is also the video's poster and fallback),
+/// with an optional call to action.
+/// </summary>
+public sealed record HeroBlock(string Heading, string? Subheading, Image? Image, Link? Cta, Video? Video) : Block;
 
 /// <summary>A call-to-action banner.</summary>
 public sealed record CtaBlock(string Heading, string? Text, Link? Link, CtaStyle Style) : Block;

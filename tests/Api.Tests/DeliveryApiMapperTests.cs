@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Api.Content.Umbraco;
 using Api.Content.Umbraco.Delivery;
 using Api.Contracts;
@@ -102,6 +103,67 @@ public sealed class DeliveryApiMapperTests
                 Assert.Equal(CtaStyle.Primary, cta.Style);
             });
         Assert.Equal([(null, 6)], requested);
+    }
+
+    /// <summary>The home page fixture with one media item (or none) picked as the hero's video.</summary>
+    private static Task<Page> MapHeroWithVideoAsync(string? mediaType, string url, string? extension)
+    {
+        var json = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "delivery/site.json")))!;
+        var hero = json["properties"]!["blocks"]!["items"]![0]!["content"]!["properties"]!;
+        hero["video"] = mediaType is null
+            ? new JsonArray()
+            : new JsonArray(new JsonObject
+            {
+                ["focalPoint"] = null, ["crops"] = new JsonArray(), ["id"] = "6f1d6c39-8c51-4a52-9a33-3d0b8f1c2a10",
+                ["name"] = "Clip", ["mediaType"] = mediaType, ["url"] = url, ["extension"] = extension,
+                ["width"] = null, ["height"] = null, ["bytes"] = 1024, ["properties"] = new JsonObject(),
+            });
+        return MapAsync(Parse<ApiContentResponseModel>(json.ToJsonString()));
+    }
+
+    [Fact]
+    public async Task Maps_hero_video_with_absolute_url_and_mime_type()
+    {
+        var page = await MapHeroWithVideoAsync("umbracoMediaVideo", "/media/x/clip.MP4", "MP4");
+
+        var hero = Assert.IsType<HeroBlock>(page.Blocks[0]);
+        Assert.Equal(new Video("https://cms.example.com/media/x/clip.MP4", "video/mp4"), hero.Video);
+        Assert.NotNull(hero.Image);
+    }
+
+    [Theory]
+    [InlineData("webm", "video/webm")]
+    [InlineData("ogv", "video/ogg")]
+    [InlineData("ogg", "video/ogg")]
+    public async Task Maps_known_video_extensions(string extension, string mimeType)
+    {
+        var page = await MapHeroWithVideoAsync("umbracoMediaVideo", $"/media/x/clip.{extension}", extension);
+
+        Assert.Equal(mimeType, Assert.IsType<HeroBlock>(page.Blocks[0]).Video?.MimeType);
+    }
+
+    [Theory]
+    [InlineData("Image", "/media/x/still.jpg", "jpg")]
+    [InlineData("umbracoMediaVideo", "/media/x/clip.mov", "mov")]
+    [InlineData("umbracoMediaVideo", "", "mp4")]
+    [InlineData(null, "", null)]
+    public async Task Ignores_media_that_is_not_a_playable_video(string? mediaType, string url, string? extension)
+    {
+        var page = await MapHeroWithVideoAsync(mediaType, url, extension);
+
+        var hero = Assert.IsType<HeroBlock>(page.Blocks[0]);
+        Assert.Null(hero.Video);
+        Assert.NotNull(hero.Image);
+    }
+
+    [Fact]
+    public async Task Hero_without_video_keeps_its_image()
+    {
+        var page = await MapAsync(Fixture<ApiContentResponseModel>("delivery/site.json"));
+
+        var hero = Assert.IsType<HeroBlock>(page.Blocks[0]);
+        Assert.Null(hero.Video);
+        Assert.NotNull(hero.Image);
     }
 
     [Fact]
