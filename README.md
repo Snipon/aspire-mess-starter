@@ -640,8 +640,10 @@ in `src/Web`, then give its `variants.ts` the site's look; the CLI may also set 
 `Layout.astro`/`tsconfig.json`, which the site does not use, so revert those. The theme tokens (`background`,
 `foreground`, `primary`, `ink`, `muted`, `border`, `ring`, …) are in `src/styles/global.css`, where `primary` is the
 site's terracotta (a warm clay palette, light and dark), with four highlights (`sun`, `sea`, `rose`, `iris`, each with
-a `-foreground` for text) that tint badges, tags and search matches; use them rather than raw palette colours. Style
-links as buttons or badges with `ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are
+a `-foreground` for text) that tint badges, tags and search matches; use them rather than raw palette colours. Dark
+mode is the `.dark` class on `<html>`: the visitor's choice from the header toggle (`ThemeToggle.astro`, kept in
+`localStorage`) or else the system setting, set by an inline head script before the first paint. Style links as
+buttons or badges with `ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are
 [Tabler](https://tabler.io/icons) SVGs imported as components (`import XIcon from '@tabler/icons/outline/x.svg'`).
 
 Sizes follow a Fibonacci scale named by pixels at the 16px root: spacing and sizes `1 2 3 5 8 13 21 34 55 89 144 233

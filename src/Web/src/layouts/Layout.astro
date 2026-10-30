@@ -4,6 +4,7 @@ import AccountMenu from '../components/AccountMenu.astro';
 import MiniCart from '../components/MiniCart.astro';
 import SearchInput from '../components/SearchInput.astro';
 import StaffBar from '../components/StaffBar.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
 import { cn } from '@/lib/utils';
 import { getNavigation, type Image, type NavItem } from '../lib/api/client';
 import { authEnabled } from '../lib/auth';
@@ -57,6 +58,17 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    {/* Before the first paint, so dark mode never flashes light; the same as applyTheme() in lib/theme.ts. */}
+    <script is:inline>
+      (() => {
+        let theme = null;
+        try {
+          theme = localStorage.getItem('theme');
+        } catch {}
+        theme ??= matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      })();
+    </script>
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical.href} />}
@@ -77,7 +89,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     </a>
     {staffEnabled() && <StaffBar />}
     <header class="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-      <div class="mx-auto flex max-w-987 flex-wrap items-center gap-x-13 gap-y-0 px-13 sm:gap-x-34 sm:px-21">
+      <div class="mx-auto flex max-w-987 flex-wrap items-center gap-x-8 gap-y-0 px-13 sm:gap-x-34 sm:px-21">
         <a href="/" class="py-13 font-heading text-21 font-medium focus-visible:outline-2 focus-visible:outline-ring">Aspire Test</a>
         <nav aria-label="Main" class="order-3 -mx-5 w-full overflow-x-auto sm:order-none sm:mx-0 sm:w-auto sm:flex-1">
           <ul class="flex text-16">
@@ -108,6 +120,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
         {/* Pages render nothing per visitor: the account state, count and mini cart are fetched in the browser. */}
         {authEnabled() && <AccountMenu active={current === '/account'} />}
         <MiniCart active={current === '/cart'} />
+        <ThemeToggle />
       </div>
     </header>
 

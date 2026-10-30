@@ -12,7 +12,7 @@
 
 @layer components {
   mark {
-    @apply rounded-2 bg-sun/40 px-2 text-foreground;
+    @apply rounded-2 bg-sun/40 px-2 text-foreground dark:bg-sun/30;
   }
 
   /* Page heading over a hairline rule. */
@@ -276,6 +276,11 @@
   }
   html {
     @apply font-sans;
+    color-scheme: light;
+  }
+  /* Native controls and scrollbars follow the theme. */
+  html.dark {
+    color-scheme: dark;
   }
   /* Content is serif (headings, reading text), the interface sans: headings that are UI labels opt out with
      font-sans. */
