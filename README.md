@@ -30,7 +30,6 @@ flowchart LR
         api["<b>api</b><br/>.NET project<br/>src/Api/Api.csproj"]
         commerce["<b>commerce</b><br/>built container<br/>src/Commerce"]
         web["<b>web</b><br/>built container<br/>src/Web"]
-        web_cache["<b>web-cache</b><br/>container<br/>nginx:1.29-alpine"]
     end
 
     browser -.-> seq_proxy
@@ -38,25 +37,22 @@ flowchart LR
     browser -.-> api
     browser -.-> commerce
     browser -.-> web
-    browser -.-> web_cache
     umbraco --> sql
     commercedb --> commerce_postgres
     cms -- "connection string: umbracoDbDSN" --> umbraco
     cms -- "connection string: seq" --> seq
     cms -- "ContentWebhook:TargetUrl<br/>ProductPicker:ApiUrl" --> api
+    cms -- "Preview:WebUrl" --> web
     api -- "Umbraco:PublicBaseUrl<br/>service discovery" --> cms
     api -- "connection string: meilisearch" --> meilisearch
     api -- "connection string: seq" --> seq
     api -- "Drupal:BaseUrl<br/>Drupal:PublicBaseUrl" --> commerce
-    api -- "WebCache:PurgeUrl" --> web_cache
     commerce -- "connection string: commercedb" --> commercedb
     web -- "API_URL" --> api
     web -- "CMS_BACKOFFICE_URL" --> cms
     web -- "COMMERCE_ADMIN_URL" --> commerce
     web -- "LOGS_URL" --> seq_proxy
     web -- "connection string: seq" --> seq
-    web -- "SITE_URL" --> web_cache
-    web_cache -- "WEB_UPSTREAM" --> web
 ```
 
 <!-- architecture:end -->
@@ -83,8 +79,6 @@ manifest): `node scripts/gen-architecture.mjs` rewrites it, and CI commits the u
 - **commerce** – Drupal 11 + Commerce 3 (`src/Commerce`, PostgreSQL in `commerce-postgres`): catalog, carts, orders
   and a fake card payment, used only through the JSON endpoints of its `headless_commerce` module. See
   [Commerce](#commerce-drupal).
-- **web-cache** – nginx reverse proxy cache in front of the web, the site's entry point locally (see
-  [Reverse proxy cache](#reverse-proxy-cache)).
 
 ## New project from this template
 
@@ -100,7 +94,7 @@ dotnet new aspire-headless -n ContosoShop --demo     # with demo articles, blog 
 
 The name is applied in three forms: `ContosoShop` (solution file), `contoso-shop` (`UserSecretsId`, so every project
 has its own secret store, image repository prefix, tfstate key and tags) and `contososhop` (Azure resource names).
-The fixed host ports (Keycloak, cms, commerce, web-cache, Seq, Aspire dashboard) are replaced by random free ports,
+The fixed host ports (Keycloak, cms, commerce, web, Seq, Aspire dashboard) are replaced by random free ports,
 so several generated projects can run on one machine; the Keycloak realm redirect URIs and these docs use the same
 values. After creating a project: `git init`, `scripts/init-secrets.sh`, `aspire start`, then create a `site` node
 in the backoffice unless `--demo` was used.
@@ -142,8 +136,8 @@ What happens on start:
    time; later starts only check). Its admin UI (Gin admin theme) is at
    `<commerce url>/user/login`.
 4. `api` waits for Meilisearch, then reindexes content and products in the background once the CMS and Drupal answer.
-5. `web` runs `npm install` + `npm run dev` (Astro dev server on Aspire's `PORT`) once the api is healthy, and
-   `web-cache` (nginx) starts in front of it.
+5. `web` runs `npm install` + `npm run dev` (Astro dev server on Aspire's `PORT`, reached at
+   `http://localhost:8082`) once the api is healthy.
 
 ### Local secrets
 
@@ -163,7 +157,7 @@ aspire secret list                             # or: aspire secret get Parameter
 | Parameter | Value |
 | --- | --- |
 | `umbraco-admin-email` | `admin@example.com` |
-| `umbraco-admin-password`, `delivery-api-key`, `webhook-secret`, `reindex-secret`, `cache-purge-secret` | 32 random alphanumeric characters |
+| `umbraco-admin-password`, `delivery-api-key`, `webhook-secret`, `reindex-secret` | 32 random alphanumeric characters |
 | `hmac-secret` | base64 of 64 random bytes |
 | `commerce-admin-password` | 32 random alphanumeric characters (Drupal user `admin`) |
 | `commerce-api-key`, `commerce-hash-salt` | 32 random alphanumeric characters (the API's key for Drupal; Drupal's hash salt) |
@@ -179,8 +173,8 @@ reachable only through the staff login, see [Observability](#observability-local
 
 Rotating (`--rotate <name>`, then restart the AppHost):
 
-- `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`, `cache-purge-secret`, `preview-api-key`: just restart; the cms reconciles the
-  webhook's secret header on start and the api re-signs image URLs.
+- `delivery-api-key`, `hmac-secret`, `webhook-secret`, `reindex-secret`, `preview-api-key`: just restart; the cms
+  reconciles the webhook's secret header on start and the api re-signs image URLs.
 - `seq-proxy-cookie-secret`: just restart; Seq users sign in again.
 - `umbraco-admin-email`/`-password`: only used by the unattended install, so change the user in the backoffice too.
 - `sql-password`, `meilisearch-masterKey`: fixed when the persistent container and its volume are first created.
@@ -214,7 +208,7 @@ aspire start
 | --- | --- |
 | Aspire dashboard | `https://localhost:17039` (the login link with token is printed by `aspire run` / `aspire start`) |
 | Seq (log search) | `http://localhost:5341` (staff login, role `admin`); `http://localhost:5342` is log ingestion only |
-| Website | shown on the `web-cache` resource in the dashboard (random port; the reverse proxy cache, see below). The `web` resource's own URL bypasses the cache |
+| Website | `http://localhost:8082` (the `web` resource) |
 | Umbraco backoffice | `https://localhost:44350/umbraco` (or `http://localhost:28048/umbraco`) |
 | Drupal admin | `http://localhost:8081/user/login`: "Log in with Staff sign-in" (Keycloak realm `staff`, user `admin`, password = `Parameters:idp-admin-password`). Break-glass: `drush uli` in the `commerce` container (user `admin`) |
 | Backoffice login | user `admin@example.com` (parameter `umbraco-admin-email`), password = `Parameters:umbraco-admin-password` from the user secrets; or "Single sign-on" with Keycloak user `admin`, password = `Parameters:idp-admin-password` (see [Backoffice sign-in](#backoffice-sign-in-oidc)) |
@@ -271,36 +265,11 @@ customer, `no-store`), `/auth/login?returnTo=`, `/auth/callback` and `/auth/logo
 Refresh link instead of auto-reload, and still renders with "API Down / Dependencies Unknown" when the API fails or
 takes longer than 3 s). `/status` is a web route, so a CMS page at that path is hidden behind it.
 
-### Reverse proxy cache
+### Caching
 
-`web-cache` (nginx, `infra/web-cache/nginx.conf.template`) sits in front of `web`. The web app decides what is
-cached: `src/Web/src/middleware.ts` gives every 200 GET page that sets no `Cache-Control` of its own
-`public, max-age=0, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400`, so nginx serves a page for up to
-a minute, then refreshes it in the background, and keeps serving the last good copy for a day while the web app is
-down; browsers always revalidate. `/status`, `/api/cart`, `/api/me`, `/account` and `/auth/*` send `no-store` and `/api/suggest` `max-age=60`; error responses,
-responses with `Set-Cookie` and the Vite dev assets (`no-cache`) are never cached. Concurrent misses for one URL
-are collapsed into a single upstream request (`proxy_cache_lock`).
-
-Invalidation on publish: the CMS's content webhook (publish, unpublish, delete, move to recycle bin, move) goes to
-the API, which updates the search index and then calls `POST /_purge` on `web-cache` with the `X-Purge-Secret`
-header (parameter `cache-purge-secret`; `src/Api/Caching/WebCachePurger.cs`). Purging after the index update keeps
-list pages, which read from search, from being re-cached with stale results. nginx (open source) cannot delete
-entries, so `infra/web-cache/cache.js` (njs) keeps a cache generation in shared memory that is part of the cache key:
-a purge bumps it, every cached page becomes a miss, and the orphaned entries age out (`inactive`/`max_size`). A
-manual reindex (`POST /api/search/reindex`) purges too; content seeded at startup reaches the same endpoint through
-`SearchIndexNotifier`. A failed purge is only logged, and the minute-long `s-maxage` stays as the safety net.
-Browsers are unaffected (`max-age=0`, except `/api/suggest`, which they may keep for a minute).
-
-```sh
-curl -X POST -H "X-Purge-Secret: <cache-purge-secret>" http://localhost:<web-cache port>/_purge   # 204
-```
-
-A purge empties the whole cache, so after a publish the first request for every page goes to the web app. Right
-after a purge there is no stale copy to fall back on if the web app is down. A page that rendered with a degraded
-section (for example "Articles are temporarily unavailable") can be served until the next purge or for up to a
-minute. Check the cache with the `X-Cache-Status` response header (`MISS`, `HIT`, `STALE`, `UPDATING`, ...);
-`curl -H 'Pragma: no-cache'` bypasses it. The cache lives in the container, so it is empty after every restart.
-The Azure deployment (`infra/terraform`) has no cache in front of the web yet.
+Pages are rendered per request (Astro SSR) and carry no shared-cache headers, so a publish shows up on the next
+request. Per-visitor pages and endpoints (`/cart`, `/checkout`, `/account`, `/status`, `/api/cart`, `/api/me`,
+`/api/staff`, `/auth/*`, `/preview/*`) send `no-store`; `/api/suggest` sends `max-age=60`.
 
 ## Observability (local)
 
@@ -491,11 +460,10 @@ visible in the Drupal admin (Commerce > Orders).
 
 **Search and freshness.** The API indexes all products into the Meilisearch index `products` on startup and every
 `Commerce:ReindexInterval` (10 minutes), and re-indexes the products of each order right after checkout. Listings
-(`/api/products`) come from the index; product pages and carts are read live from Drupal. Product and shop pages are
-shared-cached by `web-cache` like other pages (stock shown there can be up to a minute old; checkout checks stock
-again), while `/cart` and `/checkout` are `no-store`. For the same reason the header's cart icon renders without a
-count: the `MiniCart` island fetches `/api/cart` (`no-store`) in the browser and adds the item count and, on hover or
-focus, the cart's lines with subtotal and links to the cart and checkout.
+(`/api/products`) come from the index; product pages and carts are read live from Drupal. Product and shop pages carry
+nothing per visitor, while `/cart` and `/checkout` are `no-store`. For the same reason the header's cart icon renders
+without a count: the `MiniCart` island fetches `/api/cart` (`no-store`) in the browser and adds the item count and,
+on hover or focus, the cart's lines with subtotal and links to the cart and checkout.
 
 **Web.** The cart is an httpOnly, `SameSite=Lax` cookie with the cart id and token, set by the Astro server; adding,
 updating and removing are plain form posts to `/cart` (POST/redirect/GET), and `/checkout` posts to itself and shows
@@ -515,7 +483,7 @@ guest. Turn both on or both off.
   session is one httpOnly, `SameSite=Lax` cookie (`Secure` when `SITE_URL` is https), deflated and encrypted with
   AES-256-GCM (key from `SESSION_SECRET`): subject, name, email and the access and refresh tokens. The access token is
   refreshed when it has expired; a rejected refresh ends the session. `/auth/logout` (POST) ends it here and at the
-  provider (RP-initiated logout back to the home page). Redirect URIs are built on `SITE_URL` (the `web-cache` URL).
+  provider (RP-initiated logout back to the home page). Redirect URIs are built on `SITE_URL` (the web's URL).
   Node trusts the dev certificate of `https://localhost:8080` because Aspire sets `NODE_EXTRA_CA_CERTS` for the web.
 - **Caching**: pages never contain the session. The header's `AccountMenu` island asks `/api/me` (`no-store`) in the
   browser, like the mini cart, and shows "Sign in" or a link to `/account`.
@@ -564,8 +532,7 @@ only.
 - **CMS**: `Headless/WebsitePreviewUrlProvider.cs` (URL provider `website`, base URL `Preview:WebUrl`) and the
   `previewOption` in `App_Plugins/WebsitePreview`. The default Save and preview button keeps Umbraco's preview.
 - **Web**: `pages/preview/[id].astro` sends signed-out visitors to the staff sign-in and back, renders the draft with
-  the same `PageView` as the live page plus a banner and `noindex`, and answers `no-store`, so web-cache never keeps a
-  draft. Off (404) without staff sign-in.
+  the same `PageView` as the live page plus a banner and `noindex`, and answers `no-store`, so no cache keeps a draft. Off (404) without staff sign-in.
 - **API**: `/api/preview/content/{id}` reads the draft through `IContentSource.GetPreviewByIdAsync` (Delivery API
   `Preview: true`) and requires `X-Preview-Key` (`Preview:ApiKey`), which only the web's server holds
   (`PREVIEW_API_KEY`).

@@ -28,7 +28,6 @@ var deliveryApiKey = GeneratedSecret("delivery-api-key");
 var hmacSecret = builder.AddParameter("hmac-secret", new Base64SecretDefault(64), secret: true, persist: true);
 var webhookSecret = GeneratedSecret("webhook-secret");
 var reindexSecret = GeneratedSecret("reindex-secret");
-var cachePurgeSecret = GeneratedSecret("cache-purge-secret");
 var commerceAdminPassword = GeneratedSecret("commerce-admin-password", 16);
 var commerceApiKey = GeneratedSecret("commerce-api-key");
 var commerceHashSalt = GeneratedSecret("commerce-hash-salt", 64);
@@ -78,7 +77,7 @@ foreach (var check in seq.Resource.Annotations.OfType<HealthCheckAnnotation>().T
 // Identity provider (local stand-in for Entra ID): realm "staff" signs in admins and editors (Umbraco backoffice,
 // Drupal admin, Seq), realm "shop" signs in customers (self-registration). Realms, clients and the staff admin user
 // (umbraco-admin-email / idp-admin-password) are imported from infra/keycloak on the first start only; the redirect
-// URIs there assume the fixed host ports below (cms launch profile, commerce, web-cache, seq-proxy). Admin
+// URIs there assume the fixed host ports below (cms launch profile, commerce, web, seq-proxy). Admin
 // console: https://localhost:8080 (user admin, password keycloak-password).
 const string KeycloakUrl = "https://localhost:8080"; // the integration serves HTTPS (dev certificate) on the host port
 const string KeycloakInternalUrl = "https://keycloak.dev.internal:8443"; // container-to-container, trusted dev certificate
@@ -224,7 +223,7 @@ cms.WithEnvironment("ContentWebhook__TargetUrl",
 // NODE_EXTRA_CA_CERTS at the dev certificate, so Node trusts https://localhost:8080.
 var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithNpm()
-    .WithHttpEndpoint(env: "PORT")
+    .WithHttpEndpoint(port: 8082, env: "PORT") // fixed: the IdP redirect URIs (infra/keycloak) name it
     .WithExternalHttpEndpoints()
     .WithEnvironment("API_URL", api.GetEndpoint("http"))
     .WithEnvironment("OIDC_AUTHORITY", ShopIssuer)
@@ -243,27 +242,11 @@ var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithReference(seq)
     .WaitFor(api);
 
-// Reverse proxy cache in front of the web (nginx, infra/web-cache): the site's entry point. The web's Cache-Control
-// header decides what it keeps (src/Web/src/middleware.ts); the web stays reachable directly for debugging.
-var webCache = builder.AddContainer("web-cache", "nginx", "1.29-alpine")
-    .WithBindMount("infra/web-cache", "/etc/nginx/templates", isReadOnly: true)
-    .WithEnvironment("NGINX_ENVSUBST_OUTPUT_DIR", "/etc/nginx") // nginx.conf.template -> /etc/nginx/nginx.conf
-    .WithEnvironment("WEB_UPSTREAM", web.GetEndpoint("http"))
-    .WithEnvironment("CACHE_PURGE_SECRET", cachePurgeSecret)
-    .WithHttpEndpoint(port: 8082, targetPort: 8080) // fixed: the IdP redirect URI (infra/keycloak) names it
-    .WithExternalHttpEndpoints()
-    .WaitFor(web);
-
-// The web builds its sign-in redirect URIs on the public entry point (web-cache), not on its own port.
-web.WithEnvironment("SITE_URL", webCache.GetEndpoint("http"));
+// The web builds its sign-in redirect URIs on its public URL.
+web.WithEnvironment("SITE_URL", web.GetEndpoint("http"));
 
 // "Preview on website" in the backoffice opens drafts on the website's staff preview (/preview/{key}).
-cms.WithEnvironment("Preview__WebUrl", webCache.GetEndpoint("http"));
-
-// The API purges the whole web cache after each content webhook (publish, unpublish, ...), once the search index is
-// updated (endpoint reference only, no startup dependency).
-api.WithEnvironment("WebCache__PurgeUrl", ReferenceExpression.Create($"{webCache.GetEndpoint("http")}/_purge"))
-    .WithEnvironment("WebCache__PurgeSecret", cachePurgeSecret);
+cms.WithEnvironment("Preview__WebUrl", web.GetEndpoint("http"));
 
 builder.Build().Run();
 

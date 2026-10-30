@@ -69,7 +69,7 @@
       "replaces": "8081",
       "onlyIf": [{ "after": "localhost:" }, { "after": "(port: " }]
     },
-    "webCachePort": {
+    "webPort": {
       "type": "generated",
       "generator": "port",
       "parameters": { "low": 10000, "high": 19999, "fallback": 8082 },
