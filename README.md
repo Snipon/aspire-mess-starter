@@ -633,13 +633,13 @@ npm run build        # astro check + astro build
 ### UI components (Starwind UI)
 
 The website is Astro only (no UI framework). Its primitives come from [Starwind UI](https://starwind.dev) and live as
-project source in `src/Web/src/components/starwind` (`starwind.config.json`). Add one with
-`npx starwind add <name>` in `src/Web`, then give its `variants.ts` the site's look; the CLI may also set up its own
-stylesheet and touch `Layout.astro`/`tsconfig.json`, which the site does not use, so revert those. The theme tokens
-(`background`, `foreground`, `primary`, `ink`, `muted`, `border`, `ring`, …) are in `src/styles/global.css`, where
-`primary` is the site's indigo; use them rather than raw palette colours. Style links as buttons or badges with
-`ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are [Tabler](https://tabler.io/icons) SVGs
-imported as components (`import XIcon from '@tabler/icons/outline/x.svg'`).
+project source in `src/Web/src/components/starwind` (`starwind.config.json`). Add one with `npx starwind add <name>`
+in `src/Web`, then give its `variants.ts` the site's look; the CLI may also set up its own stylesheet and touch
+`Layout.astro`/`tsconfig.json`, which the site does not use, so revert those. The theme tokens (`background`,
+`foreground`, `primary`, `ink`, `muted`, `border`, `ring`, …) are in `src/styles/global.css`, where `primary` is the
+site's terracotta (a warm clay palette, light and dark); use them rather than raw palette colours. Style links as
+buttons or badges with `ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are
+[Tabler](https://tabler.io/icons) SVGs imported as components (`import XIcon from '@tabler/icons/outline/x.svg'`).
 
 Sizes follow a Fibonacci scale named by pixels at the 16px root: spacing and sizes `1 2 3 5 8 13 21 34 55 89 144 233
 377` (`p-13`, `gap-21`, `h-34`), type `13 16 21 34 55` (`text-16`; 16 is the one off-scale size, for body text), radii
