@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import AccountMenu from '../components/AccountMenu.astro';
+import Logo from '../components/Logo.astro';
 import MiniCart from '../components/MiniCart.astro';
 import SearchInput from '../components/SearchInput.astro';
 import StaffBar from '../components/StaffBar.astro';
@@ -35,6 +36,10 @@ const { title, description, cmsId, sku, image, type = 'website', noindex, struct
 const canonical = new URL(Astro.url.pathname, siteUrl(Astro.url));
 const pageNumber = Number(Astro.url.searchParams.get('page'));
 if (pageNumber > 1) canonical.searchParams.set('page', String(pageNumber));
+const siteName = 'Aspire Test';
+// "Shop – Page 2 – Aspire Test": unique per page for search results, browser tabs and screen readers (WCAG 2.4.2).
+const pageTitle = pageNumber > 1 ? `${title} – Page ${pageNumber}` : title;
+const fullTitle = Astro.url.pathname === '/' ? siteName : `${pageTitle} – ${siteName}`;
 const cardImage = image && cardImageUrl(image);
 const nav = await getNavigation();
 
@@ -58,6 +63,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     {/* Before the first paint, so dark mode never flashes light; the same as applyTheme() in lib/theme.ts. */}
     <script is:inline>
       (() => {
@@ -69,12 +75,12 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
         document.documentElement.classList.toggle('dark', theme === 'dark');
       })();
     </script>
-    <title>{title}</title>
+    <title>{fullTitle}</title>
     {description && <meta name="description" content={description} />}
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical.href} />}
-    <meta property="og:site_name" content="Aspire Test" />
+    <meta property="og:site_name" content={siteName} />
     <meta property="og:type" content={type} />
-    <meta property="og:title" content={title} />
+    <meta property="og:title" content={Astro.url.pathname === '/' ? siteName : pageTitle} />
     {description && <meta property="og:description" content={description} />}
     <meta property="og:url" content={canonical.href} />
     {cardImage && <meta property="og:image" content={cardImage} />}
@@ -90,7 +96,11 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     {staffEnabled() && <StaffBar />}
     <header class="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
       <div class="mx-auto flex max-w-987 flex-wrap items-center gap-x-8 gap-y-0 px-13 sm:gap-x-34 sm:px-21">
-        <a href="/" class="py-13 font-heading text-21 font-medium focus-visible:outline-2 focus-visible:outline-ring">Aspire Test</a>
+        <a href="/" class="flex items-center gap-8 py-13 font-heading text-21 font-medium focus-visible:outline-2 focus-visible:outline-ring">
+          <Logo class="h-21 w-34 shrink-0 text-primary" />
+          {/* Phones show the mark alone; the name stays the link's accessible name. */}
+          <span class="max-sm:sr-only">{siteName}</span>
+        </a>
         <nav aria-label="Main" class="order-3 -mx-5 w-full overflow-x-auto sm:order-none sm:mx-0 sm:w-auto sm:flex-1">
           <ul class="flex text-16">
             {
@@ -130,7 +140,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
 
     <footer class="border-t text-muted-foreground">
       <div class="mx-auto flex max-w-987 flex-col gap-21 px-13 py-55 sm:flex-row sm:items-end sm:justify-between sm:px-21">
-        <p class="font-heading text-21 font-medium text-foreground">Aspire Test</p>
+        <p class="font-heading text-21 font-medium text-foreground">{siteName}</p>
         <p class="max-w-377 text-13">
           Content from Umbraco, products from Drupal Commerce, search by Meilisearch, served by Astro.{' '}
           <a href="/status" class="text-foreground underline underline-offset-4 hover:text-primary">

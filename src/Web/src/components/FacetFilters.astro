@@ -43,7 +43,7 @@ const same = (a?: string, b?: string) => a?.toLowerCase() === b?.toLowerCase();
                       {selected && <CheckIcon aria-hidden="true" />}
                       {group.format ? group.format(facet.value) : facet.value}
                     </span>
-                    <span class={cn('tabular-nums', selected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                    <span class={cn('tabular-nums', selected ? 'text-primary-foreground/90' : 'text-muted-foreground')}>
                       {facet.count}
                     </span>
                   </a>
