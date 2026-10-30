@@ -2,7 +2,7 @@
 
 An [Aspire](https://aspire.dev) solution with a headless **Umbraco 18** CMS, a headless **Drupal 11 + Commerce 3**
 shop backend, a typed **.NET 10 API** with swappable content, commerce and search adapters, **Meilisearch** for search,
-and an **Astro 7 + Tailwind 4 + shadcn/ui** SSR website.
+and an **Astro 7 + Tailwind 4 + Starwind UI** SSR website.
 Local development runs entirely from the Aspire AppHost (`apphost.cs`); Azure deployment uses Terraform
 (`infra/terraform`, see [docs/deployment.md](docs/deployment.md)).
 Guidance for coding agents (commands, generated files, how a change flows through the stack) is in
@@ -462,7 +462,7 @@ visible in the Drupal admin (Commerce > Orders).
 `Commerce:ReindexInterval` (10 minutes), and re-indexes the products of each order right after checkout. Listings
 (`/api/products`) come from the index; product pages and carts are read live from Drupal. Product and shop pages carry
 nothing per visitor, while `/cart` and `/checkout` are `no-store`. For the same reason the header's cart icon renders
-without a count: the `MiniCart` island fetches `/api/cart` (`no-store`) in the browser and adds the item count and,
+without a count: the `MiniCart` component fetches `/api/cart` (`no-store`) in the browser and adds the item count and,
 on hover or focus, the cart's lines with subtotal and links to the cart and checkout.
 
 **Web.** The cart is an httpOnly, `SameSite=Lax` cookie with the cart id and token, set by the Astro server; adding,
@@ -485,7 +485,7 @@ guest. Turn both on or both off.
   refreshed when it has expired; a rejected refresh ends the session. `/auth/logout` (POST) ends it here and at the
   provider (RP-initiated logout back to the home page). Redirect URIs are built on `SITE_URL` (the web's URL).
   Node trusts the dev certificate of `https://localhost:8080` because Aspire sets `NODE_EXTRA_CA_CERTS` for the web.
-- **Caching**: pages never contain the session. The header's `AccountMenu` island asks `/api/me` (`no-store`) in the
+- **Caching**: pages never contain the session. The header's `AccountMenu` component asks `/api/me` (`no-store`) in the
   browser, like the mini cart, and shows "Sign in" or a link to `/account`.
 - **Checkout** prefills email and name for a signed-in customer and sends their access token, so the order lands in
   their history. If the token cannot be refreshed the customer signs in again (the cart stays) instead of the order
@@ -517,7 +517,7 @@ the "Staff sign-in" link in the footer (`/auth/staff/login`). Off without `STAFF
   at the next sign-in; accounts without `admin` or `editor` are refused); `lib/staff-shortcuts.ts` maps roles and the
   page to shortcuts (unit tests: `npm test`). Back-office URLs come from `CMS_BACKOFFICE_URL`, `COMMERCE_ADMIN_URL`,
   `LOGS_URL` and `IDP_ADMIN_URL`; a shortcut without a URL is left out.
-- **Caching**: the bar is the `StaffBar` island, fed by `/api/staff` (`no-store`). Pages only carry what they show
+- **Caching**: the bar is the `StaffBar` component, fed by `/api/staff` (`no-store`). Pages only carry what they show
   (`data-cms-id`, `data-sku` on `<body>`), which is the same for every visitor.
 - **Edit product** links to `/admin/commerce/products/sku/{sku}` in Drupal (`AdminController`), which redirects to the
   product's edit form for users allowed to administer products.
@@ -619,16 +619,21 @@ npm run gen:api      # openapi-typescript ../Api/openapi/Api.json -> src/lib/api
 npm run build        # astro check + astro build
 ```
 
-### UI components (shadcn/ui)
+### UI components (Starwind UI)
 
-The website's UI baseline is [shadcn/ui](https://ui.shadcn.com) (style `radix-nova`, `components.json`): primitives
-live in `src/Web/src/components/ui` (add more with `npx shadcn@latest add <name>` in `src/Web`) and the theme tokens
-(`background`, `foreground`, `primary`, `muted`, `border`, `ring`, …) in `src/styles/global.css`, where `primary` is the
-site's indigo. Use the tokens rather than raw palette colours. shadcn components are React (`@astrojs/react`) and are
-rendered on the server only: pages ship no React unless a component is given a `client:*` directive. Compose them in
-`.tsx` components (`ArticleCard`, `Pager`, `FacetFilters`, …) rather than passing Astro children into them (Astro wraps
-slot content, which breaks `asChild` and child selectors); in `.astro` files style links with `buttonVariants()` /
-`badgeVariants()`.
+The website is Astro only (no UI framework). Its primitives come from [Starwind UI](https://starwind.dev) and live as
+project source in `src/Web/src/components/starwind` (`starwind.config.json`). Add one with
+`npx starwind add <name>` in `src/Web`, then give its `variants.ts` the site's look; the CLI may also set up its own
+stylesheet and touch `Layout.astro`/`tsconfig.json`, which the site does not use, so revert those. The theme tokens
+(`background`, `foreground`, `primary`, `ink`, `muted`, `border`, `ring`, …) are in `src/styles/global.css`, where
+`primary` is the site's indigo; use them rather than raw palette colours. Style links as buttons or badges with
+`ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are [Tabler](https://tabler.io/icons) SVGs
+imported as components (`import XIcon from '@tabler/icons/outline/x.svg'`).
+
+The per-visitor header pieces (`StaffBar`, `AccountMenu`, `MiniCart`) are Astro components with a small custom
+element each (`<staff-bar>`, `<account-menu>`, `<mini-cart>`) that loads `/api/staff`, `/api/me` or `/api/cart` with
+`loadVisitorJson` (`src/lib/visitor-json.ts`, which also reloads after a back/forward navigation) and fills
+server-rendered markup and `<template>`s, setting API text with `textContent` only.
 
 ## Tests
 

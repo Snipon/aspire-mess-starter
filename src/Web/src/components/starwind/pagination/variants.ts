@@ -1,6 +1,6 @@
 import { tv } from "tailwind-variants";
 
-// The site's pagination styles (ported from its shadcn pagination).
+// The site's pagination styles.
 export const pagination = tv({
   base: "mx-auto flex w-full justify-center",
 });
