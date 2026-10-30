@@ -20,7 +20,7 @@ use Random\Randomizer;
  * COUNT deterministic demo products (fixed seed): developer gear in ten categories, each with category-specific specs
  * and performance stats (rating, reviews, units sold, return rate, stock). The same SKUs and values on every install;
  * seed() only creates the SKUs that are missing, so it is safe on every container start. Product images are 30
- * generated placeholders (three per category), so the repo holds no binary assets.
+ * photos in demo-images/ (three per category, Unsplash License, credits in demo-images/CREDITS.tsv).
  */
 final class DemoCatalog {
 
@@ -35,19 +35,19 @@ final class DemoCatalog {
   ];
 
   /**
-   * Category => [singular noun, series names, min price, max price, min weight (g), max weight (g), palette].
+   * Category => [singular noun, series names, min price, max price, min weight (g), max weight (g)].
    */
   private const CATEGORIES = [
-    'Laptops' => ['laptop', ['Aero', 'Pro', 'Studio', 'Air', 'Edge', 'Flex', 'Nomad', 'Titan'], 699, 3499, 1100, 2600, [[30, 60, 170], [120, 200, 255]]],
-    'Monitors' => ['monitor', ['View', 'Vista', 'Canvas', 'Prism', 'Horizon', 'Pixel'], 159, 1899, 3200, 9800, [[90, 20, 120], [250, 120, 160]]],
-    'Keyboards' => ['keyboard', ['Type', 'Tactile', 'Keys', 'Board', 'Glide', 'Strike'], 39, 349, 450, 1300, [[10, 90, 80], [140, 230, 170]]],
-    'Mice' => ['mouse', ['Glide', 'Swift', 'Point', 'Orbit', 'Dart', 'Pulse'], 19, 179, 49, 140, [[160, 60, 20], [255, 200, 90]]],
-    'Headphones' => ['pair of headphones', ['Sonic', 'Quiet', 'Studio', 'Pulse', 'Echo', 'Wave'], 49, 549, 180, 390, [[20, 30, 60], [90, 130, 200]]],
-    'Docks & Hubs' => ['dock', ['Port', 'Hub', 'Dock', 'Bridge', 'Link', 'Station'], 29, 399, 80, 700, [[120, 20, 40], [250, 150, 90]]],
-    'Desk Chairs' => ['desk chair', ['Ergo', 'Posture', 'Task', 'Lounge', 'Support', 'Balance'], 149, 1599, 14000, 28000, [[30, 100, 140], [200, 240, 220]]],
-    'Standing Desks' => ['standing desk', ['Rise', 'Lift', 'Elevate', 'Summit', 'Stand', 'Motion'], 299, 1499, 25000, 55000, [[60, 40, 140], [150, 210, 250]]],
-    'Webcams' => ['webcam', ['Cam', 'Vision', 'Lens', 'Frame', 'Focus', 'Stream'], 39, 299, 70, 180, [[40, 80, 30], [220, 230, 110]]],
-    'Microphones' => ['microphone', ['Voice', 'Cast', 'Podium', 'Vocal', 'Signal', 'Tone'], 49, 399, 250, 900, [[50, 50, 55], [190, 190, 200]]],
+    'Laptops' => ['laptop', ['Aero', 'Pro', 'Studio', 'Air', 'Edge', 'Flex', 'Nomad', 'Titan'], 699, 3499, 1100, 2600],
+    'Monitors' => ['monitor', ['View', 'Vista', 'Canvas', 'Prism', 'Horizon', 'Pixel'], 159, 1899, 3200, 9800],
+    'Keyboards' => ['keyboard', ['Type', 'Tactile', 'Keys', 'Board', 'Glide', 'Strike'], 39, 349, 450, 1300],
+    'Mice' => ['mouse', ['Glide', 'Swift', 'Point', 'Orbit', 'Dart', 'Pulse'], 19, 179, 49, 140],
+    'Headphones' => ['pair of headphones', ['Sonic', 'Quiet', 'Studio', 'Pulse', 'Echo', 'Wave'], 49, 549, 180, 390],
+    'Docks & Hubs' => ['dock', ['Port', 'Hub', 'Dock', 'Bridge', 'Link', 'Station'], 29, 399, 80, 700],
+    'Desk Chairs' => ['desk chair', ['Ergo', 'Posture', 'Task', 'Lounge', 'Support', 'Balance'], 149, 1599, 14000, 28000],
+    'Standing Desks' => ['standing desk', ['Rise', 'Lift', 'Elevate', 'Summit', 'Stand', 'Motion'], 299, 1499, 25000, 55000],
+    'Webcams' => ['webcam', ['Cam', 'Vision', 'Lens', 'Frame', 'Focus', 'Stream'], 39, 299, 70, 180],
+    'Microphones' => ['microphone', ['Voice', 'Cast', 'Podium', 'Vocal', 'Signal', 'Tone'], 49, 399, 250, 900],
   ];
 
   private const IMAGES_PER_CATEGORY = 3;
@@ -63,6 +63,7 @@ final class DemoCatalog {
    * Creates the missing demo products; returns how many were created. $log receives progress messages.
    */
   public function seed(callable $log): int {
+    $images = $this->images();
     $existing = array_flip($this->database->select('commerce_product_variation_field_data', 'v')->fields('v', ['sku'])->execute()->fetchCol());
     $missing = array_values(array_filter($this->generate(), fn (array $p) => !isset($existing[$p['sku']])));
     if (!$missing) {
@@ -72,7 +73,6 @@ final class DemoCatalog {
 
     $log(sprintf('Creating %d demo products', count($missing)));
     $store = $this->entityTypeManager->getStorage('commerce_store')->loadDefault();
-    $images = $this->images();
     $categories = $this->terms('product_category', array_keys(self::CATEGORIES));
     $brands = $this->terms('product_brand', self::BRANDS);
 
@@ -86,7 +86,7 @@ final class DemoCatalog {
       ]);
       $variation->save();
 
-      $image = $images[$p['category']][$p['image']];
+      [$image, $width, $height] = $images[$p['category']][$p['image']];
       Product::create([
         'type' => 'default',
         'title' => $p['title'],
@@ -94,7 +94,7 @@ final class DemoCatalog {
         'variations' => [$variation],
         'status' => 1,
         'field_description' => $p['description'],
-        'field_image' => ['target_id' => $image, 'alt' => $p['title'], 'width' => 800, 'height' => 600],
+        'field_image' => ['target_id' => $image, 'alt' => $p['title'], 'width' => $width, 'height' => $height],
         'field_category' => $categories[$p['category']],
         'field_brand' => $brands[$p['brand']],
         'field_specs' => json_encode($p['specs'], JSON_UNESCAPED_UNICODE),
@@ -335,41 +335,38 @@ final class DemoCatalog {
   }
 
   /**
-   * File ids of the placeholder images: category => [fid, ...], generated once (diagonal gradient with rings).
+   * The product photos: category => [[fid, width, height], ...]. Copied from demo-images/ once. Installs seeded with
+   * the generated placeholders of earlier versions (public://products/<category>-<n>.jpg) get the photo swapped into
+   * the same file entity, so their products keep pointing at it; the new URI also busts browser and style caches.
    */
   private function images(): array {
     $directory = 'public://products';
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
     $files = $this->entityTypeManager->getStorage('file');
     $ids = [];
-    foreach (self::CATEGORIES as $category => [, , , , , , [$from, $to]]) {
-      for ($v = 0; $v < self::IMAGES_PER_CATEGORY; $v++) {
-        $uri = sprintf('%s/%s-%d.jpg', $directory, Html::getClass($category), $v + 1);
-        $existing = $files->loadByProperties(['uri' => $uri]);
-        $file = reset($existing) ?: $this->fileRepository->writeData($this->placeholder($from, $to, $v), $uri, FileExists::Replace);
-        $ids[$category][] = (int) $file->id();
+    foreach (array_keys(self::CATEGORIES) as $category) {
+      for ($v = 1; $v <= self::IMAGES_PER_CATEGORY; $v++) {
+        $name = sprintf('%s-%d', Html::getClass($category), $v);
+        $source = dirname(__DIR__) . "/demo-images/$name.jpg";
+        $uri = "$directory/$name-photo.jpg";
+        $legacy = "$directory/$name.jpg";
+        $file = current($files->loadByProperties(['uri' => $uri])) ?: current($files->loadByProperties(['uri' => $legacy]));
+        if (!$file) {
+          $file = $this->fileRepository->writeData((string) file_get_contents($source), $uri, FileExists::Replace);
+        }
+        elseif ($file->getFileUri() === $legacy) {
+          $this->fileSystem->copy($source, $uri, FileExists::Replace);
+          $file->setFileUri($uri);
+          $file->setSize(filesize($source));
+          $file->save();
+          image_path_flush($legacy);
+          $this->fileSystem->delete($legacy);
+        }
+        [$width, $height] = getimagesize($source);
+        $ids[$category][] = [(int) $file->id(), $width, $height];
       }
     }
     return $ids;
-  }
-
-  private function placeholder(array $from, array $to, int $variant): string {
-    [$width, $height] = [800, 600];
-    $image = imagecreatetruecolor($width, $height);
-    $cx = $width * (0.25 + 0.25 * $variant);
-    $cy = $height * (0.35 + 0.15 * $variant);
-    for ($y = 0; $y < $height; $y += 2) {
-      for ($x = 0; $x < $width; $x += 2) {
-        $ring = 0.5 + 0.5 * cos(sqrt(($x - $cx) ** 2 + ($y - $cy) ** 2) / (22 + 6 * $variant));
-        $t = max(0.0, min(1.0, ($x / $width + $y / $height) / 2 + 0.12 * $ring - 0.06));
-        $color = imagecolorallocate($image, ...array_map(fn ($a, $b) => (int) ($a + ($b - $a) * $t), $from, $to));
-        imagefilledrectangle($image, $x, $y, $x + 1, $y + 1, $color);
-      }
-    }
-    ob_start();
-    imagejpeg($image, NULL, 82);
-    imagedestroy($image);
-    return (string) ob_get_clean();
   }
 
   private static function pick(Randomizer $r, array $values): mixed {

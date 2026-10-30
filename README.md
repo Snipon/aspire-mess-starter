@@ -348,18 +348,19 @@ content the CMS boots with the schema and no content; create a `site` node in th
 exists the website answers 404 on every page. Switching it off on a seeded database leaves the existing content alone.
 
 Seeded demo content (`ContentSeeder.cs`, idempotent, deterministic seed, one transaction so a failed seed leaves
-nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, latest blog
-posts ×8, CTA) → **Articles** (`page`, `/articles`, blocks hero, article list) → 1500 articles with Markdown bodies,
-2–4 of 12 tags each, about one publish date a day going back four years; **Blog** (`page`, `/blog`, blocks hero, blog
-post list) → 500 blog posts (`DemoBlogPosts.cs`), each referring to an article on the same subject, about one every
-three days; and 12 generated 1600×900 JPEG placeholder images in the media library. An install seeded with fewer
+nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, latest blog posts
+×8, CTA) → **Articles** (`page`, `/articles`, blocks hero, article list) → 1500 articles with Markdown bodies, 2–4 of
+12 tags each, about one publish date a day going back four years; **Blog** (`page`, `/blog`, blocks hero, blog post
+list) → 500 blog posts (`DemoBlogPosts.cs`), each referring to an article on the same subject, about one every three
+days; and 12 1600×900 photos in the media library (`Headless/DemoImages`, Unsplash License, credits in `CREDITS.tsv`;
+installs seeded with the earlier generated placeholders get the photos swapped in place). An install seeded with fewer
 articles or blog posts is topped up on boot (by name), an Articles page still holding the old seeded latest-articles
-block is switched to the article list (once `articleListBlock` has been imported, see below), and a Home page still
-in the layout seeded before blog posts existed gets the blog slider and a Blog page (once the blog types have been
-imported; deleting the Blog page afterwards is respected). Whatever the seeder creates is posted straight to the API's content
-webhook endpoint (`SearchIndexNotifier.cs`), because Umbraco's own webhook queue does not reliably fire for content
-published during startup. Content is created in C#, not via uSync content import, so the repo
-only holds schema and no media files.
+block is switched to the article list (once `articleListBlock` has been imported, see below), and a Home page still in
+the layout seeded before blog posts existed gets the blog slider and a Blog page (once the blog types have been
+imported; deleting the Blog page afterwards is respected). Whatever the seeder creates is posted straight to the API's
+content webhook endpoint (`SearchIndexNotifier.cs`), because Umbraco's own webhook queue does not reliably fire for
+content published during startup. Content is created in C#, not via uSync content import, so the repo holds the
+schema and the demo photos, not a media library.
 
 `src/Cms/Headless/ArticleQueryHandlers.cs` adds two Delivery API query extensions the API relies on:
 `sort=publishDate:asc|desc` and `filter=tag:<a,b>` (any of the tags, `!` to exclude, case-insensitive).
@@ -438,7 +439,8 @@ Commerce). Nothing about it is configured by hand or exported as YAML:
   To add a field, add a line there and an update hook that calls `Schema::ensure()`.
 - `DemoCatalog.php` generates 2000 deterministic products (fixed seed) in ten categories (laptops, monitors,
   keyboards, mice, headphones, docks, chairs, standing desks, webcams, microphones) from twelve fictional brands, with
-  7–10 category-specific specs and performance stats each, plus 30 generated placeholder images. It only creates
+  7–10 category-specific specs and performance stats each, plus 30 product photos (`demo-images/`, three per category,
+  Unsplash License, credits in `CREDITS.tsv`; earlier generated placeholders are swapped in place). It only creates
   missing SKUs (`DG00001`–`DG02000`), so it is safe on every start.
 - The JSON endpoints (`headless_commerce.routing.yml`, all but `/headless/health` need `X-Api-Key` =
   `COMMERCE_API_KEY`): `GET /headless/products?offset=&limit=`, `GET /headless/products/{sku}`, and carts as Commerce
