@@ -1,4 +1,6 @@
 ---
+import PlayerPauseIcon from '@tabler/icons/outline/player-pause.svg';
+import PlayerPlayIcon from '@tabler/icons/outline/player-play.svg';
 import ResponsiveImage from '@/components/ResponsiveImage.astro';
 import { ButtonVariants } from '@/components/starwind/button';
 import { imageAttributes } from '@/lib/image';
@@ -57,7 +59,16 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
       </video>
     )
   }
-  {media && <div class="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/10" aria-hidden="true" />}
+  {/* Darkest behind the text (bottom-up on phones, where it spans the width; from the left from sm), so white text
+      stays readable over bright media. */}
+  {
+    media && (
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/65 to-black/35 sm:bg-gradient-to-r sm:from-black/80 sm:via-black/60 sm:via-55% sm:to-black/20"
+        aria-hidden="true"
+      />
+    )
+  }
   <div class={cn('relative mx-auto w-full max-w-6xl px-4 sm:px-6', media ? 'py-14 text-white sm:py-20' : 'pb-14 sm:pb-20')}>
     <div class="max-w-3xl">
       <Heading class="text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.08] font-medium text-balance">
@@ -84,17 +95,63 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
       }
     </div>
   </div>
+  {
+    block.video && (
+      <button
+        type="button"
+        hidden
+        data-hero-video-toggle
+        aria-label="Pause background video"
+        aria-pressed="false"
+        class={ButtonVariants.button({
+          variant: 'outline',
+          size: 'icon',
+          class: 'absolute right-4 bottom-4 border-white/60 bg-black/40 text-white hover:bg-black/60 hover:text-white motion-reduce:hidden sm:right-6 sm:bottom-6',
+        })}
+      >
+        <span data-icon="pause">
+          <PlayerPauseIcon aria-hidden="true" />
+        </span>
+        <span data-icon="play" hidden>
+          <PlayerPlayIcon aria-hidden="true" />
+        </span>
+      </button>
+    )
+  }
 </section>
 
 <script>
   // Hero videos play only for visitors who have not asked for reduced motion (they see the image instead and never
-  // download the video); the preference is followed live. Without JavaScript the image shows.
+  // download the video), and the preference is followed live; the pause button stops a video for this page view.
+  // Without JavaScript the image shows and there is no button.
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const pausedByVisitor = new WeakSet<HTMLVideoElement>();
+  const videos = [...document.querySelectorAll<HTMLVideoElement>('video[data-hero-video]')];
   const sync = () =>
-    document.querySelectorAll<HTMLVideoElement>('video[data-hero-video]').forEach((video) => {
-      if (reduce.matches) video.pause();
+    videos.forEach((video) => {
+      if (reduce.matches || pausedByVisitor.has(video)) video.pause();
       else video.play().catch(() => {}); // Autoplay can be refused (e.g. power saving): the poster and image remain.
     });
+
+  document.querySelectorAll<HTMLButtonElement>('button[data-hero-video-toggle]').forEach((button) => {
+    const video = button.closest('section')?.querySelector<HTMLVideoElement>('video[data-hero-video]');
+    if (!video) return;
+    const render = () => {
+      const paused = pausedByVisitor.has(video);
+      button.setAttribute('aria-pressed', String(paused));
+      button.querySelector('[data-icon="pause"]')?.toggleAttribute('hidden', paused);
+      button.querySelector('[data-icon="play"]')?.toggleAttribute('hidden', !paused);
+    };
+    button.addEventListener('click', () => {
+      if (pausedByVisitor.has(video)) pausedByVisitor.delete(video);
+      else pausedByVisitor.add(video);
+      render();
+      sync();
+    });
+    render();
+    button.hidden = false;
+  });
+
   sync();
   reduce.addEventListener('change', sync);
 </script>

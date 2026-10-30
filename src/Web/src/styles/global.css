@@ -70,6 +70,11 @@
         content: none;
       }
     }
+    /* Wide tables scroll on their own: the page itself never scrolls sideways (body clips for the hero breakout). */
+    table {
+      display: block;
+      overflow-x: auto;
+    }
   }
 }
 
