@@ -43,11 +43,11 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
   {
     block.video && (
       <video
-        autoplay
         muted
         loop
         playsinline
-        preload="metadata"
+        preload="none"
+        data-hero-video
         poster={poster}
         aria-hidden="true"
         tabindex="-1"
@@ -85,3 +85,16 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
     </div>
   </div>
 </section>
+
+<script>
+  // Hero videos play only for visitors who have not asked for reduced motion (they see the image instead and never
+  // download the video); the preference is followed live. Without JavaScript the image shows.
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const sync = () =>
+    document.querySelectorAll<HTMLVideoElement>('video[data-hero-video]').forEach((video) => {
+      if (reduce.matches) video.pause();
+      else video.play().catch(() => {}); // Autoplay can be refused (e.g. power saving): the poster and image remain.
+    });
+  sync();
+  reduce.addEventListener('change', sync);
+</script>
