@@ -348,18 +348,19 @@ content the CMS boots with the schema and no content; create a `site` node in th
 exists the website answers 404 on every page. Switching it off on a seeded database leaves the existing content alone.
 
 Seeded demo content (`ContentSeeder.cs`, idempotent, deterministic seed, one transaction so a failed seed leaves
-nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, latest blog
-posts ×8, CTA) → **Articles** (`page`, `/articles`, blocks hero, article list) → 1500 articles with Markdown bodies,
-2–4 of 12 tags each, about one publish date a day going back four years; **Blog** (`page`, `/blog`, blocks hero, blog
-post list) → 500 blog posts (`DemoBlogPosts.cs`), each referring to an article on the same subject, about one every
-three days; and 12 generated 1600×900 JPEG placeholder images in the media library. An install seeded with fewer
+nothing behind and is retried on the next boot): **Home** (`site`, blocks hero, latest articles ×6, latest blog posts
+×8, CTA) → **Articles** (`page`, `/articles`, blocks hero, article list) → 1500 articles with Markdown bodies, 2–4 of
+12 tags each, about one publish date a day going back four years; **Blog** (`page`, `/blog`, blocks hero, blog post
+list) → 500 blog posts (`DemoBlogPosts.cs`), each referring to an article on the same subject, about one every three
+days; and 12 1600×900 photos in the media library (`Headless/DemoImages`, Unsplash License, credits in `CREDITS.tsv`;
+installs seeded with the earlier generated placeholders get the photos swapped in place). An install seeded with fewer
 articles or blog posts is topped up on boot (by name), an Articles page still holding the old seeded latest-articles
-block is switched to the article list (once `articleListBlock` has been imported, see below), and a Home page still
-in the layout seeded before blog posts existed gets the blog slider and a Blog page (once the blog types have been
-imported; deleting the Blog page afterwards is respected). Whatever the seeder creates is posted straight to the API's content
-webhook endpoint (`SearchIndexNotifier.cs`), because Umbraco's own webhook queue does not reliably fire for content
-published during startup. Content is created in C#, not via uSync content import, so the repo
-only holds schema and no media files.
+block is switched to the article list (once `articleListBlock` has been imported, see below), and a Home page still in
+the layout seeded before blog posts existed gets the blog slider and a Blog page (once the blog types have been
+imported; deleting the Blog page afterwards is respected). Whatever the seeder creates is posted straight to the API's
+content webhook endpoint (`SearchIndexNotifier.cs`), because Umbraco's own webhook queue does not reliably fire for
+content published during startup. Content is created in C#, not via uSync content import, so the repo holds the
+schema and the demo photos, not a media library.
 
 `src/Cms/Headless/ArticleQueryHandlers.cs` adds two Delivery API query extensions the API relies on:
 `sort=publishDate:asc|desc` and `filter=tag:<a,b>` (any of the tags, `!` to exclude, case-insensitive).
@@ -438,7 +439,8 @@ Commerce). Nothing about it is configured by hand or exported as YAML:
   To add a field, add a line there and an update hook that calls `Schema::ensure()`.
 - `DemoCatalog.php` generates 2000 deterministic products (fixed seed) in ten categories (laptops, monitors,
   keyboards, mice, headphones, docks, chairs, standing desks, webcams, microphones) from twelve fictional brands, with
-  7–10 category-specific specs and performance stats each, plus 30 generated placeholder images. It only creates
+  7–10 category-specific specs and performance stats each, plus 30 product photos (`demo-images/`, three per category,
+  Unsplash License, credits in `CREDITS.tsv`; earlier generated placeholders are swapped in place). It only creates
   missing SKUs (`DG00001`–`DG02000`), so it is safe on every start.
 - The JSON endpoints (`headless_commerce.routing.yml`, all but `/headless/health` need `X-Api-Key` =
   `COMMERCE_API_KEY`): `GET /headless/products?offset=&limit=`, `GET /headless/products/{sku}`, and carts as Commerce
@@ -633,13 +635,21 @@ npm run build        # astro check + astro build
 ### UI components (Starwind UI)
 
 The website is Astro only (no UI framework). Its primitives come from [Starwind UI](https://starwind.dev) and live as
-project source in `src/Web/src/components/starwind` (`starwind.config.json`). Add one with
-`npx starwind add <name>` in `src/Web`, then give its `variants.ts` the site's look; the CLI may also set up its own
-stylesheet and touch `Layout.astro`/`tsconfig.json`, which the site does not use, so revert those. The theme tokens
-(`background`, `foreground`, `primary`, `ink`, `muted`, `border`, `ring`, …) are in `src/styles/global.css`, where
-`primary` is the site's indigo; use them rather than raw palette colours. Style links as buttons or badges with
-`ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are [Tabler](https://tabler.io/icons) SVGs
-imported as components (`import XIcon from '@tabler/icons/outline/x.svg'`).
+project source in `src/Web/src/components/starwind` (`starwind.config.json`). Add one with `npx starwind add <name>`
+in `src/Web`, then give its `variants.ts` the site's look; the CLI may also set up its own stylesheet and touch
+`Layout.astro`/`tsconfig.json`, which the site does not use, so revert those. The theme tokens (`background`,
+`foreground`, `primary`, `ink`, `muted`, `border`, `ring`, …) are in `src/styles/global.css`, where `primary` is the
+site's terracotta (a warm clay palette, light and dark), with four highlights (`sun`, `sea`, `rose`, `iris`, each with
+a `-foreground` for text) that tint badges, tags and search matches; use them rather than raw palette colours. Style
+links as buttons or badges with `ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons are
+[Tabler](https://tabler.io/icons) SVGs imported as components (`import XIcon from '@tabler/icons/outline/x.svg'`).
+
+Sizes follow a Fibonacci scale named by pixels at the 16px root: spacing and sizes `1 2 3 5 8 13 21 34 55 89 144 233
+377` (`p-13`, `gap-21`, `h-34`), type `13 16 21 34 55` (`text-16`; 16 is the one off-scale size, for body text), radii
+`2 3 5 8 13` (`rounded-5`) and widths `377 610 987` (`max-w-610`). Tailwind's linear defaults are cleared in
+`global.css`, so `p-4` or `text-sm` generate nothing. A newly added Starwind component needs its classes moved onto
+the scale and `tv` imported from `@/lib/utils`, whose merge config knows the numeric font sizes (otherwise `text-16`
+counts as a colour and drops the text colour).
 
 The per-visitor header pieces (`StaffBar`, `AccountMenu`, `MiniCart`) are Astro components with a small custom
 element each (`<staff-bar>`, `<account-menu>`, `<mini-cart>`) that loads `/api/staff`, `/api/me` or `/api/cart` with

@@ -29,41 +29,41 @@ const icons = {
   unhealthy: CircleXIcon,
   unknown: HelpCircleIcon,
 } satisfies Record<State, unknown>;
-// Status colours have no theme token: one strong hue per state for the edge bar and icon, on flat panel surfaces.
+// One highlight per state for the edge bar and icon, on flat panel surfaces.
 // The icon hues are !important to beat the Alert's svg text-current.
 const bars: Record<State, string> = {
-  healthy: 'border-l-emerald-600',
-  degraded: 'border-l-amber-500',
+  healthy: 'border-l-sea',
+  degraded: 'border-l-sun',
   unhealthy: 'border-l-destructive',
   unknown: 'border-l-input',
 };
 const hues: Record<State, string> = {
-  healthy: 'text-emerald-700!',
-  degraded: 'text-amber-700!',
+  healthy: 'text-sea-foreground!',
+  degraded: 'text-sun-foreground!',
   unhealthy: 'text-destructive!',
   unknown: 'text-muted-foreground!',
 };
 const OverallIcon = icons[overall];
 ---
 
-<Alert role="status" class={cn('mt-8 border-l-8 px-5 py-5 *:[svg]:translate-y-1', bars[overall])}>
-  <OverallIcon aria-hidden="true" class={cn('size-6!', hues[overall])} />
-  <AlertTitle class="text-xl font-medium sm:text-2xl">{headlines[overall]}</AlertTitle>
+<Alert role="status" class={cn('mt-34 border-l-8 px-21 py-21 *:[svg]:translate-y-5', bars[overall])}>
+  <OverallIcon aria-hidden="true" class={cn('size-21!', hues[overall])} />
+  <AlertTitle class="text-21 font-medium">{headlines[overall]}</AlertTitle>
 </Alert>
 
-<Card class="mt-6 gap-0 py-0">
+<Card class="mt-21 gap-0 py-0">
   <ul class="divide-y">
     {
       rows.map((row) => {
         const Icon = icons[row.state];
         return (
-          <li class="flex items-center justify-between gap-4 px-5 py-4">
+          <li class="flex items-center justify-between gap-13 px-21 py-13">
             <div class="min-w-0">
               <p class="font-semibold">{row.name}</p>
-              <p class="text-sm text-muted-foreground">{row.detail}</p>
+              <p class="text-13 text-muted-foreground">{row.detail}</p>
             </div>
-            <Badge variant="secondary" class="h-7 gap-1.5 px-2.5 text-sm">
-              <Icon aria-hidden="true" class={cn('size-4!', hues[row.state])} />
+            <Badge variant="secondary" class="h-34 gap-5 px-8 text-13">
+              <Icon aria-hidden="true" class={cn('size-13!', hues[row.state])} />
               {labels[row.state]}
             </Badge>
           </li>

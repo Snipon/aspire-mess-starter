@@ -46,6 +46,7 @@
   <ItemGroup>
     <!-- Keep the local appsettings.json override out of publish output -->
     <Content Update="appsettings.Local.json" CopyToPublishDirectory="Never" />
+    <EmbeddedResource Include="Headless/DemoImages/*.jpg" LogicalName="DemoImages/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

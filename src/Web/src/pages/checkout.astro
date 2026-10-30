@@ -91,16 +91,16 @@ const expiryError = fieldErrors.expiry;
 <Layout title={receipt ? 'Order placed' : 'Checkout'} noindex>
   {
     receipt ? (
-      <section class="mx-auto max-w-2xl">
-        <CheckCircle2Icon class="size-12 text-primary" aria-hidden="true" />
-        <h1 class="mt-6 text-4xl leading-tight font-medium text-balance sm:text-5xl">Thank you, order {receipt.orderNumber} is placed</h1>
-        <p class="mt-5 text-lg leading-relaxed text-pretty text-muted-foreground">
+      <section class="mx-auto max-w-610">
+        <CheckCircle2Icon class="size-55 text-primary" aria-hidden="true" />
+        <h1 class="mt-21 text-34 leading-tight font-medium text-balance sm:text-55">Thank you, order {receipt.orderNumber} is placed</h1>
+        <p class="mt-21 text-21 leading-relaxed text-pretty text-muted-foreground">
           A confirmation would go to {receipt.email}. Paid {formatMoney(receipt.total)} with the card ending in {receipt.cardLast4}{' '}
           (reference {receipt.paymentReference}; demo payment, no money moved).
         </p>
-        <ul class="mt-10 divide-y border-y-2 border-border text-left">
+        <ul class="mt-34 divide-y border-y-2 border-border text-left">
           {receipt.items.map((item) => (
-            <li class="flex justify-between gap-4 py-3 text-sm">
+            <li class="flex justify-between gap-13 py-13 text-13">
               <span>
                 {item.quantity} × {item.title}
               </span>
@@ -108,7 +108,7 @@ const expiryError = fieldErrors.expiry;
             </li>
           ))}
         </ul>
-        <a href="/shop" class={cn(ButtonVariants.button({ size: 'lg' }), 'mt-10')}>
+        <a href="/shop" class={cn(ButtonVariants.button({ size: 'lg' }), 'mt-34')}>
           Continue shopping
         </a>
       </section>
@@ -117,22 +117,22 @@ const expiryError = fieldErrors.expiry;
         <>
           <h1 class="page-title">Checkout</h1>
           {signInRejected && (
-            <Alert variant="destructive" class="mt-6">
+            <Alert variant="destructive" class="mt-21">
               <AlertDescription>Your sign-in could not be verified. Sign in again or check out as a guest.</AlertDescription>
             </Alert>
           )}
           {paymentError && (
-            <Alert variant="destructive" class="mt-6">
+            <Alert variant="destructive" class="mt-21">
               <AlertDescription>{paymentError} Try another card.</AlertDescription>
             </Alert>
           )}
           {Object.keys(fieldErrors).length > 0 && (
-            <Alert variant="destructive" class="mt-6">
+            <Alert variant="destructive" class="mt-21">
               <AlertDescription>Please correct the highlighted fields.</AlertDescription>
             </Alert>
           )}
-          <div class="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            <form method="post" class="grid gap-10" novalidate>
+          <div class="mt-34 grid grid-cols-1 gap-34 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            <form method="post" class="grid gap-34" novalidate>
               {[
                 {
                   legend: 'Contact',
@@ -152,10 +152,10 @@ const expiryError = fieldErrors.expiry;
                   ],
                 },
               ].map((group) => (
-                <fieldset class="grid gap-4 sm:grid-cols-2">
-                  <legend class="mb-4 w-full border-b border-border pb-2 text-xl font-medium">{group.legend}</legend>
+                <fieldset class="grid gap-13 sm:grid-cols-2">
+                  <legend class="mb-13 w-full border-b border-border pb-8 text-21 font-medium">{group.legend}</legend>
                   {group.fields.map((f) => (
-                    <label class={cn('grid content-start gap-1.5 text-sm font-semibold', f.name === 'email' || f.name === 'line1' ? 'sm:col-span-2' : '')}>
+                    <label class={cn('grid content-start gap-5 text-13 font-semibold', f.name === 'email' || f.name === 'line1' ? 'sm:col-span-2' : '')}>
                       {f.label}
                       <Input
                         name={f.name}
@@ -165,7 +165,7 @@ const expiryError = fieldErrors.expiry;
                         {...f.attrs}
                       />
                       {f.error && (
-                        <span id={`${f.name}-error`} class="text-sm font-normal text-destructive">
+                        <span id={`${f.name}-error`} class="text-13 font-normal text-destructive">
                           {f.error}
                         </span>
                       )}
@@ -174,26 +174,26 @@ const expiryError = fieldErrors.expiry;
                 </fieldset>
               ))}
 
-              <fieldset class="grid gap-4 sm:grid-cols-4">
-                <legend class="mb-4 w-full border-b border-border pb-2 text-xl font-medium">Card</legend>
-                <p class="text-sm text-muted-foreground sm:col-span-4">
+              <fieldset class="grid gap-13 sm:grid-cols-4">
+                <legend class="mb-13 w-full border-b border-border pb-8 text-21 font-medium">Card</legend>
+                <p class="text-13 text-muted-foreground sm:col-span-4">
                   Demo payment, no money moves. Use 4242 4242 4242 4242 to succeed; 4000 0000 0000 0002 is declined and
                   4000 0000 0000 9995 has insufficient funds. Any future expiry and any 3 digits work.
                 </p>
-                <label class="grid content-start gap-1.5 text-sm font-semibold sm:col-span-2">
+                <label class="grid content-start gap-5 text-13 font-semibold sm:col-span-2">
                   Card number
                   <Input name="number" inputmode="numeric" autocomplete="cc-number" required aria-invalid={fieldErrors.number ? 'true' : undefined} />
-                  {fieldErrors.number && <span class="text-sm font-normal text-destructive">{fieldErrors.number}</span>}
+                  {fieldErrors.number && <span class="text-13 font-normal text-destructive">{fieldErrors.number}</span>}
                 </label>
-                <label class="grid content-start gap-1.5 text-sm font-semibold">
+                <label class="grid content-start gap-5 text-13 font-semibold">
                   Expiry (MM/YY)
                   <Input name="expiry" placeholder="12/30" autocomplete="cc-exp" value={values.expiry ?? ''} required aria-invalid={expiryError ? 'true' : undefined} />
-                  {expiryError && <span class="text-sm font-normal text-destructive">{expiryError}</span>}
+                  {expiryError && <span class="text-13 font-normal text-destructive">{expiryError}</span>}
                 </label>
-                <label class="grid content-start gap-1.5 text-sm font-semibold">
+                <label class="grid content-start gap-5 text-13 font-semibold">
                   CVC
                   <Input name="cvc" inputmode="numeric" autocomplete="cc-csc" maxlength={4} required aria-invalid={fieldErrors.cvc ? 'true' : undefined} />
-                  {fieldErrors.cvc && <span class="text-sm font-normal text-destructive">{fieldErrors.cvc}</span>}
+                  {fieldErrors.cvc && <span class="text-13 font-normal text-destructive">{fieldErrors.cvc}</span>}
                 </label>
               </fieldset>
 
@@ -203,11 +203,11 @@ const expiryError = fieldErrors.expiry;
             </form>
 
             {/* Order summary, as on the cart. */}
-            <aside class="h-fit rounded-lg border bg-card p-6">
-              <h2 class="font-sans text-xl font-medium">Order</h2>
-              <ul class="mt-4 space-y-2 text-sm">
+            <aside class="h-fit rounded-5 border bg-card p-21">
+              <h2 class="font-sans text-21 font-medium">Order</h2>
+              <ul class="mt-13 space-y-8 text-13">
                 {cart.items.map((item) => (
-                  <li class="flex justify-between gap-3">
+                  <li class="flex justify-between gap-13">
                     <span>
                       {item.quantity} × {item.title}
                     </span>
@@ -215,11 +215,11 @@ const expiryError = fieldErrors.expiry;
                   </li>
                 ))}
               </ul>
-              <p class="mt-4 flex items-baseline justify-between border-t pt-3">
+              <p class="mt-13 flex items-baseline justify-between border-t pt-13">
                 <span class="font-semibold">Total</span>
-                <span class="text-2xl font-medium tabular-nums">{formatMoney(cart.total)}</span>
+                <span class="text-21 font-medium tabular-nums">{formatMoney(cart.total)}</span>
               </p>
-              <a href="/cart" class={cn(ButtonVariants.button({ variant: 'link' }), 'mt-1 px-0')}>
+              <a href="/cart" class={cn(ButtonVariants.button({ variant: 'link' }), 'mt-5 px-0')}>
                 Edit cart
               </a>
             </aside>

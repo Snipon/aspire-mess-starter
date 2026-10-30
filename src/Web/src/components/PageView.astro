@@ -34,16 +34,16 @@ const structuredData = article && !noindex ? [articleJsonLd(page, article, siteU
   {noindex}
   {structuredData}
 >
-  {banner && <p role="status" class="mb-8 bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">{banner}</p>}
+  {banner && <p role="status" class="mb-34 bg-primary px-13 py-8 text-13 font-semibold text-primary-foreground">{banner}</p>}
   {
     article ? (
       <ArticleView page={page} article={article} />
     ) : (
       <>
         {page.blocks[0]?.type !== 'hero' && (
-          <header class="mb-12 border-b border-border pb-8 sm:mb-16">
-            <h1 class="max-w-4xl text-4xl leading-tight font-medium text-balance sm:text-6xl">{page.title}</h1>
-            {page.summary && <p class="mt-6 max-w-2xl font-serif text-xl leading-relaxed text-pretty text-muted-foreground">{page.summary}</p>}
+          <header class="mb-55 border-b border-border pb-34">
+            <h1 class="max-w-987 text-34 leading-tight font-medium text-balance sm:text-55">{page.title}</h1>
+            {page.summary && <p class="mt-21 max-w-610 font-serif text-21 leading-relaxed text-pretty text-muted-foreground">{page.summary}</p>}
           </header>
         )}
         <BlockList blocks={page.blocks} />

@@ -13,10 +13,10 @@ interface Props {
 const { hit, tagHref } = Astro.props;
 ---
 
-<Card class="group relative flex-row gap-5 px-5 transition-colors hover:border-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
-  <div class="min-w-0 flex-1 space-y-2">
+<Card class="group relative flex-row gap-21 px-21 transition-colors hover:border-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+  <div class="min-w-0 flex-1 space-y-8">
     <CardHeader class="px-0">
-      <CardTitle class="flex items-baseline justify-between gap-4 text-lg leading-snug font-medium">
+      <CardTitle class="flex items-baseline justify-between gap-13 text-21 leading-snug font-medium">
         <h2>
           <a
             href={hit.path}
@@ -25,16 +25,16 @@ const { hit, tagHref } = Astro.props;
             {hit.title}
           </a>
         </h2>
-        <Badge variant="outline" class="shrink-0">
+        <Badge variant="iris" class="shrink-0">
           {contentTypeLabel(hit.contentType)}
         </Badge>
       </CardTitle>
-      <CardDescription class="flex flex-wrap gap-x-3">
+      <CardDescription class="flex flex-wrap gap-x-13">
         <span class="text-primary">{hit.path}</span>
         {hit.publishDate && <time datetime={hit.publishDate}>{formatDate(hit.publishDate)}</time>}
       </CardDescription>
     </CardHeader>
-    <CardContent class="space-y-3 px-0 text-base text-muted-foreground *:[p]:font-serif">
+    <CardContent class="space-y-13 px-0 text-16 text-muted-foreground *:[p]:font-serif">
       {
         hit.highlight ? (
           // The API HTML-escapes the text and only adds <mark> around matches.
@@ -55,7 +55,7 @@ const { hit, tagHref } = Astro.props;
         height={96}
         loading="lazy"
         decoding="async"
-        class="hidden size-24 shrink-0 self-center bg-muted object-cover sm:block"
+        class="hidden size-89 shrink-0 self-center bg-muted object-cover sm:block"
       />
     )
   }

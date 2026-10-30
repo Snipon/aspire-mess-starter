@@ -1,6 +1,4 @@
 using System.Text.Json;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.IO;
@@ -17,13 +15,14 @@ namespace Cms.Headless;
 
 /// <summary>
 /// Idempotent demo content on top of the uSync schema (src/Cms/uSync, imported on first boot before this runs):
-/// generated placeholder images, a "Home" site node with blocks, an "Articles" page with <see cref="DemoArticles.Count"/>
+/// demo photos (Headless/DemoImages, Unsplash License, credits in CREDITS.tsv there), a "Home" site node with blocks, an "Articles" page with <see cref="DemoArticles.Count"/>
 /// articles and a "Blog" page with <see cref="DemoBlogPosts.Count"/> blog posts. Runs only if the "site" document type
 /// exists, in one scope (transaction and media files), so a failed seed leaves nothing behind and is retried on the next
 /// boot. When the site was seeded before, only the demo articles and blog posts missing from their pages (by name) are
 /// added, so an install seeded with fewer is topped up; an Articles page still showing the previously seeded "latest
 /// articles" block gets the article list instead, and a Home page still in the layout seeded before blog posts existed
-/// gets the blog post slider and a Blog page. Everything created is then sent to the search index
+/// gets the blog post slider and a Blog page; the generated placeholder images of earlier versions are swapped for the
+/// photos. Everything created is then sent to the search index
 /// (<see cref="SearchIndexNotifier"/>).
 /// <para>
 /// Opt-in: runs only when <c>DemoContent:Enabled</c> is <c>true</c> (set by apphost.cs and infra/terraform for this
@@ -51,14 +50,8 @@ internal sealed class ContentSeeder(
     private const int ImageCount = 12;
     private const int MaxChildren = 100_000;
 
-    // Placeholder image palettes (start/end colours of the gradient).
-    private static readonly (Rgb24 From, Rgb24 To)[] Palettes =
-    [
-        (new(30, 60, 170), new(120, 200, 255)), (new(90, 20, 120), new(250, 120, 160)), (new(10, 90, 80), new(140, 230, 170)),
-        (new(160, 60, 20), new(255, 200, 90)), (new(20, 30, 60), new(90, 130, 200)), (new(120, 20, 40), new(250, 150, 90)),
-        (new(30, 100, 140), new(200, 240, 220)), (new(60, 40, 140), new(150, 210, 250)), (new(40, 80, 30), new(220, 230, 110)),
-        (new(100, 40, 80), new(170, 180, 255)), (new(15, 50, 90), new(250, 170, 120)), (new(50, 50, 55), new(190, 190, 200)),
-    ];
+    private const string ImageFolder = "Demo images";
+    private const string LegacyImageFolder = "Placeholders";
 
     public Task HandleAsync(UmbracoApplicationStartedNotification notification, CancellationToken cancellationToken)
     {
@@ -88,7 +81,7 @@ internal sealed class ContentSeeder(
 
         logger.LogInformation("Seeding demo content");
         using ICoreScope scope = scopeProvider.CreateCoreScope(scopeFileSystems: true);
-        IMedia folder = mediaService.CreateMediaWithIdentity("Placeholders", Constants.System.Root, Constants.Conventions.MediaTypes.Folder);
+        IMedia folder = mediaService.CreateMediaWithIdentity(ImageFolder, Constants.System.Root, Constants.Conventions.MediaTypes.Folder);
         IMedia[] images = [.. Enumerable.Range(1, ImageCount).Select(i => CreateImage(folder.Id, i))];
 
         var created = new List<Guid>();
@@ -167,11 +160,13 @@ internal sealed class ContentSeeder(
     {
         IContent[] pages = [.. contentService.GetPagedChildren(home.Id, 0, MaxChildren, out _).Where(c => c.ContentType.Alias == "page")];
         IContent? articles = pages.FirstOrDefault(c => c.Name == "Articles");
-        IMedia? folder = mediaService.GetRootMedia().FirstOrDefault(m => m.Name == "Placeholders");
+        IMedia? folder = mediaService.GetRootMedia().FirstOrDefault(m => m.Name is ImageFolder or LegacyImageFolder);
         if (articles is null || folder is null)
         {
             return; // Restructured by hand: leave it alone.
         }
+
+        ReplacePlaceholderImages(home, folder);
 
         Dictionary<string, Guid> articleKeys = ChildKeysByName(articles);
         IReadOnlyList<DemoArticle> demoArticles = DemoArticles.Generate(DateTime.UtcNow);
@@ -361,36 +356,51 @@ internal sealed class ContentSeeder(
 
     private IMedia CreateImage(int parentId, int index)
     {
-        // Generated diagonal gradient with soft rings, so the seed needs no binary assets in the repo.
-        const int width = 1600, height = 900;
-        (Rgb24 from, Rgb24 to) = Palettes[(index - 1) % Palettes.Length];
-        float cx = width * (0.2f + 0.6f * ((index * 37) % 10) / 10f), cy = height * (0.25f + 0.5f * ((index * 53) % 10) / 10f);
-        using var image = new Image<Rgb24>(width, height);
-        image.ProcessPixelRows(rows =>
-        {
-            for (var y = 0; y < height; y++)
-            {
-                Span<Rgb24> row = rows.GetRowSpan(y);
-                for (var x = 0; x < width; x++)
-                {
-                    float t = (x / (float)width + y / (float)height) / 2f;
-                    float ring = 0.5f + 0.5f * MathF.Cos(MathF.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / 28f);
-                    float mix = Math.Clamp(t + 0.12f * ring - 0.06f, 0f, 1f);
-                    row[x] = new Rgb24(Lerp(from.R, to.R, mix), Lerp(from.G, to.G, mix), Lerp(from.B, to.B, mix));
-                }
-            }
-        });
-
-        using var stream = new MemoryStream();
-        image.SaveAsJpeg(stream);
-        stream.Position = 0;
-
-        IMedia media = mediaService.CreateMedia($"Placeholder {index:00}", parentId, Constants.Conventions.MediaTypes.Image);
-        media.SetValue(mediaFileManager, mediaUrlGenerators, shortStringHelper, contentTypeBaseServiceProvider,
-            Constants.Conventions.Media.File, $"placeholder-{index:00}.jpg", stream);
+        IMedia media = mediaService.CreateMedia($"Photo {index:00}", parentId, Constants.Conventions.MediaTypes.Image);
+        SetPhoto(media, index);
         mediaService.Save(media);
         return media;
     }
 
-    private static byte Lerp(byte a, byte b, float t) => (byte)(a + (b - a) * t);
+    private void SetPhoto(IMedia media, int index)
+    {
+        var name = $"editorial-{index:00}.jpg";
+        using Stream stream = typeof(ContentSeeder).Assembly.GetManifestResourceStream($"DemoImages/{name}")
+            ?? throw new InvalidOperationException($"Embedded demo image {name} is missing");
+        media.SetValue(mediaFileManager, mediaUrlGenerators, shortStringHelper, contentTypeBaseServiceProvider,
+            Constants.Conventions.Media.File, name, stream);
+    }
+
+    /// <summary>
+    /// Earlier versions seeded generated gradients ("Placeholder NN", placeholder-NN.jpg): give each the photo with the
+    /// same number, in place, so every page keeps its image, and reindex the site for the new image URLs.
+    /// </summary>
+    private void ReplacePlaceholderImages(IContent home, IMedia folder)
+    {
+        IMedia[] placeholders = [.. mediaService.GetPagedChildren(folder.Id, 0, MaxChildren, out _)
+            .Where(m => m.Name?.StartsWith("Placeholder ", StringComparison.Ordinal) == true
+                && m.GetValue<string>(Constants.Conventions.Media.File)?.Contains("/placeholder-", StringComparison.Ordinal) == true)];
+        if (placeholders.Length == 0)
+        {
+            return;
+        }
+
+        logger.LogInformation("Replacing {Count} placeholder images with photos", placeholders.Length);
+        using (ICoreScope scope = scopeProvider.CreateCoreScope(scopeFileSystems: true))
+        {
+            foreach (IMedia media in placeholders)
+            {
+                var index = (int.Parse(media.Name!["Placeholder ".Length..]) - 1) % ImageCount + 1;
+                SetPhoto(media, index);
+                media.Name = $"Photo {index:00}";
+                mediaService.Save(media);
+            }
+
+            folder.Name = ImageFolder;
+            mediaService.Save(folder);
+            scope.Complete();
+        }
+
+        searchIndexNotifier.NotifyInBackground([home.Key, .. contentService.GetPagedDescendants(home.Id, 0, MaxChildren, out _).Select(c => c.Key)]);
+    }
 }

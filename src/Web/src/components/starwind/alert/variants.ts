@@ -1,8 +1,8 @@
-import { tv } from "tailwind-variants";
+import { tv } from "@/lib/utils";
 
 // The site's alert styles: square, with an ink or destructive left rule.
 export const alert = tv({
-  base: "group/alert relative grid w-full gap-0.5 rounded-none border border-l-4 border-border border-l-ink px-4 py-3 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
+  base: "group/alert relative grid w-full gap-2 rounded-none border border-l-4 border-border border-l-ink px-13 py-13 text-left text-13 has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-89 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-8 *:[svg]:row-span-2 *:[svg]:translate-y-2 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-13",
   variants: {
     variant: {
       default: "bg-card text-card-foreground",
@@ -20,5 +20,5 @@ export const alertTitle = tv({
 });
 
 export const alertDescription = tv({
-  base: "text-sm text-balance text-muted-foreground md:text-pretty [&_a]:underline [&_a]:decoration-1 [&_a]:underline-offset-4 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+  base: "text-13 text-balance text-muted-foreground md:text-pretty [&_a]:underline [&_a]:decoration-1 [&_a]:underline-offset-4 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-13",
 });

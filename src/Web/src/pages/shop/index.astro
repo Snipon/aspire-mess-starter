@@ -91,12 +91,12 @@ const filtered = Boolean(category || brand || minRating || inStock);
 ---
 
 <Layout title="Shop" description="Developer gear: laptops, monitors, keyboards and more, with specs and real-world stats.">
-  <header class="mb-8 border-b border-border pb-6">
-    <h1 class="text-4xl leading-tight font-medium sm:text-5xl">Shop</h1>
-    <p class="mt-6 max-w-2xl text-xl leading-relaxed text-pretty text-muted-foreground">Developer gear with full specs and how it actually performs for customers.</p>
+  <header class="mb-34 border-b border-border pb-21">
+    <h1 class="text-34 leading-tight font-medium sm:text-55">Shop</h1>
+    <p class="mt-21 max-w-610 text-21 leading-relaxed text-pretty text-muted-foreground">Developer gear with full specs and how it actually performs for customers.</p>
   </header>
 
-  <form action="/shop" method="get" role="search" aria-label="Products" class="flex max-w-xl gap-2">
+  <form action="/shop" method="get" role="search" aria-label="Products" class="flex max-w-610 gap-8">
     <label for="shop-search" class="sr-only">Search products</label>
     <Input id="shop-search" type="search" name="q" value={q} placeholder="Search products, brands, specs" class="flex-1" />
     <button type="submit" class={cn(ButtonVariants.button())}>Search</button>
@@ -106,15 +106,15 @@ const filtered = Boolean(category || brand || minRating || inStock);
 
   {
     !result ? (
-      <Alert variant="destructive" class="mt-8">
+      <Alert variant="destructive" class="mt-34">
         <AlertDescription>The shop is temporarily unavailable. Please try again shortly.</AlertDescription>
       </Alert>
     ) : (
-      <div class="mt-10 flex flex-col gap-8 lg:flex-row lg:gap-10">
+      <div class="mt-34 flex flex-col gap-34 lg:flex-row">
         <FacetFilters groups={groups} />
         <div class="min-w-0 flex-1" aria-live="polite">
-          <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-13 text-13 text-muted-foreground">
+            <div class="flex flex-wrap items-center gap-x-13 gap-y-8">
               <p>
                 {result.total.toLocaleString('en-US')} product{result.total === 1 ? '' : 's'}
                 {q && ` matching “${q}”`}
@@ -129,14 +129,14 @@ const filtered = Boolean(category || brand || minRating || inStock);
                 </a>
               )}
             </div>
-            <nav aria-label="Sort" class="flex flex-wrap gap-1">
+            <nav aria-label="Sort" class="flex flex-wrap gap-5">
               {(q ? [['relevance', 'Best match'] as const, ...SORTS] : SORTS).map(([value, label]) => (
                 <a
                   href={shopHref({ sort: value, page: 1 })}
                   aria-current={sort === value ? 'true' : undefined}
                   class={cn(
                     ButtonVariants.button({ variant: 'ghost', size: 'sm' }),
-                    'h-10 sm:h-8',
+                    'h-34',
                     sort === value ? 'bg-muted text-foreground hover:bg-muted' : 'text-muted-foreground',
                   )}
                 >
@@ -146,7 +146,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
             </nav>
           </div>
           {result.items.length > 0 ? (
-            <ul class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <ul class="mt-13 grid grid-cols-2 gap-13 sm:grid-cols-3">
               {result.items.map((product) => (
                 <li class="flex">
                   <ProductCard product={product} />
@@ -154,7 +154,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
               ))}
             </ul>
           ) : (
-            <p class="mt-4 border border-dashed border-input px-6 py-10 text-center text-muted-foreground">No products match.</p>
+            <p class="mt-13 border border-dashed border-input px-21 py-34 text-center text-muted-foreground">No products match.</p>
           )}
           <Pager page={result.page} totalPages={totalPages} href={(n) => shopHref({ page: n })} />
         </div>
