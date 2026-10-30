@@ -164,7 +164,8 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
                     p?.Heading ?? string.Empty,
                     p?.Subheading,
                     GetImage(p?.Image),
-                    GetLink(p?.CtaLink, title: p?.CtaLabel)),
+                    GetLink(p?.CtaLink, title: p?.CtaLabel),
+                    GetVideo(p?.Video)),
                 CtaBlockElementModel { Properties: var p } => new CtaBlock(
                     p?.Heading ?? string.Empty,
                     p?.Text,
@@ -255,5 +256,23 @@ public sealed class DeliveryApiMapper(string publicBaseUrl, ImageUrlSigner signe
 
         // The Image media type has no alt text property, so the media name serves as alt text.
         return new Image(ToAbsoluteUrl(url), first.Name, first.Width, first.Height, focalPoint, srcset);
+    }
+
+    /// <summary>The first picked item if it is a Video media item in a format browsers play; anything else is null.</summary>
+    private Video? GetVideo(ApiMediaWithCropsModel[]? media)
+    {
+        if (media is not [UmbracoMediaVideoMediaWithCropsModel { Url: { Length: > 0 } url } video, ..])
+        {
+            return null;
+        }
+
+        var mimeType = (video.Extension ?? Path.GetExtension(url).TrimStart('.')).ToLowerInvariant() switch
+        {
+            "mp4" => "video/mp4",
+            "webm" => "video/webm",
+            "ogv" or "ogg" => "video/ogg",
+            _ => null,
+        };
+        return mimeType is null ? null : new Video(ToAbsoluteUrl(url), mimeType);
     }
 }

@@ -191,6 +191,9 @@ public sealed record HeroBlockElementPropertiesModel
     [JsonPropertyName("image")]
     public ApiMediaWithCropsModel[]? Image { get; init; }
 
+    [JsonPropertyName("video")]
+    public ApiMediaWithCropsModel[]? Video { get; init; }
+
     [JsonPropertyName("ctaLabel")]
     public string? CtaLabel { get; init; }
 
@@ -210,8 +213,8 @@ public abstract record ApiContentModel : IDiscriminatedUnion
     public static Type Resolve(string? value) => value switch
     {
         "article" => typeof(ArticleContentModel),
-        "site" => typeof(SiteContentModel),
         "page" => typeof(PageContentModel),
+        "site" => typeof(SiteContentModel),
         "blogPost" => typeof(BlogPostContentModel),
         _ => typeof(UnknownApiContentModel),
     };
@@ -241,16 +244,16 @@ public sealed record ArticleContentModel : ApiContentModel
     public ArticleContentPropertiesModel? Properties { get; init; }
 }
 
-public sealed record SiteContentModel : ApiContentModel
-{
-    [JsonPropertyName("properties")]
-    public SiteContentPropertiesModel? Properties { get; init; }
-}
-
 public sealed record PageContentModel : ApiContentModel
 {
     [JsonPropertyName("properties")]
     public PageContentPropertiesModel? Properties { get; init; }
+}
+
+public sealed record SiteContentModel : ApiContentModel
+{
+    [JsonPropertyName("properties")]
+    public SiteContentPropertiesModel? Properties { get; init; }
 }
 
 public sealed record BlogPostContentModel : ApiContentModel
@@ -274,8 +277,8 @@ public abstract record ApiContentResponseModel : IDiscriminatedUnion
     public static Type Resolve(string? value) => value switch
     {
         "article" => typeof(ArticleContentResponseModel),
-        "site" => typeof(SiteContentResponseModel),
         "page" => typeof(PageContentResponseModel),
+        "site" => typeof(SiteContentResponseModel),
         "blogPost" => typeof(BlogPostContentResponseModel),
         _ => typeof(UnknownApiContentResponseModel),
     };
@@ -308,16 +311,16 @@ public sealed record ArticleContentResponseModel : ApiContentResponseModel
     public ArticleContentPropertiesModel? Properties { get; init; }
 }
 
-public sealed record SiteContentResponseModel : ApiContentResponseModel
-{
-    [JsonPropertyName("properties")]
-    public SiteContentPropertiesModel? Properties { get; init; }
-}
-
 public sealed record PageContentResponseModel : ApiContentResponseModel
 {
     [JsonPropertyName("properties")]
     public PageContentPropertiesModel? Properties { get; init; }
+}
+
+public sealed record SiteContentResponseModel : ApiContentResponseModel
+{
+    [JsonPropertyName("properties")]
+    public SiteContentPropertiesModel? Properties { get; init; }
 }
 
 public sealed record BlogPostContentResponseModel : ApiContentResponseModel
@@ -361,11 +364,11 @@ public abstract record ApiElementModel : IDiscriminatedUnion
 
     public static Type Resolve(string? value) => value switch
     {
-        "heroBlock" => typeof(HeroBlockElementModel),
+        "articleListBlock" => typeof(ArticleListBlockElementModel),
         "latestArticlesBlock" => typeof(LatestArticlesBlockElementModel),
         "ctaBlock" => typeof(CtaBlockElementModel),
-        "articleListBlock" => typeof(ArticleListBlockElementModel),
         "blogPostListBlock" => typeof(BlogPostListBlockElementModel),
+        "heroBlock" => typeof(HeroBlockElementModel),
         "latestBlogPostsBlock" => typeof(LatestBlogPostsBlockElementModel),
         _ => typeof(UnknownApiElementModel),
     };
@@ -380,10 +383,10 @@ public abstract record ApiElementModel : IDiscriminatedUnion
     public string? Name { get; init; }
 }
 
-public sealed record HeroBlockElementModel : ApiElementModel
+public sealed record ArticleListBlockElementModel : ApiElementModel
 {
     [JsonPropertyName("properties")]
-    public HeroBlockElementPropertiesModel? Properties { get; init; }
+    public ArticleListBlockElementPropertiesModel? Properties { get; init; }
 }
 
 public sealed record LatestArticlesBlockElementModel : ApiElementModel
@@ -398,16 +401,16 @@ public sealed record CtaBlockElementModel : ApiElementModel
     public CtaBlockElementPropertiesModel? Properties { get; init; }
 }
 
-public sealed record ArticleListBlockElementModel : ApiElementModel
-{
-    [JsonPropertyName("properties")]
-    public ArticleListBlockElementPropertiesModel? Properties { get; init; }
-}
-
 public sealed record BlogPostListBlockElementModel : ApiElementModel
 {
     [JsonPropertyName("properties")]
     public BlogPostListBlockElementPropertiesModel? Properties { get; init; }
+}
+
+public sealed record HeroBlockElementModel : ApiElementModel
+{
+    [JsonPropertyName("properties")]
+    public HeroBlockElementPropertiesModel? Properties { get; init; }
 }
 
 public sealed record LatestBlogPostsBlockElementModel : ApiElementModel

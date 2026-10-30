@@ -89,7 +89,7 @@ public sealed class SearchSyncTests
         var hero = new Image("https://cms/media/h.jpg", null, null, null, null, []);
         var page = new Page("1", "site", "/", "Home", "Home", null, null,
             [
-                new HeroBlock("Welcome", "To the site", hero, null),
+                new HeroBlock("Welcome", "To the site", hero, null, null),
                 new LatestArticlesBlock("Latest", null, []),
                 new CtaBlock("Built with Aspire", "Read more", null, CtaStyle.Primary),
             ],

@@ -10,7 +10,7 @@ public sealed class ContractSerializationTests
 
     private static readonly Block[] Blocks =
     [
-        new HeroBlock("Hi", null, null, new Link("/articles", "All", null)),
+        new HeroBlock("Hi", null, null, new Link("/articles", "All", null), new Video("https://cdn.example.com/clip.mp4", "video/mp4")),
         new CtaBlock("Go", "Text", null, CtaStyle.Secondary),
         new LatestArticlesBlock("Latest", "css",
             [new ArticleSummary("1", "/articles/a", "A", "S", null, new DateOnly(2026, 10, 28), ["css"])]),
@@ -35,7 +35,7 @@ public sealed class ContractSerializationTests
     {
         var back = JsonSerializer.Deserialize<Block[]>(JsonSerializer.Serialize(Blocks, Web), Web)!;
 
-        Assert.IsType<HeroBlock>(back[0]);
+        Assert.Equal(new Video("https://cdn.example.com/clip.mp4", "video/mp4"), Assert.IsType<HeroBlock>(back[0]).Video);
         Assert.Equal(CtaStyle.Secondary, Assert.IsType<CtaBlock>(back[1]).Style);
         Assert.Equal("css", Assert.IsType<LatestArticlesBlock>(back[2]).Articles[0].Tags[0]);
     }
