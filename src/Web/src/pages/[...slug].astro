@@ -19,7 +19,7 @@ if (!page) Astro.response.status = 404;
   page ? (
     <PageView page={page} />
   ) : (
-    <Layout title="Page not found">
+    <Layout title="Page not found" noindex>
       <NotFound />
     </Layout>
   )

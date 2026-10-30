@@ -29,3 +29,6 @@ export const linkAttrs = (link: Link) => ({
 const contentTypeLabels: Record<string, string> = { article: 'Article', blogPost: 'Blog post', site: 'Page', page: 'Page' };
 
 export const contentTypeLabel = (type: string) => contentTypeLabels[type] ?? type;
+
+/** Rich text HTML with code blocks and tables (which scroll sideways) reachable by keyboard (WCAG 2.1.1). */
+export const focusableScrollers = (html: string) => html.replace(/<(pre|table)\b/g, '<$1 tabindex="0"');

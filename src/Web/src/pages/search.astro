@@ -75,11 +75,11 @@ const filtered = Boolean(tag || contentType);
 const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 0;
 ---
 
-<Layout title={q ? `Search: ${q}` : 'Search'}>
+<Layout title={q ? `Search: ${q}` : 'Search'} noindex>
   <div class="max-w-3xl">
     <h1 class="page-title">Search</h1>
 
-    <form action="/search" method="get" role="search" class="mt-8 flex flex-col gap-2 sm:flex-row">
+    <form action="/search" method="get" role="search" aria-label="Search results" class="mt-8 flex flex-col gap-2 sm:flex-row">
       <label for="q" class="sr-only">Search terms</label>
       <div class="min-w-0 flex-1">
         <SearchInput

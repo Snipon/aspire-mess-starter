@@ -6,7 +6,10 @@ import { Badge } from '@/components/starwind/badge';
 import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import { api } from '../../lib/api/client';
-import { formatDate, formatMoney, formatNumber } from '../../lib/format';
+import { focusableScrollers, formatDate, formatMoney, formatNumber } from '../../lib/format';
+import { cardImageUrl } from '../../lib/image';
+import { siteUrl } from '../../lib/site';
+import { breadcrumbsJsonLd, productJsonLd } from '../../lib/structured-data';
 
 const slug = Astro.params.slug ?? '';
 const { data: product, response } = await api().GET('/api/products/{slug}', { params: { path: { slug } } });
@@ -17,6 +20,12 @@ if (!product && response.status !== 404 && response.status !== 400) {
 // An outdated slug (renamed product) still finds the product by SKU: send visitors to the canonical URL.
 if (product && product.slug !== slug) return Astro.redirect(product.path, 301);
 if (!product) Astro.response.status = 404;
+
+const origin = siteUrl(Astro.url);
+const structuredData = product && [
+  productJsonLd(product, origin, product.image ? cardImageUrl(product.image) : undefined),
+  breadcrumbsJsonLd([['Home', '/'], ['Shop', '/shop'], [product.title, product.path]], origin),
+];
 
 const maxQuantity = product ? Math.min(product.stock, 10) : 0;
 const stats = product
@@ -35,7 +44,7 @@ const stats = product
 
 {
   product ? (
-    <Layout title={`${product.title} – Shop`} description={product.summary} sku={product.sku}>
+    <Layout title={`${product.title} – Shop`} description={product.summary} sku={product.sku} image={product.image} {structuredData}>
       <nav aria-label="Breadcrumb">
         <a href="/shop" class="back-link">
           Shop
@@ -124,12 +133,12 @@ const stats = product
         </section>
         <section aria-labelledby="about">
           <h2 id="about" class="text-2xl font-medium">About this product</h2>
-          <div class="prose mt-4 max-w-none border-t border-border pt-4 prose-headings:text-base" set:html={product.descriptionHtml} />
+          <div class="prose mt-4 max-w-none border-t border-border pt-4 prose-headings:text-base" set:html={focusableScrollers(product.descriptionHtml)} />
         </section>
       </div>
     </Layout>
   ) : (
-    <Layout title="Product not found">
+    <Layout title="Product not found" noindex>
       <NotFound />
     </Layout>
   )

@@ -17,3 +17,6 @@ export function imageAttributes(image: Image, sizes: string) {
     objectPosition: image.focalPoint ? `${image.focalPoint.left * 100}% ${image.focalPoint.top * 100}%` : undefined,
   };
 }
+
+/** The ~1200px rendition for social cards and structured data; image URLs from the API are already absolute. */
+export const cardImageUrl = (image: Image) => (image.srcset.find((r) => r.width >= 1200) ?? image.srcset.at(-1) ?? image).url;

@@ -5,8 +5,11 @@ import MiniCart from '../components/MiniCart.astro';
 import SearchInput from '../components/SearchInput.astro';
 import StaffBar from '../components/StaffBar.astro';
 import { cn } from '@/lib/utils';
-import { getNavigation, type NavItem } from '../lib/api/client';
+import { getNavigation, type Image, type NavItem } from '../lib/api/client';
 import { authEnabled } from '../lib/auth';
+import { cardImageUrl } from '../lib/image';
+import { siteUrl } from '../lib/site';
+import { jsonLd } from '../lib/structured-data';
 import { staffEnabled } from '../lib/staff';
 
 interface Props {
@@ -15,9 +18,23 @@ interface Props {
   /** What the page shows, for the staff bar's "Edit page" / "Edit product" (the same for every visitor). */
   cmsId?: string;
   sku?: string;
+  /** Social card image. */
+  image?: Image | null;
+  /** og:type; "article" for articles and blog posts. */
+  type?: 'website' | 'article';
+  /** Keeps the page out of search engines: per-visitor pages, search results, errors and drafts. */
+  noindex?: boolean;
+  /** schema.org objects (lib/structured-data.ts), rendered as one JSON-LD script. */
+  structuredData?: object[];
 }
 
-const { title, description, cmsId, sku } = Astro.props;
+const { title, description, cmsId, sku, image, type = 'website', noindex, structuredData } = Astro.props;
+
+// Filters, sort and search terms collapse onto the listing; only the page number stays part of the URL.
+const canonical = new URL(Astro.url.pathname, siteUrl(Astro.url));
+const pageNumber = Number(Astro.url.searchParams.get('page'));
+if (pageNumber > 1) canonical.searchParams.set('page', String(pageNumber));
+const cardImage = image && cardImageUrl(image);
 const nav = await getNavigation();
 
 // Show each root (normally just Home) followed by its direct children as top-level links.
@@ -42,6 +59,16 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical.href} />}
+    <meta property="og:site_name" content="Aspire Test" />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:url" content={canonical.href} />
+    {cardImage && <meta property="og:image" content={cardImage} />}
+    {cardImage && image?.alt && <meta property="og:image:alt" content={image.alt} />}
+    <meta name="twitter:card" content={cardImage ? 'summary_large_image' : 'summary'} />
+    {structuredData && <script type="application/ld+json" set:html={jsonLd(structuredData)} />}
     <slot name="head" />
   </head>
   <body class="flex min-h-screen flex-col bg-background text-foreground antialiased" data-cms-id={cmsId} data-sku={sku}>
@@ -74,7 +101,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
             }
           </ul>
         </nav>
-        <form action="/search" method="get" role="search" class="ml-auto py-3">
+        <form action="/search" method="get" role="search" aria-label="Site" class="ml-auto py-3">
           <label for="site-search" class="sr-only">Search</label>
           <SearchInput id="site-search" value={q} placeholder="Search" class="w-32 sm:w-60" />
         </form>
