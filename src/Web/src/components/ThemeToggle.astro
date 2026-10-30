@@ -1,0 +1,40 @@
+---
+import MoonIcon from '@tabler/icons/outline/moon.svg';
+import SunIcon from '@tabler/icons/outline/sun.svg';
+import { ButtonVariants } from '@/components/starwind/button';
+---
+
+{/* Rendered unpressed for everyone; the script sets the visitor's state (Layout's head script picks the theme). */}
+<button type="button" aria-pressed="false" data-theme-toggle class={ButtonVariants.button({ variant: 'ghost', size: 'icon' })}>
+  <MoonIcon aria-hidden="true" class="dark:hidden" />
+  <SunIcon aria-hidden="true" class="hidden dark:block" />
+  <span class="sr-only">Dark mode</span>
+</button>
+
+<script>
+  import { applyTheme, storeTheme } from '../lib/theme';
+
+  const root = document.documentElement;
+  const button = document.querySelector<HTMLButtonElement>('[data-theme-toggle]')!;
+  const sync = () => button.setAttribute('aria-pressed', String(root.classList.contains('dark')));
+  sync();
+  const toggle = () => {
+    storeTheme(root.classList.toggle('dark') ? 'dark' : 'light');
+    sync();
+  };
+  // Cross-fades between the themes where view transitions are supported and motion is welcome.
+  button.addEventListener('click', () => {
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.startViewTransition(toggle);
+    } else {
+      toggle();
+    }
+  });
+  // A page restored from the back/forward cache keeps the theme it had; another page may have changed it since.
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+      applyTheme();
+      sync();
+    }
+  });
+</script>

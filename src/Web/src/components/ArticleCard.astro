@@ -14,14 +14,14 @@ interface Props {
 const { article, headingLevel: Heading = 'h3' } = Astro.props;
 ---
 
-<Card class="group relative w-full pt-0 transition-colors hover:border-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+<Card data-reveal class="group relative w-full pt-0 transition-colors hover:border-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
   <div class="aspect-[16/10] overflow-hidden bg-muted">
     {
       article.image && (
         <ResponsiveImage
           image={{ ...article.image, alt: null }}
           sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
-          class="h-full w-full object-cover"
+          class="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-377 motion-safe:ease-out motion-safe:group-hover:scale-103"
         />
       )
     }
