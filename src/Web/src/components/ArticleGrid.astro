@@ -10,7 +10,7 @@ interface Props {
 const { articles, headingLevel } = Astro.props;
 ---
 
-<ul class="grid gap-21 sm:grid-cols-2 lg:grid-cols-3">
+<ul data-stagger class="grid gap-21 sm:grid-cols-2 lg:grid-cols-3">
   {
     articles.map((article) => (
       <li class="flex">
