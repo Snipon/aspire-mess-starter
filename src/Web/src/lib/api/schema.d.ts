@@ -161,6 +161,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sitemap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List every published page and product
+         * @description Paths of all published pages and slugs of all products, each with its last change. Reads the whole site and catalog: meant for the sitemap, not for page rendering.
+         */
+        get: operations["GetSitemap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/preview/content/{id}": {
         parameters: {
             query?: never;
@@ -756,6 +776,20 @@ export interface components {
             hits: components["schemas"]["SearchHit"][];
             facets: components["schemas"]["SearchFacets"];
         };
+        Sitemap: {
+            pages: components["schemas"]["SitemapPage"][];
+            products: components["schemas"]["SitemapProduct"][];
+        };
+        SitemapPage: {
+            path: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SitemapProduct: {
+            slug: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         StatusReport: {
             status: components["schemas"]["HealthState"];
             /** Format: date-time */
@@ -1064,6 +1098,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSitemap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Sitemap"];
                 };
             };
         };

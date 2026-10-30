@@ -424,6 +424,28 @@
         }
       }
     },
+    "/api/sitemap": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "List every published page and product",
+        "description": "Paths of all published pages and slugs of all products, each with its last change. Reads the whole site and catalog: meant for the sitemap, not for page rendering.",
+        "operationId": "GetSitemap",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sitemap"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/preview/content/{id}": {
       "get": {
         "tags": [
@@ -2601,6 +2623,59 @@
           },
           "facets": {
             "$ref": "#/components/schemas/SearchFacets"
+          }
+        }
+      },
+      "Sitemap": {
+        "required": [
+          "pages",
+          "products"
+        ],
+        "type": "object",
+        "properties": {
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SitemapPage"
+            }
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SitemapProduct"
+            }
+          }
+        }
+      },
+      "SitemapPage": {
+        "required": [
+          "path",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SitemapProduct": {
+        "required": [
+          "slug",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

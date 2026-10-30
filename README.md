@@ -228,6 +228,7 @@ Scalar and the OpenAPI document are mapped in every environment on purpose for t
 | GET | `/api/navigation` | `NavItem[]` tree of site and pages (articles and blog posts are excluded) |
 | GET | `/api/articles?tag=&page=1&pageSize=12&culture=` | `Paged<ArticleSummary>`, newest `publishDate` first |
 | GET | `/api/tags` | `TagCount[]` (`{tag, count}`), most used first |
+| GET | `/api/sitemap` | `Sitemap`: every published page path and product slug with `updatedAt`; reads the whole site and catalog, for the web's `/sitemap.xml` only |
 | GET | `/api/search?q=&page=1&pageSize=10&contentType=&tag=&year=` | `SearchResult`, highlights wrapped in `<mark>`; hits carry tags, date, image; `facets` counts types, tags and years (each ignoring its own filter); empty `q` lists everything newest first |
 | POST | `/api/search/reindex` | full reindex; header `X-Reindex-Secret` (parameter `reindex-secret`) |
 | POST | `/api/webhooks/content` | Umbraco webhook (`{"id": ...}` or `[{"id": ...}]`); header `X-Webhook-Secret` |
@@ -269,7 +270,15 @@ takes longer than 3 s). `/status` is a web route, so a CMS page at that path is 
 
 Pages are rendered per request (Astro SSR) and carry no shared-cache headers, so a publish shows up on the next
 request. Per-visitor pages and endpoints (`/cart`, `/checkout`, `/account`, `/status`, `/api/cart`, `/api/me`,
-`/api/staff`, `/auth/*`, `/preview/*`) send `no-store`; `/api/suggest` sends `max-age=60`.
+`/api/staff`, `/auth/*`, `/preview/*`) send `no-store`; `/api/suggest` sends `max-age=60`; `/sitemap.xml` and
+`/robots.txt` send `public, max-age=3600`.
+
+### SEO
+
+Every page gets a canonical link (path plus `page` when above 1, so filtered, sorted and searched listings collapse
+onto the listing), Open Graph and Twitter card tags (`Layout.astro`). Search results, per-visitor and error pages
+are `noindex` instead. `/robots.txt` keeps crawlers out of the per-visitor paths and points at `/sitemap.xml`, which
+lists every published page and product from `/api/sitemap`. Absolute URLs use `SITE_URL`.
 
 ## Observability (local)
 

@@ -37,6 +37,12 @@ public static class ContentEndpoints
             .WithSummary("List article tags with counts")
             .WithDescription("Every tag used by a published article and how many articles carry it, most used first.");
 
+        group.MapGet("/sitemap", GetSitemap)
+            .WithName("GetSitemap")
+            .WithSummary("List every published page and product")
+            .WithDescription("Paths of all published pages and slugs of all products, each with its last change. " +
+                "Reads the whole site and catalog: meant for the sitemap, not for page rendering.");
+
         return app;
     }
 
@@ -125,6 +131,15 @@ public static class ContentEndpoints
         RequestValidation.IsValidCulture(culture)
             ? TypedResults.Ok(await content.GetTagsAsync(culture, ct))
             : TypedResults.BadRequest(Problems.BadRequest(RequestValidation.CultureError));
+
+    private static async Task<Ok<Sitemap>> GetSitemap(IContentSource content, IServiceProvider services, CancellationToken ct)
+    {
+        var pages = await content.GetAllForIndexingAsync(ct).Select(doc => new SitemapPage(doc.Path, doc.UpdatedAt)).ToArrayAsync(ct);
+        var products = services.GetService<ICommerceSource>() is { } commerce
+            ? await commerce.GetAllProductsAsync(ct).Select(product => new SitemapProduct(product.Slug, product.UpdatedAt)).ToArrayAsync(ct)
+            : [];
+        return TypedResults.Ok(new Sitemap(pages, products));
+    }
 
     private static async Task<Results<Ok<NavItem[]>, BadRequest<ProblemDetails>>> GetNavigation(
         IContentSource content, string? culture, CancellationToken ct) =>

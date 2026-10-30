@@ -20,6 +20,7 @@ export type OrderPage = components['schemas']['OrderPage'];
 export type Link = components['schemas']['Link'];
 export type TagCount = components['schemas']['TagCount'];
 export type Image = components['schemas']['Image'];
+export type Sitemap = components['schemas']['Sitemap'];
 export type Video = components['schemas']['Video'];
 export type NavItem = components['schemas']['NavItem'];
 export type SearchResult = components['schemas']['SearchResult'];
@@ -67,6 +68,13 @@ export async function getNavigation(): Promise<NavItem[]> {
 }
 
 /** All tags with their article counts; used for optional filters, so failures degrade to an empty list. */
+/** Throws rather than returning an empty sitemap, so a failing API never tells crawlers the site is empty. */
+export async function getSitemap(): Promise<Sitemap> {
+  const { data, response } = await api().GET('/api/sitemap');
+  if (!data) throw new Error(`Failed to load the sitemap: ${response.status}`);
+  return data;
+}
+
 export async function getTags(): Promise<TagCount[]> {
   try {
     const { data } = await api().GET('/api/tags');
