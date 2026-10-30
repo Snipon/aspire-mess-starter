@@ -1,9 +1,9 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import NotFound from '../../components/NotFound.astro';
-import ResponsiveImage from '@/components/ResponsiveImage';
-import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import { Badge } from '@/components/starwind/badge';
+import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import { api } from '../../lib/api/client';
 import { formatDate, formatMoney, formatNumber } from '../../lib/format';
@@ -45,7 +45,7 @@ const stats = product
       <div class="mt-6 grid gap-8 lg:grid-cols-2 lg:gap-12">
         <figure class="self-start overflow-hidden rounded-lg bg-card">
           {product.image && (
-            <ResponsiveImage image={product.image} loading="eager" sizes="(min-width: 1024px) 540px, 100vw" className="aspect-[4/3] w-full object-cover" />
+            <ResponsiveImage image={product.image} loading="eager" sizes="(min-width: 1024px) 540px, 100vw" class="aspect-[4/3] w-full object-cover" />
           )}
         </figure>
 
@@ -90,7 +90,7 @@ const stats = product
                   ))}
                 </select>
               </label>
-              <button type="submit" disabled={maxQuantity === 0} class={cn(buttonVariants({ size: 'lg' }), 'flex-1 sm:flex-none sm:px-10')}>
+              <button type="submit" disabled={maxQuantity === 0} class={cn(ButtonVariants.button({ size: 'lg' }), 'flex-1 sm:flex-none sm:px-10')}>
                 Add to cart
               </button>
             </form>

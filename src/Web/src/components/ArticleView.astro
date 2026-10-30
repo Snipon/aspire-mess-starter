@@ -1,9 +1,9 @@
 ---
-import ArticleCard from '@/components/ArticleCard';
-import ProductCard from '@/components/ProductCard';
-import ResponsiveImage from '@/components/ResponsiveImage';
-import TagList from '@/components/TagList';
-import { Separator } from '@/components/ui/separator';
+import ArticleCard from '@/components/ArticleCard.astro';
+import ProductCard from '@/components/ProductCard.astro';
+import ResponsiveImage from '@/components/ResponsiveImage.astro';
+import TagList from '@/components/TagList.astro';
+import { Separator } from '@/components/starwind/separator';
 import type { Article, BlogPost, Page } from '../lib/api/client';
 import { formatDate } from '../lib/format';
 
@@ -32,10 +32,10 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
     {/* A div, not a p: the separator renders a div, which would close a p early. */}
     <div class="mt-8 flex items-center gap-3 border-t border-border pt-3 text-sm text-muted-foreground">
       <time datetime={article.publishDate}>{formatDate(article.publishDate)}</time>
-      <Separator orientation="vertical" className="h-4 self-center!" />
+      <Separator orientation="vertical" class="h-4 self-center!" />
       <span>{article.readingTimeMinutes} min read</span>
     </div>
-    <TagList tags={tags} className="mt-4" />
+    <TagList tags={tags} class="mt-4" />
   </header>
 
   {
@@ -45,7 +45,7 @@ const parentPath = page.path.replace(/\/[^/]+\/?$/, '') || '/';
           image={page.image}
           loading="eager"
           sizes="(min-width: 960px) 896px, 100vw"
-          className="aspect-video w-full object-cover"
+          class="aspect-video w-full object-cover"
         />
       </figure>
     )

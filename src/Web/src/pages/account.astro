@@ -1,8 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import NotFound from '../components/NotFound.astro';
-import Pager from '@/components/Pager';
-import { buttonVariants } from '@/components/ui/button';
+import Pager from '@/components/Pager.astro';
+import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import { api, type OrderPage } from '../lib/api/client';
 import { accessToken, authEnabled, endSession, getSession } from '../lib/auth';
@@ -53,7 +53,7 @@ const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
         <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
           {session.email && <p class="text-muted-foreground">{session.email}</p>}
           <form method="post" action="/auth/logout" class="ml-auto">
-            <button type="submit" class={buttonVariants({ variant: 'outline' })}>
+            <button type="submit" class={ButtonVariants.button({ variant: 'outline' })}>
               Sign out
             </button>
           </form>
@@ -63,14 +63,14 @@ const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
         {rejected ? (
           <p class="mt-4 text-muted-foreground">
             Your sign-in could not be verified.{' '}
-            <a href="/auth/login?returnTo=/account" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0')}>
+            <a href="/auth/login?returnTo=/account" class={cn(ButtonVariants.button({ variant: 'link' }), 'h-auto px-0')}>
               Sign in again
             </a>
           </p>
         ) : !orders || orders.items.length === 0 ? (
           <p class="mt-4 text-muted-foreground">
             {orders && orders.page > 1 ? 'No orders on this page.' : 'You have not placed any orders yet.'}{' '}
-            <a href="/shop" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0')}>
+            <a href="/shop" class={cn(ButtonVariants.button({ variant: 'link' }), 'h-auto px-0')}>
               Browse the shop
             </a>
           </p>

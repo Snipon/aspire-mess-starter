@@ -1,9 +1,9 @@
 ---
-import { CheckCircle2Icon } from 'lucide-react';
+import CheckCircle2Icon from '@tabler/icons/outline/circle-check.svg';
 import Layout from '../layouts/Layout.astro';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/starwind/alert';
+import { ButtonVariants } from '@/components/starwind/button';
+import { Input } from '@/components/starwind/input';
 import { cn } from '@/lib/utils';
 import { api, type OrderReceipt } from '../lib/api/client';
 import { accessToken, endSession, getSession } from '../lib/auth';
@@ -92,7 +92,7 @@ const expiryError = fieldErrors.expiry;
   {
     receipt ? (
       <section class="mx-auto max-w-2xl">
-        <CheckCircle2Icon className="size-12 text-primary" aria-hidden="true" />
+        <CheckCircle2Icon class="size-12 text-primary" aria-hidden="true" />
         <h1 class="mt-6 text-4xl leading-tight font-medium text-balance sm:text-5xl">Thank you, order {receipt.orderNumber} is placed</h1>
         <p class="mt-5 text-lg leading-relaxed text-pretty text-muted-foreground">
           A confirmation would go to {receipt.email}. Paid {formatMoney(receipt.total)} with the card ending in {receipt.cardLast4}{' '}
@@ -108,7 +108,7 @@ const expiryError = fieldErrors.expiry;
             </li>
           ))}
         </ul>
-        <a href="/shop" class={cn(buttonVariants({ size: 'lg' }), 'mt-10')}>
+        <a href="/shop" class={cn(ButtonVariants.button({ size: 'lg' }), 'mt-10')}>
           Continue shopping
         </a>
       </section>
@@ -117,17 +117,17 @@ const expiryError = fieldErrors.expiry;
         <>
           <h1 class="page-title">Checkout</h1>
           {signInRejected && (
-            <Alert variant="destructive" className="mt-6">
+            <Alert variant="destructive" class="mt-6">
               <AlertDescription>Your sign-in could not be verified. Sign in again or check out as a guest.</AlertDescription>
             </Alert>
           )}
           {paymentError && (
-            <Alert variant="destructive" className="mt-6">
+            <Alert variant="destructive" class="mt-6">
               <AlertDescription>{paymentError} Try another card.</AlertDescription>
             </Alert>
           )}
           {Object.keys(fieldErrors).length > 0 && (
-            <Alert variant="destructive" className="mt-6">
+            <Alert variant="destructive" class="mt-6">
               <AlertDescription>Please correct the highlighted fields.</AlertDescription>
             </Alert>
           )}
@@ -182,22 +182,22 @@ const expiryError = fieldErrors.expiry;
                 </p>
                 <label class="grid content-start gap-1.5 text-sm font-semibold sm:col-span-2">
                   Card number
-                  <Input name="number" inputMode="numeric" autoComplete="cc-number" required aria-invalid={fieldErrors.number ? 'true' : undefined} />
+                  <Input name="number" inputmode="numeric" autocomplete="cc-number" required aria-invalid={fieldErrors.number ? 'true' : undefined} />
                   {fieldErrors.number && <span class="text-sm font-normal text-destructive">{fieldErrors.number}</span>}
                 </label>
                 <label class="grid content-start gap-1.5 text-sm font-semibold">
                   Expiry (MM/YY)
-                  <Input name="expiry" placeholder="12/30" autoComplete="cc-exp" value={values.expiry ?? ''} required aria-invalid={expiryError ? 'true' : undefined} />
+                  <Input name="expiry" placeholder="12/30" autocomplete="cc-exp" value={values.expiry ?? ''} required aria-invalid={expiryError ? 'true' : undefined} />
                   {expiryError && <span class="text-sm font-normal text-destructive">{expiryError}</span>}
                 </label>
                 <label class="grid content-start gap-1.5 text-sm font-semibold">
                   CVC
-                  <Input name="cvc" inputMode="numeric" autoComplete="cc-csc" maxLength={4} required aria-invalid={fieldErrors.cvc ? 'true' : undefined} />
+                  <Input name="cvc" inputmode="numeric" autocomplete="cc-csc" maxlength={4} required aria-invalid={fieldErrors.cvc ? 'true' : undefined} />
                   {fieldErrors.cvc && <span class="text-sm font-normal text-destructive">{fieldErrors.cvc}</span>}
                 </label>
               </fieldset>
 
-              <button type="submit" class={cn(buttonVariants({ variant: 'signal', size: 'lg' }), 'w-full sm:w-auto sm:justify-self-start')}>
+              <button type="submit" class={cn(ButtonVariants.button({ variant: 'signal', size: 'lg' }), 'w-full sm:w-auto sm:justify-self-start')}>
                 Pay {formatMoney(cart.total)}
               </button>
             </form>
@@ -219,7 +219,7 @@ const expiryError = fieldErrors.expiry;
                 <span class="font-semibold">Total</span>
                 <span class="text-2xl font-medium tabular-nums">{formatMoney(cart.total)}</span>
               </p>
-              <a href="/cart" class={cn(buttonVariants({ variant: 'link' }), 'mt-1 px-0')}>
+              <a href="/cart" class={cn(ButtonVariants.button({ variant: 'link' }), 'mt-1 px-0')}>
                 Edit cart
               </a>
             </aside>

@@ -1,12 +1,13 @@
 ---
-import { XIcon } from 'lucide-react';
+import XIcon from '@tabler/icons/outline/x.svg';
 import Layout from '../../layouts/Layout.astro';
-import FacetFilters, { type FacetGroup } from '@/components/FacetFilters';
-import Pager from '@/components/Pager';
-import ProductCard from '@/components/ProductCard';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import FacetFilters from '@/components/FacetFilters.astro';
+import type { FacetGroup } from '@/lib/facets';
+import Pager from '@/components/Pager.astro';
+import ProductCard from '@/components/ProductCard.astro';
+import { Alert, AlertDescription } from '@/components/starwind/alert';
+import { ButtonVariants } from '@/components/starwind/button';
+import { Input } from '@/components/starwind/input';
 import { cn } from '@/lib/utils';
 import { api } from '../../lib/api/client';
 import { log } from '../../lib/log';
@@ -97,15 +98,15 @@ const filtered = Boolean(category || brand || minRating || inStock);
 
   <form action="/shop" method="get" role="search" class="flex max-w-xl gap-2">
     <label for="shop-search" class="sr-only">Search products</label>
-    <Input id="shop-search" type="search" name="q" value={q} placeholder="Search products, brands, specs" className="flex-1" />
-    <button type="submit" class={cn(buttonVariants())}>Search</button>
+    <Input id="shop-search" type="search" name="q" value={q} placeholder="Search products, brands, specs" class="flex-1" />
+    <button type="submit" class={cn(ButtonVariants.button())}>Search</button>
     {category && <input type="hidden" name="category" value={category} />}
     {brand && <input type="hidden" name="brand" value={brand} />}
   </form>
 
   {
     !result ? (
-      <Alert variant="destructive" className="mt-8">
+      <Alert variant="destructive" class="mt-8">
         <AlertDescription>The shop is temporarily unavailable. Please try again shortly.</AlertDescription>
       </Alert>
     ) : (
@@ -122,7 +123,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
               {filtered && (
                 <a
                   href={shopHref({ category: null, brand: null, rating: null, stock: null, page: 1 })}
-                  class={cn(buttonVariants({ variant: 'outline', size: 'xs' }))}
+                  class={cn(ButtonVariants.button({ variant: 'outline', size: 'xs' }))}
                 >
                   <XIcon aria-hidden="true" /> Clear filters
                 </a>
@@ -134,7 +135,7 @@ const filtered = Boolean(category || brand || minRating || inStock);
                   href={shopHref({ sort: value, page: 1 })}
                   aria-current={sort === value ? 'true' : undefined}
                   class={cn(
-                    buttonVariants({ variant: 'ghost', size: 'sm' }),
+                    ButtonVariants.button({ variant: 'ghost', size: 'sm' }),
                     'h-10 sm:h-8',
                     sort === value ? 'bg-muted text-foreground hover:bg-muted' : 'text-muted-foreground',
                   )}

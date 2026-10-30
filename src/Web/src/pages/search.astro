@@ -1,13 +1,14 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { XIcon } from 'lucide-react';
-import FacetFilters, { type FacetGroup } from '@/components/FacetFilters';
-import Pager from '@/components/Pager';
-import SearchHitCard from '@/components/SearchHitCard';
+import XIcon from '@tabler/icons/outline/x.svg';
+import FacetFilters from '@/components/FacetFilters.astro';
+import type { FacetGroup } from '@/lib/facets';
+import Pager from '@/components/Pager.astro';
+import SearchHitCard from '@/components/SearchHitCard.astro';
 import SearchInput from '../components/SearchInput.astro';
-import TagList from '@/components/TagList';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button, buttonVariants } from '@/components/ui/button';
+import TagList from '@/components/TagList.astro';
+import { Alert, AlertDescription } from '@/components/starwind/alert';
+import { Button, ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import { api, type SearchResult } from '../lib/api/client';
 import { contentTypeLabel, tagHref } from '../lib/format';
@@ -96,7 +97,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
 
     {
       error && (
-        <Alert variant="destructive" className="mt-6">
+        <Alert variant="destructive" class="mt-6">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )
@@ -106,7 +107,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
       !q && topics.length > 0 && (
         <section class="mt-10">
           <h2 class="border-t border-border pt-3 text-xl font-medium">Browse by topic</h2>
-          <TagList tags={topics} className="mt-4" />
+          <TagList tags={topics} class="mt-4" />
         </section>
       )
     }
@@ -137,7 +138,7 @@ const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize
             {filtered && (
               <a
                 href={searchHref({ tag: null, contentType: null })}
-                class={cn(buttonVariants({ variant: 'outline', size: 'xs' }))}
+                class={cn(ButtonVariants.button({ variant: 'outline', size: 'xs' }))}
               >
                 <XIcon aria-hidden="true" /> Clear filters
               </a>

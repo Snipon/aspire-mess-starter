@@ -1,7 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import StatusPanel, { type Row, type State } from '@/components/StatusPanel';
-import { buttonVariants } from '@/components/ui/button';
+import StatusPanel from '@/components/StatusPanel.astro';
+import type { Row, State } from '@/lib/status';
+import { ButtonVariants } from '@/components/starwind/button';
 import { cn } from '@/lib/utils';
 import { getStatus } from '../lib/api/client';
 
@@ -40,7 +41,7 @@ const checkedAt = report ? new Date(report.checkedAt) : renderedAt;
 
     <p class="mt-4 text-sm text-muted-foreground">
       Last checked <time datetime={checkedAt.toISOString()}>{timeFormat.format(checkedAt)} UTC</time>.
-      <a href="/status" class={cn(buttonVariants({ variant: 'link' }), 'h-auto px-1')}>Refresh</a>
+      <a href="/status" class={cn(ButtonVariants.button({ variant: 'link' }), 'h-auto px-1')}>Refresh</a>
     </p>
   </div>
 </Layout>

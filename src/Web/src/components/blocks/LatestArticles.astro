@@ -1,7 +1,7 @@
 ---
 import { Swiper, SwiperButtonNext, SwiperButtonPrev, SwiperPagination, SwiperSlide, SwiperWrapper } from 'astro-swiper';
-import ArticleCard from '@/components/ArticleCard';
-import { buttonVariants } from '@/components/ui/button';
+import ArticleCard from '@/components/ArticleCard.astro';
+import { ButtonVariants } from '@/components/starwind/button';
 import type { Block } from '../../lib/api/client';
 import { tagHref } from '../../lib/format';
 
@@ -22,7 +22,7 @@ const tag = posts ? null : block.tag;
     <h2 class="text-3xl font-medium sm:text-4xl">{heading}</h2>
     {
       tag && (
-        <a href={tagHref(tag)} class={buttonVariants({ variant: 'link' })}>
+        <a href={tagHref(tag)} class={ButtonVariants.button({ variant: 'link' })}>
           All “{tag}” articles
         </a>
       )
