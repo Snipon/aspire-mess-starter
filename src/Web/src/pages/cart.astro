@@ -46,7 +46,7 @@ const errorCode = Astro.url.searchParams.get('error');
 const message = errorCode ? (cartErrors[errorCode] ?? 'That did not work. Please try again.') : undefined;
 ---
 
-<Layout title="Cart">
+<Layout title="Cart" noindex>
   <h1 class="page-title">Cart</h1>
 
   {

@@ -35,7 +35,7 @@ const stats = product
 
 {
   product ? (
-    <Layout title={`${product.title} – Shop`} description={product.summary} sku={product.sku}>
+    <Layout title={`${product.title} – Shop`} description={product.summary} sku={product.sku} image={product.image}>
       <nav aria-label="Breadcrumb">
         <a href="/shop" class="back-link">
           Shop
@@ -129,7 +129,7 @@ const stats = product
       </div>
     </Layout>
   ) : (
-    <Layout title="Product not found">
+    <Layout title="Product not found" noindex>
       <NotFound />
     </Layout>
   )

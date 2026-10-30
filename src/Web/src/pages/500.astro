@@ -9,7 +9,7 @@ interface Props {
 log.error('Unhandled error while rendering a page', Astro.props.error);
 ---
 
-<Layout title="Something went wrong">
+<Layout title="Something went wrong" noindex>
   <section class="py-6 sm:py-12">
     <p class="text-[clamp(4rem,12vw,8rem)] leading-none font-normal text-muted-foreground tabular-nums">500</p>
     <h1 class="mt-8 border-t border-border pt-4 text-4xl font-medium sm:text-5xl">Something went wrong</h1>

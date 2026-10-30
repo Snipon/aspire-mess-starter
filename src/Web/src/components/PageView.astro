@@ -19,8 +19,14 @@ const hero = page.blocks.find((block) => block.type === 'hero');
 const description = page.summary ?? hero?.subheading;
 ---
 
-<Layout title={page.title} description={description} cmsId={page.id}>
-  {noindex && <meta slot="head" name="robots" content="noindex" />}
+<Layout
+  title={page.title}
+  description={description}
+  cmsId={page.id}
+  image={page.image ?? hero?.image}
+  type={page.article || page.blogPost ? 'article' : 'website'}
+  {noindex}
+>
   {banner && <p role="status" class="mb-8 bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">{banner}</p>}
   {
     page.article || page.blogPost ? (

@@ -51,7 +51,7 @@ const pageHref = (n: number) => (n === 1 ? tagHref(tag) : `${tagHref(tag)}?page=
       <Pager page={result.page} totalPages={totalPages} href={pageHref} />
     </Layout>
   ) : (
-    <Layout title="Page not found">
+    <Layout title="Page not found" noindex>
       <NotFound />
     </Layout>
   )

@@ -88,7 +88,7 @@ const field = (name: string, label: string, attrs: Record<string, string | boole
 const expiryError = fieldErrors.expiry;
 ---
 
-<Layout title={receipt ? 'Order placed' : 'Checkout'}>
+<Layout title={receipt ? 'Order placed' : 'Checkout'} noindex>
   {
     receipt ? (
       <section class="mx-auto max-w-2xl">

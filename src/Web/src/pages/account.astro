@@ -43,7 +43,7 @@ if (authEnabled()) {
 const totalPages = orders ? Math.ceil(orders.total / orders.pageSize) : 0;
 ---
 
-<Layout title={session ? 'Your account' : 'Not found'}>
+<Layout title={session ? 'Your account' : 'Not found'} noindex>
   {
     !session ? (
       <NotFound />
