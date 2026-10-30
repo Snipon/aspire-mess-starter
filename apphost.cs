@@ -91,8 +91,10 @@ var keycloak = builder.AddKeycloak("keycloak", port: 8080)
     .WithEnvironment("KC_HOSTNAME", KeycloakUrl) // tokens carry this issuer, also when containers call keycloak:8080
     .WithEnvironment("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
     // Every local app sets cookies on "localhost" (cookies ignore the port), and browsers send them all to Keycloak;
-    // Quarkus' default 8 KB header limit then answers sign-ins with 431. Local only: Azure signs in with Entra ID.
+    // Quarkus' default 8 KB header limits (HTTP/1.1 and, over HTTPS, HTTP/2) then answer sign-ins with 431. Local
+    // only: Azure signs in with Entra ID.
     .WithEnvironment("QUARKUS_HTTP_LIMITS_MAX_HEADER_SIZE", "64K")
+    .WithEnvironment("QUARKUS_HTTP_LIMITS_MAX_HEADER_LIST_SIZE", "65536")
     .WithEnvironment("STAFF_ADMIN_EMAIL", adminEmail)
     .WithEnvironment("STAFF_ADMIN_PASSWORD", idpAdminPassword)
     .WithEnvironment("CMS_OIDC_SECRET", cmsOidcSecret)
