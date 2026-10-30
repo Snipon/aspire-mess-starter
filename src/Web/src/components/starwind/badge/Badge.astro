@@ -1,0 +1,15 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import type { VariantProps } from "tailwind-variants";
+
+import { badge } from "./variants";
+
+type Props = HTMLAttributes<"span"> & Omit<HTMLAttributes<"a">, "type"> & VariantProps<typeof badge>;
+
+const { variant = "default", class: className, ...rest } = Astro.props;
+const Tag = rest.href ? "a" : "span";
+---
+
+<Tag class={badge({ variant, class: className })} {...rest} data-slot="badge" data-variant={variant}>
+  <slot />
+</Tag>

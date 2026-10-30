@@ -1,0 +1,9 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"li">;
+---
+
+<li {...Astro.props} data-slot="pagination-item">
+  <slot />
+</li>

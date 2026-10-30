@@ -1,0 +1,15 @@
+---
+import type { ComponentProps } from "astro/types";
+import ChevronRight from "@tabler/icons/outline/chevron-right.svg";
+
+import PaginationLink from "./PaginationLink.astro";
+
+type Props = Omit<ComponentProps<typeof PaginationLink>, "size"> & { text?: string };
+
+const { text = "Next", class: className, ...rest } = Astro.props;
+---
+
+<PaginationLink aria-label="Go to next page" size="default" class:list={["max-sm:p-0! sm:pr-1.5!", className]} {...rest}>
+  <span class="hidden sm:block">{text}</span>
+  <ChevronRight data-icon="inline-end" />
+</PaginationLink>
