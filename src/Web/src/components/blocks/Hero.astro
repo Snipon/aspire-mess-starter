@@ -57,7 +57,16 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
       </video>
     )
   }
-  {media && <div class="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/10" aria-hidden="true" />}
+  {/* Darkest behind the text (bottom-up on phones, where it spans the width; from the left from sm), so white text
+      stays readable over bright media. */}
+  {
+    media && (
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/65 to-black/35 sm:bg-gradient-to-r sm:from-black/80 sm:via-black/60 sm:via-55% sm:to-black/20"
+        aria-hidden="true"
+      />
+    )
+  }
   <div class={cn('relative mx-auto w-full max-w-6xl px-4 sm:px-6', media ? 'py-14 text-white sm:py-20' : 'pb-14 sm:pb-20')}>
     <div class="max-w-3xl">
       <Heading class="text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.08] font-medium text-balance">
