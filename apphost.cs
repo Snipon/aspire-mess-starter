@@ -40,6 +40,7 @@ var webOidcSecret = GeneratedSecret("web-oidc-secret");
 var webStaffOidcSecret = GeneratedSecret("web-staff-oidc-secret");
 var seqProxyCookieSecret = GeneratedSecret("seq-proxy-cookie-secret"); // oauth2-proxy: 16, 24 or 32 bytes
 var webSessionSecret = GeneratedSecret("web-session-secret");
+var previewApiKey = GeneratedSecret("preview-api-key"); // the web's key for draft content (staff preview)
 
 // Demo articles, blog posts, images and 2000 products, seeded on first start (CMS ContentSeeder, Drupal entrypoint).
 // `dotnet new` sets this from --demo; core code works with an empty CMS and catalog.
@@ -178,6 +179,7 @@ var api = builder.AddProject<Projects.Api>("api")
     .WithEnvironment("Umbraco__HmacSecretKey", hmacSecret)
     .WithEnvironment("Webhooks__Secret", webhookSecret)
     .WithEnvironment("Search__ReindexSecret", reindexSecret)
+    .WithEnvironment("Preview__ApiKey", previewApiKey)
     .WithEnvironment("CustomerAuth__Authority", ShopIssuer) // customer access tokens from the web
     .WithEnvironment("CustomerAuth__Audience", "shop-api")
     .WithHttpHealthCheck("/health")
@@ -229,6 +231,7 @@ var web = builder.AddJavaScriptApp("web", "./src/Web", "dev")
     .WithEnvironment("OIDC_CLIENT_ID", "web")
     .WithEnvironment("OIDC_CLIENT_SECRET", webOidcSecret)
     .WithEnvironment("SESSION_SECRET", webSessionSecret)
+    .WithEnvironment("PREVIEW_API_KEY", previewApiKey)
     .WithEnvironment("STAFF_OIDC_AUTHORITY", StaffIssuer)
     .WithEnvironment("STAFF_OIDC_CLIENT_ID", "web-staff")
     .WithEnvironment("STAFF_OIDC_CLIENT_SECRET", webStaffOidcSecret)
@@ -253,6 +256,9 @@ var webCache = builder.AddContainer("web-cache", "nginx", "1.29-alpine")
 
 // The web builds its sign-in redirect URIs on the public entry point (web-cache), not on its own port.
 web.WithEnvironment("SITE_URL", webCache.GetEndpoint("http"));
+
+// "Preview on website" in the backoffice opens drafts on the website's staff preview (/preview/{key}).
+cms.WithEnvironment("Preview__WebUrl", webCache.GetEndpoint("http"));
 
 // The API purges the whole web cache after each content webhook (publish, unpublish, ...), once the search index is
 // updated (endpoint reference only, no startup dependency).

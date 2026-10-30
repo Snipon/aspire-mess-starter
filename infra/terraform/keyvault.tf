@@ -114,6 +114,12 @@ moved {
   to   = random_password.web_session
 }
 
+# The web's key for draft content on the API (staff preview).
+resource "random_password" "preview_api_key" {
+  length  = 40
+  special = false
+}
+
 locals {
   secrets = {
     "delivery-api-key"                = random_password.delivery_api_key.result
@@ -135,6 +141,7 @@ locals {
     "seq-proxy-cookie-secret" = random_password.seq_proxy_cookie.result
     "web-staff-oidc-secret"   = azuread_application_password.staff["web"].value
     "web-session-secret"      = random_password.web_session.result
+    "preview-api-key"         = random_password.preview_api_key.result
     "web-oidc-secret"         = one(azuread_application_password.web[*].value)
   }
   customer_secrets = ["web-oidc-secret"]
