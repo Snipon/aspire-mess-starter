@@ -35,6 +35,11 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
             ? GetItemAsync($"{ContentApi}/item/{key:D}?{ItemExpand}", culture, ct)
             : Task.FromResult<Page?>(null);
 
+    public Task<Page?> GetPreviewByIdAsync(string id, string? culture, CancellationToken ct) =>
+        Guid.TryParse(id, out var key)
+            ? GetItemAsync($"{ContentApi}/item/{key:D}?{ItemExpand}", culture, ct, preview: true)
+            : Task.FromResult<Page?>(null);
+
     public async Task<NavItem[]> GetNavigationAsync(string? culture, CancellationToken ct)
     {
         var nodes = new List<NavNode>();
@@ -109,9 +114,9 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
     private static string ArticlesFilter(string? tag) =>
         $"filter=contentType:{DeliveryApiMapper.ArticleType}" + (tag is null ? null : $"&filter=tag:{Uri.EscapeDataString(tag)}");
 
-    private async Task<Page?> GetItemAsync(string uri, string? culture, CancellationToken ct)
+    private async Task<Page?> GetItemAsync(string uri, string? culture, CancellationToken ct, bool preview = false)
     {
-        using var request = CreateRequest(uri, culture);
+        using var request = CreateRequest(uri, culture, preview);
         using var response = await http.SendAsync(request, ct);
         if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MovedPermanently)
         {
@@ -164,9 +169,15 @@ public sealed class UmbracoContentSource(HttpClient http, DeliveryApiMapper mapp
             ?? throw new InvalidOperationException($"The Delivery API returned no {typeof(T).Name}.");
     }
 
-    private static HttpRequestMessage CreateRequest(string uri, string? culture)
+    private static HttpRequestMessage CreateRequest(string uri, string? culture, bool preview = false)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        if (preview)
+        {
+            // Draft content; the Api-Key header grants it. Blocks' follow-up queries stay published.
+            request.Headers.Add("Preview", "true");
+        }
+
         if (!string.IsNullOrWhiteSpace(culture) && !request.Headers.AcceptLanguage.TryParseAdd(culture))
         {
             throw new ArgumentException($"Invalid culture '{culture}'.", nameof(culture));

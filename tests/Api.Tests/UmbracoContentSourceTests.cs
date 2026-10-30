@@ -75,11 +75,43 @@ public sealed class UmbracoContentSourceTests
             Assert.Single(_handler.Requests));
     }
 
+    [Fact]
+    public async Task Preview_requests_the_draft_by_key()
+    {
+        _handler.Respond("delivery/article.json");
+
+        var page = await _source.GetPreviewByIdAsync("c8a2d1e0-f315-4c2a-8616-f67e181cd240", culture: null, Ct);
+
+        Assert.Equal("/umbraco/delivery/api/v2/content/item/c8a2d1e0-f315-4c2a-8616-f67e181cd240?expand=properties[relatedArticle]",
+            Assert.Single(_handler.Requests));
+        Assert.Equal("true", Assert.Single(_handler.PreviewHeaders));
+        Assert.NotNull(page);
+    }
+
+    [Fact]
+    public async Task Published_lookup_does_not_ask_for_drafts()
+    {
+        _handler.Respond("delivery/article.json");
+
+        await _source.GetByIdAsync("c8a2d1e0-f315-4c2a-8616-f67e181cd240", culture: null, Ct);
+
+        Assert.Null(Assert.Single(_handler.PreviewHeaders));
+    }
+
+    [Fact]
+    public async Task Preview_of_a_non_guid_id_is_not_found_without_a_request()
+    {
+        Assert.Null(await _source.GetPreviewByIdAsync("not-a-guid", culture: null, Ct));
+        Assert.Empty(_handler.Requests);
+    }
+
     private sealed class FixtureHandler : HttpMessageHandler
     {
         private readonly Queue<string> _responses = new();
 
         public List<string> Requests { get; } = [];
+
+        public List<string?> PreviewHeaders { get; } = [];
 
         public void Respond(string fixture) =>
             _responses.Enqueue(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", fixture)));
@@ -87,6 +119,7 @@ public sealed class UmbracoContentSourceTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests.Add(request.RequestUri!.PathAndQuery);
+            PreviewHeaders.Add(request.Headers.TryGetValues("Preview", out var preview) ? string.Join(",", preview) : null);
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(_responses.Dequeue(), System.Text.Encoding.UTF8, "application/json"),
