@@ -646,7 +646,10 @@ mode is the `.dark` class on `<html>`: the visitor's choice from the header togg
 `prefers-reduced-motion` and mostly CSS: pages cross-fade (cross-document view transitions, the header stays put),
 elements marked `data-reveal` (listing cards, section headings, the CTA, product sections) slide up and fade in when
 they enter the viewport (`lib/reveal.ts` triggers it; staggered along each row in grids marked `data-stagger`; without
-JavaScript they are simply shown), the hero's media drifts and its copy fades as it scrolls away, articles get a
+JavaScript they are simply shown), the hero's media drifts and its copy fades as it scrolls away, the edges of
+`data-seam` blocks (a hero with media, the CTA) are combed into the page like marbling as they come up the screen
+(`lib/seams.ts`, a WebGL 2 port of Codrops' [Seam Transitions](https://github.com/codrops/SeamTransitions) "Marble";
+it reads the hero's image, so the CMS sends CORS on `/media`), articles get a
 reading progress bar, card images ease in on hover and the theme toggle cross-fades. The sticky header turns to glass
 once the page scrolls under it, hides while scrolling down and returns on scroll up (never while it holds focus or the
 pointer). Style links as buttons or badges with `ButtonVariants.button({ … })` / `BadgeVariants.badge({ … })`. Icons

@@ -27,6 +27,7 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
 */}
 <section
   data-hero
+  data-seam={media || undefined}
   class={cn(
     'relative mx-[calc(50%-50vw)] flex w-screen items-end overflow-clip',
     first && media && '-mt-34 sm:-mt-55',
@@ -70,7 +71,7 @@ const poster = block.image ? imageAttributes(block.image, '100vw').src : undefin
       />
     )
   }
-  <div class={cn('relative mx-auto w-full max-w-987 px-13 sm:px-21', media ? 'py-55 text-white sm:py-89' : 'pb-55 sm:pb-89')}>
+  <div data-seam-content class={cn('relative mx-auto w-full max-w-987 px-13 sm:px-21', media ? 'py-55 text-white sm:py-89' : 'pb-55 sm:pb-89')}>
     <div data-hero-copy class="max-w-610">
       <Heading class="text-[clamp(2.125rem,5.5vw,3.4375rem)] leading-[1.08] font-medium text-balance">
         {block.heading}

@@ -62,6 +62,16 @@ await app.BootUmbracoAsync();
 
 app.MapDefaultEndpoints();
 
+// Media is public; the web reads hero images into WebGL (the marbled seams), which needs CORS.
+app.Use((context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/media"))
+    {
+        context.Response.Headers.AccessControlAllowOrigin = "*";
+    }
+    return next();
+});
+
 app.UseUmbraco()
     .WithMiddleware(u => u.UseBackOffice())
     .WithEndpoints(u =>
