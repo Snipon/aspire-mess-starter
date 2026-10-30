@@ -104,7 +104,12 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
       Skip to content
     </a>
     {staffEnabled() && <StaffBar />}
-    <header class="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+    {/* Solid at the top; glass once the page scrolls under it (links switch to the full foreground colour so they stay
+        readable over whatever is blurred behind); hidden while scrolling down, back on scroll up, and never hidden
+        while it holds focus or the pointer (menus). Driven by the script below. */}
+    <header
+      class="group/header sticky top-0 z-10 border-b bg-background transition-[translate,background-color] duration-233 ease-out motion-reduce:transition-none data-hidden:-translate-y-full data-hidden:focus-within:translate-y-0 data-hidden:hover:translate-y-0 data-scrolled:bg-background/75 data-scrolled:backdrop-blur-xl data-scrolled:backdrop-saturate-150"
+    >
       <div class="mx-auto flex max-w-987 flex-wrap items-center gap-x-8 gap-y-0 px-13 sm:gap-x-34 sm:px-21">
         <a href="/" class="flex items-center gap-8 py-13 font-heading text-21 font-medium focus-visible:outline-2 focus-visible:outline-ring">
           <Logo class="h-21 w-34 shrink-0 text-primary" />
@@ -123,7 +128,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
                       'block px-13 py-13 transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground',
                       isActive(item.path)
                         ? 'text-foreground underline decoration-1 underline-offset-8'
-                        : 'text-muted-foreground hover:text-foreground',
+                        : 'text-muted-foreground group-data-scrolled/header:text-foreground hover:text-foreground',
                     )}
                   >
                     {item.name}
@@ -135,7 +140,7 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
         </nav>
         <form action="/search" method="get" role="search" aria-label="Site" class="ml-auto py-13">
           <label for="site-search" class="sr-only">Search</label>
-          <SearchInput id="site-search" value={q} placeholder="Search" class="w-89 sm:w-233" />
+          <SearchInput id="site-search" value={q} placeholder="Search" class="w-89 sm:w-233 dark:bg-card" />
         </form>
         {/* Pages render nothing per visitor: the account state, count and mini cart are fetched in the browser. */}
         {authEnabled() && <AccountMenu active={current === '/account'} />}
@@ -143,6 +148,19 @@ const q = Astro.url.pathname === '/search' ? (Astro.url.searchParams.get('q') ??
         <ThemeToggle />
       </div>
     </header>
+    <script>
+      const header = document.querySelector<HTMLElement>('body > header')!;
+      let last = Math.max(0, scrollY);
+      const update = () => {
+        const y = Math.max(0, scrollY); // iOS overscroll goes negative
+        header.toggleAttribute('data-scrolled', y > 0);
+        if (Math.abs(y - last) < 8) return; // ignore jitter
+        header.toggleAttribute('data-hidden', y > last && y > header.offsetHeight);
+        last = y;
+      };
+      update();
+      addEventListener('scroll', update, { passive: true });
+    </script>
 
     <main id="main" class="mx-auto w-full max-w-987 flex-1 px-13 py-34 sm:px-21 sm:py-55">
       <slot />
