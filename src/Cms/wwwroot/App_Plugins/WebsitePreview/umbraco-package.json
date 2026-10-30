@@ -4,17 +4,20 @@
   "version": "1.0.0",
   "extensions": [
     {
-      "type": "workspaceActionMenuItem",
-      "kind": "previewOption",
-      "alias": "Headless.PreviewOption.Website",
-      "name": "Preview on website",
-      "forWorkspaceActions": "Umb.WorkspaceAction.Document.SaveAndPreview",
-      "weight": 100,
+      "type": "workspaceAction",
+      "kind": "default",
+      "alias": "Headless.WorkspaceAction.Document.SaveAndPreview",
+      "name": "Save and preview on the website",
+      "overwrites": "Umb.WorkspaceAction.Document.SaveAndPreview",
+      "weight": 90,
+      "api": "/App_Plugins/WebsitePreview/save-and-preview.action.js",
       "meta": {
-        "label": "Preview on website",
-        "icon": "icon-globe",
-        "urlProviderAlias": "website"
-      }
+        "label": "#buttons_saveAndPreview"
+      },
+      "conditions": [
+        { "alias": "Umb.Condition.WorkspaceAlias", "match": "Umb.Workspace.Document" },
+        { "alias": "Umb.Condition.EntityIsNotTrashed" }
+      ]
     }
   ]
 }
