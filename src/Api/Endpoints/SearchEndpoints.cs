@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Api.Caching;
 using Api.Contracts;
 using Api.Search;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -25,7 +24,7 @@ public static partial class SearchEndpoints
             .WithName("Reindex")
             .WithSummary("Rebuild the search index from the content source")
             .WithDescription($"Builds a fresh index and swaps it in atomically; search keeps serving the previous contents " +
-                $"until the rebuild has succeeded, then purges the web cache. Requires the `{SharedSecret.ReindexHeader}` header " +
+                $"until the rebuild has succeeded. Requires the `{SharedSecret.ReindexHeader}` header " +
                 $"(`Search:ReindexSecret`).")
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
@@ -37,9 +36,7 @@ public static partial class SearchEndpoints
                 $"Called by the CMS on publish/unpublish/delete/move with `{{ \"id\": \"...\" }}` (or an array of those, as sent " +
                 $"for move and moved-to-recycle-bin). Each item is re-read from the content source and upserted if published, " +
                 $"otherwise removed; when its path changed or it disappeared, the documents indexed below its old path are " +
-                $"re-read as well. Afterwards every page in the web cache is invalidated (`WebCache:PurgeUrl`), so the site " +
-                $"shows the change at once; purging after the index update keeps list pages from being cached with stale results. " +
-                $"Requires the `{SharedSecret.WebhookHeader}` header.")
+                $"re-read as well. Requires the `{SharedSecret.WebhookHeader}` header.")
             .Accepts<ContentWebhookPayload>("application/json")
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
@@ -75,7 +72,7 @@ public static partial class SearchEndpoints
 
     private static async Task<Results<Ok<ReindexResult>, UnauthorizedHttpResult>> Reindex(
         [FromHeader(Name = SharedSecret.ReindexHeader)] string? secret, IConfiguration configuration, SearchIndexer indexer,
-        WebCachePurger webCache, CancellationToken ct)
+        CancellationToken ct)
     {
         if (!SharedSecret.IsValid(secret, configuration["Search:ReindexSecret"]))
         {
@@ -83,13 +80,12 @@ public static partial class SearchEndpoints
         }
 
         var count = await indexer.ReindexAllAsync(ct);
-        await webCache.PurgeAsync(ct);
         return TypedResults.Ok(new ReindexResult(count));
     }
 
     private static async Task<Results<Ok<ContentSyncResult[]>, UnauthorizedHttpResult, BadRequest<ProblemDetails>>> ContentWebhook(
         [FromHeader(Name = SharedSecret.WebhookHeader)] string? secret, IConfiguration configuration, SearchIndexer indexer,
-        WebCachePurger webCache, HttpRequest request, CancellationToken ct)
+        HttpRequest request, CancellationToken ct)
     {
         if (!SharedSecret.IsValid(secret, configuration["Webhooks:Secret"]))
         {
@@ -119,7 +115,6 @@ public static partial class SearchEndpoints
             results.Add(await indexer.SyncAsync(id, ct));
         }
 
-        await webCache.PurgeAsync(ct);
         return TypedResults.Ok(results.ToArray());
     }
 
