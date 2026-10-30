@@ -199,6 +199,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Full-width breakouts (the hero) are 100vw, which includes the scrollbar. */
+    overflow-x: clip;
   }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;

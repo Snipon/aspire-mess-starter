@@ -433,6 +433,7 @@ export interface components {
             subheading: null | string;
             image: null | components["schemas"]["Image"];
             cta: null | components["schemas"]["Link"];
+            video: null | components["schemas"]["Video"];
         };
         BlockLatestArticlesBlock: {
             /**
@@ -769,6 +770,10 @@ export interface components {
         UpdateCartItem: {
             /** Format: int32 */
             quantity: number;
+        };
+        Video: {
+            url: string;
+            mimeType: string;
         };
     };
     responses: never;
